@@ -16,32 +16,49 @@ EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'kraken')
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_API_KEY', '')
 EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 
-# Trading Pairs to Monitor (Top cryptocurrencies by liquidity)
-# Kraken uses USDT for most pairs (alta liquidez similar a Binance)
+# Trading Pairs to Monitor - HIGH VOLATILITY CONFIGURATION
+# Maximizar señales flash con pares de alta volatilidad
 TRADING_PAIRS = [
-    # Top cryptos más líquidas (formato Kraken con USDT)
-    'BTC/USDT',    # Bitcoin - Mayor liquidez en Kraken
-    'ETH/USDT',    # Ethereum - Segunda mayor liquidez
-    'XRP/USDT',    # Ripple
-    'SOL/USDT',    # Solana
-    'ADA/USDT',    # Cardano
-    'DOGE/USDT',   # Dogecoin
-    'AVAX/USDT',   # Avalanche
-    'DOT/USDT',    # Polkadot
-    'LTC/USDT',    # Litecoin
-    'LINK/USDT',   # Chainlink
-    'UNI/USDT',    # Uniswap (reemplazo de MATIC)
+    # Anchors (referencia de mercado)
+    'BTC/USDT',    # Bitcoin - Referencia
+    'ETH/USDT',    # Ethereum - Referencia
+
+    # High Volatility Layer 1s (Movimientos grandes)
+    'SOL/USDT',    # Solana - Muy volátil, swings grandes
+    'AVAX/USDT',   # Avalanche - Alta volatilidad
+    'ATOM/USDT',   # Cosmos - Movimientos fuertes
+    'NEAR/USDT',   # NEAR Protocol - Swings significativos
+    'FTM/USDT',    # Fantom - DeFi volatility
+    'ALGO/USDT',   # Algorand - Movimientos rápidos
+
+    # Meme Coins (MÁXIMA volatilidad - MUCHAS señales)
+    'DOGE/USDT',   # Dogecoin - Meme king
+    'SHIB/USDT',   # Shiba Inu - Volatilidad extrema
+
+    # DeFi Tokens (Alta volatilidad intraday)
+    'AAVE/USDT',   # Lending protocol - Swings grandes
+    'UNI/USDT',    # Uniswap DEX - Muy activo
+    'CRV/USDT',    # Curve Finance - Alta volatilidad
+    'LINK/USDT',   # Chainlink - Movimientos significativos
+
+    # Gaming/Metaverse (Volatilidad por noticias)
+    'SAND/USDT',   # The Sandbox - Gaming volatility
+    'MANA/USDT',   # Decentraland - Metaverse swings
+
+    # Additional High-Volatility
+    'DOT/USDT',    # Polkadot - Swings considerables
+    'ADA/USDT',    # Cardano - Movimientos frecuentes
 ]
 
 # Analysis Configuration
-CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 180))  # 3 minutes default (más frecuente)
+CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 120))  # 2 minutes (más frecuente para experimentar)
 TIMEFRAME = '1h'  # Candlestick timeframe for conservative signals
 FLASH_TIMEFRAME = '15m'  # Timeframe for flash signals (risky but faster) - Kraken soporta: 1m, 5m, 15m, 30m, 1h, 4h, 12h, 1d
 
 # Signal Types Configuration
 ENABLE_FLASH_SIGNALS = os.getenv('ENABLE_FLASH_SIGNALS', 'true').lower() == 'true'
 CONSERVATIVE_THRESHOLD = 7.0  # Score threshold for conservative signals (1h/4h/1d)
-FLASH_THRESHOLD = 4.0  # Lower threshold for flash signals (10m) - more risky
+FLASH_THRESHOLD = 3.5  # Lower threshold for flash signals (15m) - EXPERIMENTAL: más señales
 
 # Daily Report Configuration
 DAILY_REPORT_HOUR = 21  # 9 PM

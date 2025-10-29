@@ -1,6 +1,6 @@
 """
-Flash Signal Analyzer - 10 minute timeframe for quick opportunities
-Lower threshold, marked as RISKY operations
+Flash Signal Analyzer - 15 minute timeframe for quick opportunities
+Lower threshold (3.5+ points), marked as RISKY operations
 """
 import pandas as pd
 import numpy as np
@@ -24,11 +24,12 @@ class FlashSignalAnalyzer:
     def __init__(self):
         self.rsi_oversold = config.RSI_OVERSOLD
         self.rsi_overbought = config.RSI_OVERBOUGHT
+        self.flash_threshold = config.FLASH_THRESHOLD  # Dynamic threshold from config
 
     def analyze_flash(self, df: pd.DataFrame) -> dict:
         """
         Quick analysis on 15-minute timeframe
-        Lower threshold (4+ points instead of 7+)
+        Lower threshold (configurable, default 3.5+ points vs 7+ conservative)
 
         Args:
             df: DataFrame with OHLCV data for 15m timeframe
@@ -105,7 +106,7 @@ class FlashSignalAnalyzer:
 
     def _generate_flash_signals(self, indicators: dict) -> dict:
         """
-        Generate flash signals with lower threshold (4+ points)
+        Generate flash signals with lower threshold (configurable, default 3.5+ points)
         """
         score = 0.0
         reasons = []
@@ -170,12 +171,12 @@ class FlashSignalAnalyzer:
         # Normalize score
         final_score = max(0, min(abs(score), 10))
 
-        # Lower threshold for flash signals: 4+ points
-        if score >= 4:
+        # Lower threshold for flash signals (configurable)
+        if score >= self.flash_threshold:
             action = 'BUY'
             risk_level = 'HIGH'  # Flash signals are always high risk
             confidence = int((final_score / 10) * 100)
-        elif score <= -4:
+        elif score <= -self.flash_threshold:
             action = 'SELL'
             risk_level = 'HIGH'
             confidence = int((final_score / 10) * 100)
@@ -183,7 +184,7 @@ class FlashSignalAnalyzer:
             action = 'HOLD'
             # Keep the real score for visibility (don't force to 0)
             confidence = 0
-            reasons.append(f'Señal flash insuficiente (necesita 4+ puntos, tiene {abs(score):.1f})')  # Show actual score
+            reasons.append(f'Señal flash insuficiente (necesita {self.flash_threshold}+ puntos, tiene {abs(score):.1f})')  # Show actual score
 
         return {
             'action': action,
