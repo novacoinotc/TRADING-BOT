@@ -19,7 +19,7 @@ EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 # Trading Pairs to Monitor (Top cryptocurrencies by liquidity)
 # Kraken uses USDT for most pairs (alta liquidez similar a Binance)
 TRADING_PAIRS = [
-    # Top cryptos más líquidas (formato Kraken - mezcla USDT/USD según disponibilidad)
+    # Top cryptos más líquidas (formato Kraken con USDT)
     'BTC/USDT',    # Bitcoin - Mayor liquidez en Kraken
     'ETH/USDT',    # Ethereum - Segunda mayor liquidez
     'XRP/USDT',    # Ripple
@@ -27,10 +27,10 @@ TRADING_PAIRS = [
     'ADA/USDT',    # Cardano
     'DOGE/USDT',   # Dogecoin
     'AVAX/USDT',   # Avalanche
-    'MATIC/USDT',  # Polygon
     'DOT/USDT',    # Polkadot
     'LTC/USDT',    # Litecoin
-    'LINK/USDT',   # Chainlink (alta liquidez)
+    'LINK/USDT',   # Chainlink
+    'UNI/USDT',    # Uniswap (reemplazo de MATIC)
 ]
 
 # Analysis Configuration

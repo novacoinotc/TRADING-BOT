@@ -181,9 +181,9 @@ class FlashSignalAnalyzer:
             confidence = int((final_score / 10) * 100)
         else:
             action = 'HOLD'
-            final_score = 0
+            # Keep the real score for visibility (don't force to 0)
             confidence = 0
-            reasons = [f'Señal flash insuficiente (necesita 4+ puntos, tiene {abs(score):.1f})']
+            reasons.append(f'Señal flash insuficiente (necesita 4+ puntos, tiene {abs(score):.1f})')  # Show actual score
 
         return {
             'action': action,
