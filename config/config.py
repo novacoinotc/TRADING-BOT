@@ -12,17 +12,16 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 # Exchange Configuration
-EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'binance')
+EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'kraken')
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_API_KEY', '')
 EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 
-# Trading Pairs to Monitor (Top cryptocurrencies by liquidity on Binance)
-# Binance uses USDT as quote currency (most liquid pairs)
+# Trading Pairs to Monitor (Top cryptocurrencies by liquidity)
+# Kraken uses USDT for most pairs (alta liquidez similar a Binance)
 TRADING_PAIRS = [
-    # Top 10+ cryptos más líquidas (formato Binance - USDT pairs)
-    'BTC/USDT',    # Bitcoin - Mayor liquidez
+    # Top cryptos más líquidas (formato Kraken - mezcla USDT/USD según disponibilidad)
+    'BTC/USDT',    # Bitcoin - Mayor liquidez en Kraken
     'ETH/USDT',    # Ethereum - Segunda mayor liquidez
-    'BNB/USDT',    # Binance Coin - Token nativo
     'XRP/USDT',    # Ripple
     'SOL/USDT',    # Solana
     'ADA/USDT',    # Cardano
@@ -31,6 +30,7 @@ TRADING_PAIRS = [
     'MATIC/USDT',  # Polygon
     'DOT/USDT',    # Polkadot
     'LTC/USDT',    # Litecoin
+    'LINK/USDT',   # Chainlink (alta liquidez)
 ]
 
 # Analysis Configuration
