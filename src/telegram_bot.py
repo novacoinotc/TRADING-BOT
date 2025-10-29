@@ -97,7 +97,7 @@ class TelegramNotifier:
 
     def _format_signal_message(self, pair: str, indicators: dict, signals: dict) -> str:
         """
-        Format trading signal as HTML message
+        Format advanced trading signal as HTML message
 
         Args:
             pair: Trading pair
@@ -111,34 +111,117 @@ class TelegramNotifier:
         if signals['action'] == 'BUY':
             emoji = '🟢'
             action_text = '<b>COMPRAR</b>'
+            entry_label = 'Entrada sugerida'
         elif signals['action'] == 'SELL':
             emoji = '🔴'
             action_text = '<b>VENDER</b>'
+            entry_label = 'Entrada sugerida'
         else:
             emoji = '⚪'
             action_text = 'MANTENER'
+            entry_label = 'Precio'
 
-        # Build message
-        message = f"{emoji} <b>SEÑAL DE TRADING</b> {emoji}\n\n"
+        # Header with score
+        message = f"{emoji} <b>SEÑAL DE TRADING FUERTE</b> {emoji}\n\n"
         message += f"<b>Par:</b> {pair}\n"
         message += f"<b>Acción:</b> {action_text}\n"
-        message += f"<b>Fuerza:</b> {'⭐' * signals['strength']}\n\n"
 
-        message += f"💰 <b>Precio:</b> ${indicators['current_price']:,.2f}\n\n"
+        # Quality score
+        score = signals.get('score', 0)
+        max_score = signals.get('max_score', 10)
+        message += f"💎 <b>Calidad:</b> {score:.1f}/{max_score} "
 
-        message += "📊 <b>Indicadores:</b>\n"
-        message += f"• RSI: {indicators['rsi']:.2f}\n"
-        message += f"• MACD: {indicators['macd']:.4f}\n"
-        message += f"• MACD Señal: {indicators['macd_signal']:.4f}\n"
-        message += f"• EMA(9): ${indicators['ema_short']:,.2f}\n"
-        message += f"• EMA(21): ${indicators['ema_medium']:,.2f}\n"
-        message += f"• EMA(50): ${indicators['ema_long']:,.2f}\n\n"
+        if score >= 9:
+            message += "(EXCEPCIONAL)\n"
+        elif score >= 8:
+            message += "(MUY ALTA)\n"
+        elif score >= 7:
+            message += "(ALTA)\n"
 
+        message += f"<b>Fuerza:</b> {'⭐' * signals.get('strength', 0)}\n\n"
+
+        # Price and entry info
+        current_price = indicators['current_price']
+        message += f"💰 <b>Precio actual:</b> ${current_price:,.2f}\n"
+
+        # Entry range (±0.5%)
+        if signals['action'] != 'HOLD':
+            entry_low = current_price * 0.995
+            entry_high = current_price * 1.005
+            message += f"📍 <b>{entry_label}:</b> ${entry_low:,.2f} - ${entry_high:,.2f}\n\n"
+
+        # Stop Loss and Take Profit
+        if 'stop_loss' in signals and signals['stop_loss']:
+            sl = signals['stop_loss']
+            tp = signals['take_profit']
+            message += f"🎯 <b>Take Profit:</b>\n"
+            message += f"   TP1: ${tp['tp1']:,.2f} ({((tp['tp1']/current_price-1)*100):+.1f}%)\n"
+            message += f"   TP2: ${tp['tp2']:,.2f} ({((tp['tp2']/current_price-1)*100):+.1f}%)\n"
+            message += f"   TP3: ${tp['tp3']:,.2f} ({((tp['tp3']/current_price-1)*100):+.1f}%)\n\n"
+
+            sl_pct = ((sl/current_price-1)*100) if signals['action'] == 'BUY' else ((current_price/sl-1)*100)
+            message += f"🛡️ <b>Stop Loss:</b> ${sl:,.2f} ({sl_pct:+.1f}%)\n"
+            message += f"📊 <b>Ratio R/R:</b> 1:{signals.get('risk_reward', 0)}\n\n"
+
+        # Multi-timeframe analysis
+        mtf_trends = indicators.get('mtf_trends', {})
+        if mtf_trends:
+            message += "📈 <b>Análisis Multi-Timeframe:</b>\n"
+            for tf, trend in mtf_trends.items():
+                if tf != 'alignment':
+                    emoji_trend = '✅' if trend == signals['action'].lower() else '❌' if trend != 'neutral' else '⚪'
+                    message += f"• {tf}: {trend.capitalize()} {emoji_trend}\n"
+            message += "\n"
+
+        # Key indicators
+        message += f"📊 <b>Indicadores ({score:.1f} pts):</b>\n"
+        message += f"• RSI: {indicators['rsi']:.1f}"
+
+        if indicators['rsi'] < 30:
+            message += " (sobreventa fuerte)"
+        elif indicators['rsi'] > 70:
+            message += " (sobrecompra fuerte)"
+        message += "\n"
+
+        message += f"• MACD: "
+        if indicators['macd'] > indicators['macd_signal']:
+            message += "Alcista ✅\n"
+        else:
+            message += "Bajista ❌\n"
+
+        # Volume analysis
+        volume_ratio = indicators.get('volume_ratio', 1)
+        message += f"• Volumen: "
+        if volume_ratio > 1.5:
+            message += f"+{(volume_ratio-1)*100:.0f}% 🔥\n"
+        elif volume_ratio > 1.2:
+            message += f"+{(volume_ratio-1)*100:.0f}% ✅\n"
+        else:
+            message += f"{(volume_ratio-1)*100:+.0f}%\n"
+
+        # Divergences
+        divergences = indicators.get('divergences', {})
+        if divergences.get('rsi_divergence'):
+            message += f"• Divergencia: {divergences['rsi_divergence'].capitalize()} 💎\n"
+
+        # Support/Resistance
+        sr = indicators.get('support_resistance', {})
+        if sr:
+            message += f"• Soporte: ${sr.get('nearest_support', 0):,.2f}\n"
+            message += f"• Resistencia: ${sr.get('nearest_resistance', 0):,.2f}\n"
+
+        message += "\n"
+
+        # Reasons
         message += "📈 <b>Razones:</b>\n"
-        for reason in signals['reasons']:
+        for reason in signals.get('reasons', [])[:6]:  # Limit to 6 reasons
             message += f"• {reason}\n"
 
-        message += f"\n⏰ <i>Análisis automático en timeframe {config.TIMEFRAME}</i>"
+        # Risk and confidence
+        message += f"\n⚠️ <b>Riesgo:</b> {signals.get('risk_level', 'MEDIUM')}\n"
+        message += f"💡 <b>Confianza:</b> {signals.get('confidence', 0)}%\n"
+
+        message += f"\n⏰ <i>Análisis multi-timeframe 1h/4h/1d</i>"
 
         return message
 
