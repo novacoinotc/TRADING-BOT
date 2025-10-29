@@ -371,9 +371,9 @@ class AdvancedTechnicalAnalyzer:
             confidence = int((final_score / max_score) * 100)
         else:
             action = 'HOLD'
-            final_score = 0
+            # Keep the real score for visibility (don't force to 0)
             confidence = 0
-            reasons = ['Signal not strong enough (need 7+ points)']
+            reasons.append(f'Signal not strong enough (need 7+ points, has {abs(score):.1f})')  # Show actual score
 
         return {
             'action': action,

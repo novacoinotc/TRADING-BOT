@@ -36,7 +36,7 @@ TRADING_PAIRS = [
 # Analysis Configuration
 CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 180))  # 3 minutes default (más frecuente)
 TIMEFRAME = '1h'  # Candlestick timeframe for conservative signals
-FLASH_TIMEFRAME = '10m'  # Timeframe for flash signals (risky but faster)
+FLASH_TIMEFRAME = '15m'  # Timeframe for flash signals (risky but faster) - Kraken soporta: 1m, 5m, 15m, 30m, 1h, 4h, 12h, 1d
 
 # Signal Types Configuration
 ENABLE_FLASH_SIGNALS = os.getenv('ENABLE_FLASH_SIGNALS', 'true').lower() == 'true'

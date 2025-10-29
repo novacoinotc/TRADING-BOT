@@ -128,7 +128,7 @@ class TelegramNotifier:
         # Header with score
         if is_flash:
             message = f"⚡ <b>SEÑAL FLASH - RIESGOSA</b> ⚡\n"
-            message += f"⚠️ <i>Operación de alto riesgo (10min)</i>\n\n"
+            message += f"⚠️ <i>Operación de alto riesgo ({timeframe})</i>\n\n"
         else:
             message = f"{emoji} <b>SEÑAL DE TRADING FUERTE</b> {emoji}\n\n"
         message += f"<b>Par:</b> {pair}\n"

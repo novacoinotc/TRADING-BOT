@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class FlashSignalAnalyzer:
     """
-    Analyzer for quick 10-minute signals
+    Analyzer for quick 15-minute signals (flash signals)
     Less strict requirements but marked as RISKY
     """
 
@@ -27,11 +27,11 @@ class FlashSignalAnalyzer:
 
     def analyze_flash(self, df: pd.DataFrame) -> dict:
         """
-        Quick analysis on 10-minute timeframe
+        Quick analysis on 15-minute timeframe
         Lower threshold (4+ points instead of 7+)
 
         Args:
-            df: DataFrame with OHLCV data for 10m timeframe
+            df: DataFrame with OHLCV data for 15m timeframe
 
         Returns:
             Flash signal analysis
@@ -99,7 +99,7 @@ class FlashSignalAnalyzer:
         return {
             'indicators': indicators,
             'signals': signals,
-            'timeframe': '10m',
+            'timeframe': config.FLASH_TIMEFRAME,  # Use configured flash timeframe (15m)
             'type': 'FLASH'
         }
 
@@ -194,12 +194,12 @@ class FlashSignalAnalyzer:
             'risk_level': risk_level if action != 'HOLD' else 'LOW',
             'confidence': confidence,
             'signal_type': 'FLASH',
-            'timeframe': '10m'
+            'timeframe': config.FLASH_TIMEFRAME  # Use configured flash timeframe (15m)
         }
 
     def _calculate_flash_sl_tp(self, entry_price: float, action: str, atr: float) -> dict:
         """
-        Calculate tighter stop-loss and take-profit for 10m signals
+        Calculate tighter stop-loss and take-profit for flash signals (15m)
         """
         # Tighter stops for flash trading
         atr_multiplier_sl = 1.5  # 1.5x ATR for stop
