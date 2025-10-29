@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from typing import Optional, Dict
 from config import config
-from src.technical_analysis import TechnicalAnalyzer
+from src.advanced_technical_analysis import AdvancedTechnicalAnalyzer
 from src.telegram_bot import TelegramNotifier
 from src.signal_tracker import SignalTracker
 from src.daily_reporter import DailyReporter
@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 
 class MarketMonitor:
     """
-    Monitors market data and generates trading signals
+    Monitors market data and generates trading signals with advanced analysis
     """
 
     def __init__(self):
         self.exchange_name = config.EXCHANGE_NAME
         self.exchange = self._initialize_exchange()
-        self.analyzer = TechnicalAnalyzer()
+        self.analyzer = AdvancedTechnicalAnalyzer()
 
         # Initialize signal tracker
         self.tracker = SignalTracker() if config.TRACK_SIGNALS else None
@@ -38,6 +38,7 @@ class MarketMonitor:
 
         self.trading_pairs = config.TRADING_PAIRS
         self.timeframe = config.TIMEFRAME
+        self.timeframes = ['1h', '4h', '1d']  # Multi-timeframe analysis
         self.check_interval = config.CHECK_INTERVAL
         self.is_running = False
         self.current_prices = {}  # Store current prices for tracking
@@ -66,21 +67,25 @@ class MarketMonitor:
             logger.error(f"Failed to initialize exchange: {e}")
             raise
 
-    async def fetch_ohlcv(self, pair: str) -> Optional[pd.DataFrame]:
+    async def fetch_ohlcv(self, pair: str, timeframe: str = None) -> Optional[pd.DataFrame]:
         """
         Fetch OHLCV data for a trading pair
 
         Args:
-            pair: Trading pair (e.g., 'BTC/USDT')
+            pair: Trading pair (e.g., 'BTC/USD')
+            timeframe: Timeframe (default: config.TIMEFRAME)
 
         Returns:
             DataFrame with OHLCV data or None
         """
+        if timeframe is None:
+            timeframe = self.timeframe
+
         try:
             # Fetch data
             ohlcv = self.exchange.fetch_ohlcv(
                 pair,
-                timeframe=self.timeframe,
+                timeframe=timeframe,
                 limit=100  # Fetch last 100 candles
             )
 
@@ -104,7 +109,7 @@ class MarketMonitor:
 
     async def analyze_pair(self, pair: str):
         """
-        Analyze a trading pair and send signals if found
+        Analyze a trading pair with multi-timeframe analysis
 
         Args:
             pair: Trading pair to analyze
@@ -112,29 +117,39 @@ class MarketMonitor:
         try:
             logger.info(f"Analyzing {pair}...")
 
-            # Fetch market data
-            df = await self.fetch_ohlcv(pair)
+            # Fetch multi-timeframe data
+            dfs = {}
+            for tf in self.timeframes:
+                df = await self.fetch_ohlcv(pair, tf)
+                if df is not None and len(df) >= 50:
+                    dfs[tf] = df
+                await asyncio.sleep(0.5)  # Small delay between requests
 
-            if df is None or len(df) < 50:
+            if not dfs or '1h' not in dfs:
                 logger.warning(f"Insufficient data for {pair}")
                 return
 
-            # Perform technical analysis
-            analysis = self.analyzer.analyze(df)
+            # Perform advanced multi-timeframe analysis
+            analysis = self.analyzer.analyze_multi_timeframe(dfs)
 
             if analysis:
                 current_price = analysis['indicators']['current_price']
+                signals = analysis['signals']
 
                 # Store current price for tracking
                 self.current_prices[pair] = current_price
 
                 logger.info(
-                    f"{pair}: {analysis['signals']['action']} "
-                    f"(Strength: {analysis['signals']['strength']}) @ ${current_price:.2f}"
+                    f"{pair}: {signals['action']} "
+                    f"(Score: {signals.get('score', 0):.1f}/{signals.get('max_score', 10)}) "
+                    f"@ ${current_price:.2f}"
                 )
 
-                # Send signal via Telegram
-                await self.notifier.send_signal(pair, analysis)
+                # Only send signal if strong enough (score >= 7)
+                if signals['action'] != 'HOLD':
+                    await self.notifier.send_signal(pair, analysis)
+                else:
+                    logger.debug(f"{pair}: No strong signal detected")
 
         except Exception as e:
             logger.error(f"Error analyzing {pair}: {e}")
