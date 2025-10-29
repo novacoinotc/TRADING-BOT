@@ -12,25 +12,24 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 # Exchange Configuration
-EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'binance')
+EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'kraken')
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_API_KEY', '')
 EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 
 # Trading Pairs to Monitor (Top cryptocurrencies by liquidity)
+# Kraken uses different symbols (e.g., BTC/USD instead of BTC/USDT)
 TRADING_PAIRS = [
-    # Top 10 más líquidas
-    'BTC/USDT',    # Bitcoin
-    'ETH/USDT',    # Ethereum
-    'BNB/USDT',    # Binance Coin
-    'XRP/USDT',    # Ripple
-    'SOL/USDT',    # Solana
-    'ADA/USDT',    # Cardano
-    'DOGE/USDT',   # Dogecoin
-    'AVAX/USDT',   # Avalanche
-    'MATIC/USDT',  # Polygon
-    'DOT/USDT',    # Polkadot
-    # Par MXN
-    'MXN/USD',     # Note: Availability depends on exchange
+    # Top cryptos más líquidas (formato Kraken)
+    'BTC/USD',     # Bitcoin
+    'ETH/USD',     # Ethereum
+    'XRP/USD',     # Ripple
+    'SOL/USD',     # Solana
+    'ADA/USD',     # Cardano
+    'DOGE/USD',    # Dogecoin
+    'AVAX/USD',    # Avalanche
+    'MATIC/USD',   # Polygon
+    'DOT/USD',     # Polkadot
+    'LTC/USD',     # Litecoin
 ]
 
 # Analysis Configuration
