@@ -107,6 +107,10 @@ class TelegramNotifier:
         Returns:
             Formatted HTML message
         """
+        # Check if this is a flash signal
+        is_flash = signals.get('signal_type') == 'FLASH'
+        timeframe = signals.get('timeframe', '1h')
+
         # Emoji based on action
         if signals['action'] == 'BUY':
             emoji = '🟢'
@@ -122,7 +126,11 @@ class TelegramNotifier:
             entry_label = 'Precio'
 
         # Header with score
-        message = f"{emoji} <b>SEÑAL DE TRADING FUERTE</b> {emoji}\n\n"
+        if is_flash:
+            message = f"⚡ <b>SEÑAL FLASH - RIESGOSA</b> ⚡\n"
+            message += f"⚠️ <i>Operación de alto riesgo (10min)</i>\n\n"
+        else:
+            message = f"{emoji} <b>SEÑAL DE TRADING FUERTE</b> {emoji}\n\n"
         message += f"<b>Par:</b> {pair}\n"
         message += f"<b>Acción:</b> {action_text}\n"
 
@@ -221,7 +229,11 @@ class TelegramNotifier:
         message += f"\n⚠️ <b>Riesgo:</b> {signals.get('risk_level', 'MEDIUM')}\n"
         message += f"💡 <b>Confianza:</b> {signals.get('confidence', 0)}%\n"
 
-        message += f"\n⏰ <i>Análisis multi-timeframe 1h/4h/1d</i>"
+        # Footer based on signal type
+        if is_flash:
+            message += f"\n⏰ <i>Análisis flash {timeframe} - Operación opcional</i>"
+        else:
+            message += f"\n⏰ <i>Análisis multi-timeframe 1h/4h/1d</i>"
 
         return message
 

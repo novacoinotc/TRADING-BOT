@@ -35,7 +35,13 @@ TRADING_PAIRS = [
 
 # Analysis Configuration
 CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 180))  # 3 minutes default (más frecuente)
-TIMEFRAME = '1h'  # Candlestick timeframe
+TIMEFRAME = '1h'  # Candlestick timeframe for conservative signals
+FLASH_TIMEFRAME = '10m'  # Timeframe for flash signals (risky but faster)
+
+# Signal Types Configuration
+ENABLE_FLASH_SIGNALS = os.getenv('ENABLE_FLASH_SIGNALS', 'true').lower() == 'true'
+CONSERVATIVE_THRESHOLD = 7.0  # Score threshold for conservative signals (1h/4h/1d)
+FLASH_THRESHOLD = 4.0  # Lower threshold for flash signals (10m) - more risky
 
 # Daily Report Configuration
 DAILY_REPORT_HOUR = 21  # 9 PM

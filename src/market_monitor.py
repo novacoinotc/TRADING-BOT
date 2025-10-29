@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Optional, Dict
 from config import config
 from src.advanced_technical_analysis import AdvancedTechnicalAnalyzer
+from src.flash_signal_analyzer import FlashSignalAnalyzer
 from src.telegram_bot import TelegramNotifier
 from src.signal_tracker import SignalTracker
 from src.daily_reporter import DailyReporter
@@ -19,13 +20,18 @@ logger = logging.getLogger(__name__)
 
 class MarketMonitor:
     """
-    Monitors market data and generates trading signals with advanced analysis
+    Monitors market data and generates trading signals with dual system:
+    - Conservative signals (1h/4h/1d multi-timeframe, threshold 7+)
+    - Flash signals (10m, threshold 4+, marked as RISKY)
     """
 
     def __init__(self):
         self.exchange_name = config.EXCHANGE_NAME
         self.exchange = self._initialize_exchange()
-        self.analyzer = AdvancedTechnicalAnalyzer()
+
+        # Dual analyzers
+        self.analyzer = AdvancedTechnicalAnalyzer()  # Conservative
+        self.flash_analyzer = FlashSignalAnalyzer()  # Flash/Risky
 
         # Initialize signal tracker
         self.tracker = SignalTracker() if config.TRACK_SIGNALS else None
@@ -38,10 +44,12 @@ class MarketMonitor:
 
         self.trading_pairs = config.TRADING_PAIRS
         self.timeframe = config.TIMEFRAME
-        self.timeframes = ['1h', '4h', '1d']  # Multi-timeframe analysis
+        self.timeframes = ['1h', '4h', '1d']  # Multi-timeframe for conservative
+        self.flash_timeframe = config.FLASH_TIMEFRAME  # 10m for flash signals
         self.check_interval = config.CHECK_INTERVAL
         self.is_running = False
         self.current_prices = {}  # Store current prices for tracking
+        self.enable_flash = config.ENABLE_FLASH_SIGNALS
 
     def _initialize_exchange(self) -> ccxt.Exchange:
         """
@@ -109,7 +117,9 @@ class MarketMonitor:
 
     async def analyze_pair(self, pair: str):
         """
-        Analyze a trading pair with multi-timeframe analysis
+        Analyze a trading pair with dual system:
+        1. Conservative multi-timeframe analysis (1h/4h/1d)
+        2. Flash signals (10m timeframe) if enabled
 
         Args:
             pair: Trading pair to analyze
@@ -117,7 +127,7 @@ class MarketMonitor:
         try:
             logger.info(f"Analyzing {pair}...")
 
-            # Fetch multi-timeframe data
+            # 1. CONSERVATIVE ANALYSIS - Multi-timeframe
             dfs = {}
             for tf in self.timeframes:
                 df = await self.fetch_ohlcv(pair, tf)
@@ -149,7 +159,31 @@ class MarketMonitor:
                 if signals['action'] != 'HOLD':
                     await self.notifier.send_signal(pair, analysis)
                 else:
-                    logger.debug(f"{pair}: No strong signal detected")
+                    logger.debug(f"{pair}: No strong conservative signal detected")
+
+            # 2. FLASH ANALYSIS - 10 minute timeframe (if enabled)
+            if self.enable_flash:
+                await asyncio.sleep(0.5)  # Small delay
+                flash_df = await self.fetch_ohlcv(pair, self.flash_timeframe)
+
+                if flash_df is not None and len(flash_df) >= 30:
+                    flash_analysis = self.flash_analyzer.analyze_flash(flash_df)
+
+                    if flash_analysis:
+                        flash_signals = flash_analysis['signals']
+                        flash_price = flash_analysis['indicators']['current_price']
+
+                        logger.info(
+                            f"{pair} FLASH: {flash_signals['action']} "
+                            f"(Score: {flash_signals.get('score', 0):.1f}/{flash_signals.get('max_score', 10)}) "
+                            f"@ ${flash_price:.2f}"
+                        )
+
+                        # Send flash signal if threshold met (4+ points)
+                        if flash_signals['action'] != 'HOLD':
+                            await self.notifier.send_signal(pair, flash_analysis)
+                        else:
+                            logger.debug(f"{pair}: No flash signal detected")
 
         except Exception as e:
             logger.error(f"Error analyzing {pair}: {e}")
@@ -166,11 +200,13 @@ class MarketMonitor:
         if len(display_pairs) > 5:
             pairs_display += f" y {len(display_pairs) - 5} más"
 
+        flash_status = "✅ Activas" if self.enable_flash else "❌ Desactivadas"
         await self.notifier.send_status_message(
             "🤖 <b>Bot de Señales Iniciado</b>\n\n"
             f"📊 Monitoreando: {pairs_display}\n"
             f"⏱️ Intervalo: {self.check_interval}s\n"
-            f"📈 Timeframe: {config.TIMEFRAME}\n"
+            f"📈 Timeframe conservador: {config.TIMEFRAME} (1h/4h/1d)\n"
+            f"⚡ Señales flash: {flash_status} ({self.flash_timeframe})\n"
             f"📍 Reporte diario: 9 PM CDMX"
         )
 
