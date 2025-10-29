@@ -12,24 +12,25 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 # Exchange Configuration
-EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'kraken')
+EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'binance')
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_API_KEY', '')
 EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 
-# Trading Pairs to Monitor (Top cryptocurrencies by liquidity)
-# Kraken uses different symbols (e.g., BTC/USD instead of BTC/USDT)
+# Trading Pairs to Monitor (Top cryptocurrencies by liquidity on Binance)
+# Binance uses USDT as quote currency (most liquid pairs)
 TRADING_PAIRS = [
-    # Top cryptos más líquidas (formato Kraken)
-    'BTC/USD',     # Bitcoin
-    'ETH/USD',     # Ethereum
-    'XRP/USD',     # Ripple
-    'SOL/USD',     # Solana
-    'ADA/USD',     # Cardano
-    'DOGE/USD',    # Dogecoin
-    'AVAX/USD',    # Avalanche
-    'MATIC/USD',   # Polygon
-    'DOT/USD',     # Polkadot
-    'LTC/USD',     # Litecoin
+    # Top 10+ cryptos más líquidas (formato Binance - USDT pairs)
+    'BTC/USDT',    # Bitcoin - Mayor liquidez
+    'ETH/USDT',    # Ethereum - Segunda mayor liquidez
+    'BNB/USDT',    # Binance Coin - Token nativo
+    'XRP/USDT',    # Ripple
+    'SOL/USDT',    # Solana
+    'ADA/USDT',    # Cardano
+    'DOGE/USDT',   # Dogecoin
+    'AVAX/USDT',   # Avalanche
+    'MATIC/USDT',  # Polygon
+    'DOT/USDT',    # Polkadot
+    'LTC/USDT',    # Litecoin
 ]
 
 # Analysis Configuration
