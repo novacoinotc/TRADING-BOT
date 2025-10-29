@@ -7,10 +7,12 @@ import pandas as pd
 import asyncio
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict
 from config import config
 from src.technical_analysis import TechnicalAnalyzer
 from src.telegram_bot import TelegramNotifier
+from src.signal_tracker import SignalTracker
+from src.daily_reporter import DailyReporter
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +26,21 @@ class MarketMonitor:
         self.exchange_name = config.EXCHANGE_NAME
         self.exchange = self._initialize_exchange()
         self.analyzer = TechnicalAnalyzer()
-        self.notifier = TelegramNotifier()
+
+        # Initialize signal tracker
+        self.tracker = SignalTracker() if config.TRACK_SIGNALS else None
+
+        # Initialize notifier with tracker
+        self.notifier = TelegramNotifier(tracker=self.tracker)
+
+        # Initialize daily reporter
+        self.reporter = DailyReporter(self.tracker, self.notifier) if self.tracker else None
+
         self.trading_pairs = config.TRADING_PAIRS
         self.timeframe = config.TIMEFRAME
         self.check_interval = config.CHECK_INTERVAL
         self.is_running = False
+        self.current_prices = {}  # Store current prices for tracking
 
     def _initialize_exchange(self) -> ccxt.Exchange:
         """
@@ -111,9 +123,14 @@ class MarketMonitor:
             analysis = self.analyzer.analyze(df)
 
             if analysis:
+                current_price = analysis['indicators']['current_price']
+
+                # Store current price for tracking
+                self.current_prices[pair] = current_price
+
                 logger.info(
                     f"{pair}: {analysis['signals']['action']} "
-                    f"(Strength: {analysis['signals']['strength']})"
+                    f"(Strength: {analysis['signals']['strength']}) @ ${current_price:.2f}"
                 )
 
                 # Send signal via Telegram
@@ -127,11 +144,19 @@ class MarketMonitor:
         Main monitoring loop - continuously analyzes all pairs
         """
         logger.info("Starting market monitor...")
+
+        # Get list of pairs to display (filter out unavailable ones)
+        display_pairs = [p for p in self.trading_pairs if p != 'MXN/USD']
+        pairs_display = ', '.join(display_pairs[:5])
+        if len(display_pairs) > 5:
+            pairs_display += f" y {len(display_pairs) - 5} más"
+
         await self.notifier.send_status_message(
             "🤖 <b>Bot de Señales Iniciado</b>\n\n"
-            f"Monitoreando: {', '.join(self.trading_pairs)}\n"
-            f"Intervalo: {self.check_interval}s\n"
-            f"Timeframe: {self.timeframe}"
+            f"📊 Monitoreando: {pairs_display}\n"
+            f"⏱️ Intervalo: {self.check_interval}s\n"
+            f"📈 Timeframe: {config.TIMEFRAME}\n"
+            f"📍 Reporte diario: 9 PM CDMX"
         )
 
         self.is_running = True
@@ -147,6 +172,14 @@ class MarketMonitor:
                     await self.analyze_pair(pair)
                     # Small delay between pairs to avoid rate limits
                     await asyncio.sleep(2)
+
+                # Update pending signals with current prices
+                if self.tracker:
+                    self.tracker.check_pending_signals(self.current_prices)
+
+                # Check if it's time for daily report
+                if self.reporter:
+                    await self.reporter.check_and_send_report()
 
                 logger.info(f"Waiting {self.check_interval} seconds until next check...")
                 await asyncio.sleep(self.check_interval)

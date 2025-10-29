@@ -16,17 +16,36 @@ EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'binance')
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_API_KEY', '')
 EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 
-# Trading Pairs to Monitor
+# Trading Pairs to Monitor (Top cryptocurrencies by liquidity)
 TRADING_PAIRS = [
-    'BTC/USDT',
-    'ETH/USDT',
-    'XRP/USDT',
-    'MXN/USD',  # Note: Availability depends on exchange
+    # Top 10 más líquidas
+    'BTC/USDT',    # Bitcoin
+    'ETH/USDT',    # Ethereum
+    'BNB/USDT',    # Binance Coin
+    'XRP/USDT',    # Ripple
+    'SOL/USDT',    # Solana
+    'ADA/USDT',    # Cardano
+    'DOGE/USDT',   # Dogecoin
+    'AVAX/USDT',   # Avalanche
+    'MATIC/USDT',  # Polygon
+    'DOT/USDT',    # Polkadot
+    # Par MXN
+    'MXN/USD',     # Note: Availability depends on exchange
 ]
 
 # Analysis Configuration
-CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 300))  # 5 minutes default
+CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 180))  # 3 minutes default (más frecuente)
 TIMEFRAME = '1h'  # Candlestick timeframe
+
+# Daily Report Configuration
+DAILY_REPORT_HOUR = 21  # 9 PM
+DAILY_REPORT_MINUTE = 0
+TIMEZONE = 'America/Mexico_City'  # Hora CDMX
+
+# Signal Tracking (for accuracy calculation)
+TRACK_SIGNALS = True
+TRACKING_FILE = 'logs/signal_tracking.json'
+PROFIT_THRESHOLD = 2.0  # 2% profit to consider signal successful
 
 # Technical Indicators Thresholds
 RSI_OVERSOLD = int(os.getenv('RSI_OVERSOLD', 30))
