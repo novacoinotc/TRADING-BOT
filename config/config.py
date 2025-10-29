@@ -17,7 +17,7 @@ EXCHANGE_API_KEY = os.getenv('EXCHANGE_API_KEY', '')
 EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 
 # Trading Pairs to Monitor - HIGH VOLATILITY CONFIGURATION
-# Maximizar señales flash con pares de alta volatilidad
+# Maximizar señales flash con pares de alta volatilidad (SOLO pares disponibles en Kraken)
 TRADING_PAIRS = [
     # Anchors (referencia de mercado)
     'BTC/USDT',    # Bitcoin - Referencia
@@ -27,27 +27,26 @@ TRADING_PAIRS = [
     'SOL/USDT',    # Solana - Muy volátil, swings grandes
     'AVAX/USDT',   # Avalanche - Alta volatilidad
     'ATOM/USDT',   # Cosmos - Movimientos fuertes
-    'NEAR/USDT',   # NEAR Protocol - Swings significativos
-    'FTM/USDT',    # Fantom - DeFi volatility
+    'DOT/USDT',    # Polkadot - Swings considerables
     'ALGO/USDT',   # Algorand - Movimientos rápidos
+    'ADA/USDT',    # Cardano - Movimientos frecuentes
 
     # Meme Coins (MÁXIMA volatilidad - MUCHAS señales)
     'DOGE/USDT',   # Dogecoin - Meme king
     'SHIB/USDT',   # Shiba Inu - Volatilidad extrema
 
-    # DeFi Tokens (Alta volatilidad intraday)
-    'AAVE/USDT',   # Lending protocol - Swings grandes
-    'UNI/USDT',    # Uniswap DEX - Muy activo
-    'CRV/USDT',    # Curve Finance - Alta volatilidad
+    # Payment/Transfer Coins (Volátiles)
+    'XRP/USDT',    # Ripple - Movimientos explosivos
+    'LTC/USDT',    # Litecoin - Volatilidad intraday
+    'TRX/USDT',    # Tron - Alta volatilidad
+    'XLM/USDT',    # Stellar - Swings frecuentes
+
+    # Oracle/Infrastructure
     'LINK/USDT',   # Chainlink - Movimientos significativos
 
-    # Gaming/Metaverse (Volatilidad por noticias)
-    'SAND/USDT',   # The Sandbox - Gaming volatility
-    'MANA/USDT',   # Decentraland - Metaverse swings
-
-    # Additional High-Volatility
-    'DOT/USDT',    # Polkadot - Swings considerables
-    'ADA/USDT',    # Cardano - Movimientos frecuentes
+    # Alternative Coins (Alta volatilidad)
+    'ETC/USDT',    # Ethereum Classic - Swings grandes
+    'EOS/USDT',    # EOS - Volatilidad
 ]
 
 # Analysis Configuration

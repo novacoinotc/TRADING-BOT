@@ -159,14 +159,16 @@ class FlashSignalAnalyzer:
             score -= 1.5
             reasons.append("Precio sobre banda superior BB")
 
-        # 6. Price momentum
-        bb_position = (current_price - indicators['bb_lower']) / (indicators['bb_upper'] - indicators['bb_lower'])
-        if bb_position < 0.2:
-            score += 1.0
-            reasons.append("Precio en zona de sobreventa (BB)")
-        elif bb_position > 0.8:
-            score -= 1.0
-            reasons.append("Precio en zona de sobrecompra (BB)")
+        # 6. Price momentum (safe BB position calculation)
+        bb_range = indicators['bb_upper'] - indicators['bb_lower']
+        if bb_range > 0:
+            bb_position = (current_price - indicators['bb_lower']) / bb_range
+            if bb_position < 0.2:
+                score += 1.0
+                reasons.append("Precio en zona de sobreventa (BB)")
+            elif bb_position > 0.8:
+                score -= 1.0
+                reasons.append("Precio en zona de sobrecompra (BB)")
 
         # Normalize score
         final_score = max(0, min(abs(score), 10))
@@ -206,15 +208,18 @@ class FlashSignalAnalyzer:
         atr_multiplier_sl = 1.5  # 1.5x ATR for stop
         atr_multiplier_tp1 = 2.0  # 2x ATR for TP1
         atr_multiplier_tp2 = 3.0  # 3x ATR for TP2
+        atr_multiplier_tp3 = 4.0  # 4x ATR for TP3
 
         if action == 'BUY':
             stop_loss = entry_price - (atr * atr_multiplier_sl)
             tp1 = entry_price + (atr * atr_multiplier_tp1)
             tp2 = entry_price + (atr * atr_multiplier_tp2)
+            tp3 = entry_price + (atr * atr_multiplier_tp3)
         else:  # SELL
             stop_loss = entry_price + (atr * atr_multiplier_sl)
             tp1 = entry_price - (atr * atr_multiplier_tp1)
             tp2 = entry_price - (atr * atr_multiplier_tp2)
+            tp3 = entry_price - (atr * atr_multiplier_tp3)
 
         risk = abs(entry_price - stop_loss)
         reward = abs(tp1 - entry_price)
@@ -224,7 +229,8 @@ class FlashSignalAnalyzer:
             'stop_loss': round(stop_loss, 2),
             'take_profit': {
                 'tp1': round(tp1, 2),
-                'tp2': round(tp2, 2)
+                'tp2': round(tp2, 2),
+                'tp3': round(tp3, 2)
             },
             'risk_reward': risk_reward,
             'risk_amount': round(risk, 2),
