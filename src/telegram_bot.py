@@ -16,7 +16,7 @@ class TelegramNotifier:
     Handles Telegram notifications for trading signals
     """
 
-    def __init__(self):
+    def __init__(self, tracker=None):
         if not config.TELEGRAM_BOT_TOKEN:
             raise ValueError("TELEGRAM_BOT_TOKEN not configured")
         if not config.TELEGRAM_CHAT_ID:
@@ -25,6 +25,7 @@ class TelegramNotifier:
         self.bot = Bot(token=config.TELEGRAM_BOT_TOKEN)
         self.chat_id = config.TELEGRAM_CHAT_ID
         self.last_signals = {}  # Avoid duplicate notifications
+        self.tracker = tracker  # Signal tracker for accuracy measurement
 
     async def send_signal(self, pair: str, analysis: dict):
         """
@@ -55,6 +56,16 @@ class TelegramNotifier:
                 parse_mode='HTML'
             )
             logger.info(f"Signal sent for {pair}: {signals['action']}")
+
+            # Track signal for accuracy measurement
+            if self.tracker and config.TRACK_SIGNALS:
+                self.tracker.add_signal(
+                    pair=pair,
+                    action=signals['action'],
+                    price=indicators['current_price'],
+                    indicators=indicators,
+                    reasons=signals['reasons']
+                )
 
             # Update last signal
             self.last_signals[pair] = signals['action']
