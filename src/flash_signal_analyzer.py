@@ -1,6 +1,7 @@
 """
 Flash Signal Analyzer - 15 minute timeframe for quick opportunities
-Lower threshold (3.5+ points), marked as RISKY operations
+Medium threshold: 5.0+ points, 50%+ confidence, MEDIUM risk
+More selective than previous version (3.5+ points, HIGH risk)
 """
 import pandas as pd
 import numpy as np
@@ -24,18 +25,19 @@ class FlashSignalAnalyzer:
     def __init__(self):
         self.rsi_oversold = config.RSI_OVERSOLD
         self.rsi_overbought = config.RSI_OVERBOUGHT
-        self.flash_threshold = config.FLASH_THRESHOLD  # Dynamic threshold from config
+        self.flash_threshold = config.FLASH_THRESHOLD  # Dynamic threshold from config (5.0)
+        self.min_confidence = config.FLASH_MIN_CONFIDENCE  # Minimum confidence (50%)
 
     def analyze_flash(self, df: pd.DataFrame) -> dict:
         """
         Quick analysis on 15-minute timeframe
-        Lower threshold (configurable, default 3.5+ points vs 7+ conservative)
+        Medium threshold: 5.0+ points, 50%+ confidence, MEDIUM risk
 
         Args:
             df: DataFrame with OHLCV data for 15m timeframe
 
         Returns:
-            Flash signal analysis
+            Flash signal analysis (only if score >= 5.0 AND confidence >= 50%)
         """
         if df is None or len(df) < 30:
             return None
@@ -173,20 +175,20 @@ class FlashSignalAnalyzer:
         # Normalize score
         final_score = max(0, min(abs(score), 10))
 
-        # Lower threshold for flash signals (configurable)
-        if score >= self.flash_threshold:
+        # Medium threshold for flash signals (5.0+ points, 50%+ confidence, MEDIUM risk)
+        confidence = int((final_score / 10) * 100)
+
+        if score >= self.flash_threshold and confidence >= self.min_confidence:
             action = 'BUY'
-            risk_level = 'HIGH'  # Flash signals are always high risk
-            confidence = int((final_score / 10) * 100)
-        elif score <= -self.flash_threshold:
+            risk_level = 'MEDIUM'  # Flash signals are medium risk (más selectivas)
+        elif score <= -self.flash_threshold and confidence >= self.min_confidence:
             action = 'SELL'
-            risk_level = 'HIGH'
-            confidence = int((final_score / 10) * 100)
+            risk_level = 'MEDIUM'  # Flash signals are medium risk (más selectivas)
         else:
             action = 'HOLD'
             # Keep the real score for visibility (don't force to 0)
-            confidence = 0
-            reasons.append(f'Señal flash insuficiente (necesita {self.flash_threshold}+ puntos, tiene {abs(score):.1f})')  # Show actual score
+            confidence_status = f", confianza {confidence}%" if confidence > 0 else ""
+            reasons.append(f'Señal flash insuficiente (necesita {self.flash_threshold}+ puntos y {self.min_confidence}%+ confianza, tiene {abs(score):.1f} pts{confidence_status})')
 
         return {
             'action': action,

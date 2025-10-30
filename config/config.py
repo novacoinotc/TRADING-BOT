@@ -25,7 +25,7 @@ PROXY_USERNAME = os.getenv('PROXY_USERNAME', '')
 PROXY_PASSWORD = os.getenv('PROXY_PASSWORD', '')
 
 # Trading Pairs to Monitor - HIGH VOLATILITY BINANCE CONFIGURATION
-# Maximizar señales flash con pares de ALTA LIQUIDEZ de Binance
+# Pares con MAYOR LIQUIDEZ y volatilidad de Binance
 TRADING_PAIRS = [
     # Top Tier - Máxima Liquidez (Anchors)
     'BTC/USDT',    # Bitcoin - $30B+ volumen 24h
@@ -34,39 +34,50 @@ TRADING_PAIRS = [
     # High Volatility Layer 1s (Liquidez Alta)
     'SOL/USDT',    # Solana - $2B+ volumen, muy volátil
     'BNB/USDT',    # Binance Coin - $1B+ volumen
+    'TON/USDT',    # The Open Network (Telegram) - $500M+ volumen, NUEVO TOP
+    'SUI/USDT',    # Sui - $500M+ volumen, Layer 1 emergente
     'AVAX/USDT',   # Avalanche - $500M+ volumen
+    'APT/USDT',    # Aptos - $300M+ volumen, Layer 1
     'DOT/USDT',    # Polkadot - $300M+ volumen
-    'MATIC/USDT',  # Polygon - $500M+ volumen (ahora disponible!)
+    'MATIC/USDT',  # Polygon - $500M+ volumen
     'ATOM/USDT',   # Cosmos - $200M+ volumen
-    'NEAR/USDT',   # NEAR Protocol - $300M+ volumen (ahora disponible!)
+    'NEAR/USDT',   # NEAR Protocol - $300M+ volumen
     'ADA/USDT',    # Cardano - $500M+ volumen
 
-    # Meme Coins - MÁXIMA Volatilidad (Liquidez Media-Alta)
+    # Layer 2s - Alta Liquidez
+    'ARB/USDT',    # Arbitrum - $400M+ volumen, Layer 2 de Ethereum
+    'OP/USDT',     # Optimism - $200M+ volumen, Layer 2 de Ethereum
+
+    # Meme Coins - MÁXIMA Volatilidad
     'DOGE/USDT',   # Dogecoin - $1B+ volumen
     'SHIB/USDT',   # Shiba Inu - $500M+ volumen
-    'PEPE/USDT',   # Pepe - $400M+ volumen (¡ahora disponible!)
+    'PEPE/USDT',   # Pepe - $400M+ volumen
+    'NOT/USDT',    # Notcoin - $300M+ volumen, MUY nuevo y volátil
     'WIF/USDT',    # Dogwifhat - $200M+ volumen, MUY volátil
     'BONK/USDT',   # Bonk - $150M+ volumen
 
-    # DeFi Tokens - Alta Volatilidad (ahora disponibles!)
+    # DeFi Tokens - Alta Volatilidad
     'UNI/USDT',    # Uniswap - $300M+ volumen
-    'AAVE/USDT',   # AAVE - $200M+ volumen
-    'CRV/USDT',    # Curve - $100M+ volumen
     'LINK/USDT',   # Chainlink - $400M+ volumen
+    'AAVE/USDT',   # AAVE - $200M+ volumen
+    'INJ/USDT',    # Injective - $200M+ volumen, DeFi
+    'CRV/USDT',    # Curve - $100M+ volumen
 
     # Payment/Transfer - Volátiles
     'XRP/USDT',    # Ripple - $2B+ volumen
     'LTC/USDT',    # Litecoin - $500M+ volumen
-    'TRX/USDT',    # Tron - $400M+ volumen (ahora disponible!)
-    'XLM/USDT',    # Stellar - $200M+ volumen (ahora disponible!)
+    'TRX/USDT',    # Tron - $400M+ volumen
+    'XLM/USDT',    # Stellar - $200M+ volumen
 
     # Gaming/Metaverse - Alta Volatilidad
-    'SAND/USDT',   # The Sandbox - $100M+ volumen (ahora disponible!)
-    'MANA/USDT',   # Decentraland - $80M+ volumen (ahora disponible!)
+    'SAND/USDT',   # The Sandbox - $100M+ volumen
+    'MANA/USDT',   # Decentraland - $80M+ volumen
     'AXS/USDT',    # Axie Infinity - $100M+ volumen
 
     # Altcoins Volátiles
-    'FTM/USDT',    # Fantom - $150M+ volumen (ahora disponible!)
+    'FTM/USDT',    # Fantom - $150M+ volumen
+    'TIA/USDT',    # Celestia - $200M+ volumen, modular blockchain
+    'SEI/USDT',    # Sei - $150M+ volumen, Layer 1
     'ALGO/USDT',   # Algorand - $100M+ volumen
 ]
 
@@ -78,7 +89,8 @@ FLASH_TIMEFRAME = '15m'  # Timeframe for flash signals (risky but faster) - Bina
 # Signal Types Configuration
 ENABLE_FLASH_SIGNALS = os.getenv('ENABLE_FLASH_SIGNALS', 'true').lower() == 'true'
 CONSERVATIVE_THRESHOLD = 7.0  # Score threshold for conservative signals (1h/4h/1d)
-FLASH_THRESHOLD = 3.5  # Lower threshold for flash signals (15m) - EXPERIMENTAL: más señales
+FLASH_THRESHOLD = 5.0  # Medium threshold for flash signals (15m) - Más selectivo
+FLASH_MIN_CONFIDENCE = 50  # Minimum confidence % for flash signals
 
 # Daily Report Configuration
 DAILY_REPORT_HOUR = 21  # 9 PM
