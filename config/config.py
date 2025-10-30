@@ -38,15 +38,10 @@ TRADING_PAIRS = [
     # Payment/Transfer Coins (Volátiles)
     'XRP/USDT',    # Ripple - Movimientos explosivos
     'LTC/USDT',    # Litecoin - Volatilidad intraday
-    'TRX/USDT',    # Tron - Alta volatilidad
-    'XLM/USDT',    # Stellar - Swings frecuentes
+    'BCH/USDT',    # Bitcoin Cash - Alta volatilidad
 
     # Oracle/Infrastructure
     'LINK/USDT',   # Chainlink - Movimientos significativos
-
-    # Alternative Coins (Alta volatilidad)
-    'ETC/USDT',    # Ethereum Classic - Swings grandes
-    'EOS/USDT',    # EOS - Volatilidad
 ]
 
 # Analysis Configuration
