@@ -53,22 +53,41 @@ class MarketMonitor:
 
     def _initialize_exchange(self) -> ccxt.Exchange:
         """
-        Initialize exchange connection
+        Initialize exchange connection with optional proxy support
 
         Returns:
             CCXT exchange instance
         """
         try:
             exchange_class = getattr(ccxt, self.exchange_name)
-            exchange = exchange_class({
+
+            # Base exchange configuration
+            exchange_config = {
                 'apiKey': config.EXCHANGE_API_KEY,
                 'secret': config.EXCHANGE_API_SECRET,
                 'enableRateLimit': True,
                 'options': {
                     'defaultType': 'spot',
                 }
-            })
-            logger.info(f"Connected to {self.exchange_name}")
+            }
+
+            # Add proxy configuration if enabled (required for Binance on datacenter IPs)
+            if config.USE_PROXY and config.PROXY_HOST and config.PROXY_PORT:
+                # Build proxy URL
+                if config.PROXY_USERNAME and config.PROXY_PASSWORD:
+                    proxy_url = f"http://{config.PROXY_USERNAME}:{config.PROXY_PASSWORD}@{config.PROXY_HOST}:{config.PROXY_PORT}"
+                else:
+                    proxy_url = f"http://{config.PROXY_HOST}:{config.PROXY_PORT}"
+
+                exchange_config['proxies'] = {
+                    'http': proxy_url,
+                    'https': proxy_url,
+                }
+                logger.info(f"Connected to {self.exchange_name} via proxy {config.PROXY_HOST}:{config.PROXY_PORT}")
+            else:
+                logger.info(f"Connected to {self.exchange_name} (no proxy)")
+
+            exchange = exchange_class(exchange_config)
             return exchange
 
         except Exception as e:

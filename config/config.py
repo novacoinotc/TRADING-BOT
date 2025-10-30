@@ -12,42 +12,68 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
 # Exchange Configuration
-EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'kraken')
+EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'binance')
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_API_KEY', '')
 EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 
-# Trading Pairs to Monitor - HIGH VOLATILITY CONFIGURATION
-# Maximizar señales flash con pares de alta volatilidad (SOLO pares disponibles en Kraken)
+# Proxy Configuration (Required for Binance on Railway/datacenter IPs)
+# Get proxy from: Webshare.io, Smartproxy, Bright Data, etc.
+USE_PROXY = os.getenv('USE_PROXY', 'true').lower() == 'true'
+PROXY_HOST = os.getenv('PROXY_HOST', '')  # e.g., proxy.webshare.io
+PROXY_PORT = os.getenv('PROXY_PORT', '')  # e.g., 80 or 443
+PROXY_USERNAME = os.getenv('PROXY_USERNAME', '')
+PROXY_PASSWORD = os.getenv('PROXY_PASSWORD', '')
+
+# Trading Pairs to Monitor - HIGH VOLATILITY BINANCE CONFIGURATION
+# Maximizar señales flash con pares de ALTA LIQUIDEZ de Binance
 TRADING_PAIRS = [
-    # Anchors (referencia de mercado)
-    'BTC/USDT',    # Bitcoin - Referencia
-    'ETH/USDT',    # Ethereum - Referencia
+    # Top Tier - Máxima Liquidez (Anchors)
+    'BTC/USDT',    # Bitcoin - $30B+ volumen 24h
+    'ETH/USDT',    # Ethereum - $15B+ volumen 24h
 
-    # High Volatility Layer 1s (Movimientos grandes)
-    'SOL/USDT',    # Solana - Muy volátil, swings grandes
-    'AVAX/USDT',   # Avalanche - Alta volatilidad
-    'ATOM/USDT',   # Cosmos - Movimientos fuertes
-    'DOT/USDT',    # Polkadot - Swings considerables
-    'ALGO/USDT',   # Algorand - Movimientos rápidos
-    'ADA/USDT',    # Cardano - Movimientos frecuentes
+    # High Volatility Layer 1s (Liquidez Alta)
+    'SOL/USDT',    # Solana - $2B+ volumen, muy volátil
+    'BNB/USDT',    # Binance Coin - $1B+ volumen
+    'AVAX/USDT',   # Avalanche - $500M+ volumen
+    'DOT/USDT',    # Polkadot - $300M+ volumen
+    'MATIC/USDT',  # Polygon - $500M+ volumen (ahora disponible!)
+    'ATOM/USDT',   # Cosmos - $200M+ volumen
+    'NEAR/USDT',   # NEAR Protocol - $300M+ volumen (ahora disponible!)
+    'ADA/USDT',    # Cardano - $500M+ volumen
 
-    # Meme Coins (MÁXIMA volatilidad - MUCHAS señales)
-    'DOGE/USDT',   # Dogecoin - Meme king
-    'SHIB/USDT',   # Shiba Inu - Volatilidad extrema
+    # Meme Coins - MÁXIMA Volatilidad (Liquidez Media-Alta)
+    'DOGE/USDT',   # Dogecoin - $1B+ volumen
+    'SHIB/USDT',   # Shiba Inu - $500M+ volumen
+    'PEPE/USDT',   # Pepe - $400M+ volumen (¡ahora disponible!)
+    'WIF/USDT',    # Dogwifhat - $200M+ volumen, MUY volátil
+    'BONK/USDT',   # Bonk - $150M+ volumen
 
-    # Payment/Transfer Coins (Volátiles)
-    'XRP/USDT',    # Ripple - Movimientos explosivos
-    'LTC/USDT',    # Litecoin - Volatilidad intraday
-    'BCH/USDT',    # Bitcoin Cash - Alta volatilidad
+    # DeFi Tokens - Alta Volatilidad (ahora disponibles!)
+    'UNI/USDT',    # Uniswap - $300M+ volumen
+    'AAVE/USDT',   # AAVE - $200M+ volumen
+    'CRV/USDT',    # Curve - $100M+ volumen
+    'LINK/USDT',   # Chainlink - $400M+ volumen
 
-    # Oracle/Infrastructure
-    'LINK/USDT',   # Chainlink - Movimientos significativos
+    # Payment/Transfer - Volátiles
+    'XRP/USDT',    # Ripple - $2B+ volumen
+    'LTC/USDT',    # Litecoin - $500M+ volumen
+    'TRX/USDT',    # Tron - $400M+ volumen (ahora disponible!)
+    'XLM/USDT',    # Stellar - $200M+ volumen (ahora disponible!)
+
+    # Gaming/Metaverse - Alta Volatilidad
+    'SAND/USDT',   # The Sandbox - $100M+ volumen (ahora disponible!)
+    'MANA/USDT',   # Decentraland - $80M+ volumen (ahora disponible!)
+    'AXS/USDT',    # Axie Infinity - $100M+ volumen
+
+    # Altcoins Volátiles
+    'FTM/USDT',    # Fantom - $150M+ volumen (ahora disponible!)
+    'ALGO/USDT',   # Algorand - $100M+ volumen
 ]
 
 # Analysis Configuration
 CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 120))  # 2 minutes (más frecuente para experimentar)
 TIMEFRAME = '1h'  # Candlestick timeframe for conservative signals
-FLASH_TIMEFRAME = '15m'  # Timeframe for flash signals (risky but faster) - Kraken soporta: 1m, 5m, 15m, 30m, 1h, 4h, 12h, 1d
+FLASH_TIMEFRAME = '15m'  # Timeframe for flash signals (risky but faster) - Binance soporta: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
 
 # Signal Types Configuration
 ENABLE_FLASH_SIGNALS = os.getenv('ENABLE_FLASH_SIGNALS', 'true').lower() == 'true'
