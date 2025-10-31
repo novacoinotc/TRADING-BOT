@@ -14,6 +14,7 @@ from src.flash_signal_analyzer import FlashSignalAnalyzer
 from src.telegram_bot import TelegramNotifier
 from src.signal_tracker import SignalTracker
 from src.daily_reporter import DailyReporter
+from src.ml.ml_integration import MLIntegration
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,12 @@ class MarketMonitor:
         # Initialize daily reporter
         self.reporter = DailyReporter(self.tracker, self.notifier) if self.tracker else None
 
+        # Initialize ML + Paper Trading system
+        self.ml_system = MLIntegration(
+            initial_balance=config.PAPER_TRADING_INITIAL_BALANCE,
+            enable_ml=True  # Enable ML predictions
+        ) if config.ENABLE_PAPER_TRADING else None
+
         self.trading_pairs = config.TRADING_PAIRS
         self.timeframe = config.TIMEFRAME
         self.timeframes = ['1h', '4h', '1d']  # Multi-timeframe for conservative
@@ -50,6 +57,7 @@ class MarketMonitor:
         self.is_running = False
         self.current_prices = {}  # Store current prices for tracking
         self.enable_flash = config.ENABLE_FLASH_SIGNALS
+        self.enable_paper_trading = config.ENABLE_PAPER_TRADING  # New config option
 
     def _initialize_exchange(self) -> ccxt.Exchange:
         """
@@ -174,7 +182,28 @@ class MarketMonitor:
                     f"@ ${current_price:.2f}"
                 )
 
-                # Only send signal if strong enough (score >= 7)
+                # Execute paper trade if enabled
+                if self.enable_paper_trading and self.ml_system and signals['action'] != 'HOLD':
+                    trade_result = self.ml_system.process_signal(
+                        pair=pair,
+                        signal=signals,
+                        indicators=analysis['indicators'],
+                        current_price=current_price,
+                        mtf_indicators=analysis.get('mtf_indicators')
+                    )
+
+                    # Enhance analysis with ML data if trade was processed
+                    if trade_result and 'ml' in signals:
+                        analysis['ml_data'] = signals['ml']
+                        analysis['trade_result'] = trade_result
+
+                # Update existing positions
+                if self.enable_paper_trading and self.ml_system:
+                    closed_trade = self.ml_system.update_position(pair, current_price)
+                    if closed_trade:
+                        logger.info(f"Position closed for {pair}: {closed_trade}")
+
+                # Send signal notification if strong enough (score >= 7)
                 if signals['action'] != 'HOLD':
                     await self.notifier.send_signal(pair, analysis)
                 else:
@@ -198,7 +227,22 @@ class MarketMonitor:
                             f"@ ${flash_price:.2f}"
                         )
 
-                        # Send flash signal if threshold met (4+ points)
+                        # Execute paper trade for flash signal if enabled
+                        if self.enable_paper_trading and self.ml_system and flash_signals['action'] != 'HOLD':
+                            flash_trade_result = self.ml_system.process_signal(
+                                pair=pair,
+                                signal=flash_signals,
+                                indicators=flash_analysis['indicators'],
+                                current_price=flash_price,
+                                mtf_indicators=None  # Flash signals don't use MTF
+                            )
+
+                            # Enhance analysis with ML data
+                            if flash_trade_result and 'ml' in flash_signals:
+                                flash_analysis['ml_data'] = flash_signals['ml']
+                                flash_analysis['trade_result'] = flash_trade_result
+
+                        # Send flash signal notification if threshold met (5+ points)
                         if flash_signals['action'] != 'HOLD':
                             await self.notifier.send_signal(pair, flash_analysis)
                         else:
@@ -220,17 +264,27 @@ class MarketMonitor:
             pairs_display += f" y {len(display_pairs) - 5} más"
 
         flash_status = "✅ Activas" if self.enable_flash else "❌ Desactivadas"
-        await self.notifier.send_status_message(
+        paper_trading_status = "✅ Activo" if self.enable_paper_trading else "❌ Inactivo"
+
+        startup_message = (
             "🤖 <b>Bot de Señales Iniciado</b>\n\n"
             f"📊 Monitoreando: {pairs_display}\n"
             f"⏱️ Intervalo: {self.check_interval}s\n"
             f"📈 Timeframe conservador: {config.TIMEFRAME} (1h/4h/1d)\n"
             f"⚡ Señales flash: {flash_status} ({self.flash_timeframe})\n"
-            f"📍 Reporte diario: 9 PM CDMX"
+            f"💰 Paper Trading: {paper_trading_status}"
         )
+
+        if self.enable_paper_trading and self.ml_system:
+            startup_message += f" (${config.PAPER_TRADING_INITIAL_BALANCE:,.0f} USDT)\n🧠 Machine Learning: ✅ Activo"
+
+        startup_message += "\n📍 Reporte diario: 9 PM CDMX"
+
+        await self.notifier.send_status_message(startup_message)
 
         self.is_running = True
         iteration = 0
+        stats_iteration = 0  # Send stats every N iterations
 
         while self.is_running:
             try:
@@ -250,6 +304,17 @@ class MarketMonitor:
                 # Check if it's time for daily report
                 if self.reporter:
                     await self.reporter.check_and_send_report()
+
+                # Send paper trading stats every 30 iterations (every hour if interval=120s)
+                if self.enable_paper_trading and self.ml_system:
+                    stats_iteration += 1
+                    if stats_iteration >= 30:  # ~1 hour
+                        try:
+                            stats = self.ml_system.get_comprehensive_stats()
+                            await self.notifier.send_trading_stats(stats)
+                            stats_iteration = 0
+                        except Exception as e:
+                            logger.error(f"Error sending paper trading stats: {e}")
 
                 logger.info(f"Waiting {self.check_interval} seconds until next check...")
                 await asyncio.sleep(self.check_interval)

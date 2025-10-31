@@ -102,6 +102,10 @@ TRACK_SIGNALS = True
 TRACKING_FILE = 'logs/signal_tracking.json'
 PROFIT_THRESHOLD = 2.0  # 2% profit to consider signal successful
 
+# Paper Trading + ML Configuration
+ENABLE_PAPER_TRADING = os.getenv('ENABLE_PAPER_TRADING', 'true').lower() == 'true'
+PAPER_TRADING_INITIAL_BALANCE = float(os.getenv('PAPER_TRADING_INITIAL_BALANCE', '50000.0'))  # $50,000 USDT
+
 # Technical Indicators Thresholds
 RSI_OVERSOLD = int(os.getenv('RSI_OVERSOLD', 30))
 RSI_OVERBOUGHT = int(os.getenv('RSI_OVERBOUGHT', 70))

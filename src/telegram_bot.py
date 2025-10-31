@@ -262,3 +262,68 @@ class TelegramNotifier:
         """
         message = f"⚠️ <b>ERROR</b>\n\n{error}"
         await self.send_status_message(message)
+
+    async def send_trading_stats(self, stats: dict):
+        """
+        Send paper trading statistics
+
+        Args:
+            stats: Trading statistics dictionary
+        """
+        try:
+            trading = stats.get('trading', {})
+            ml_model = stats.get('ml_model', {})
+            params = stats.get('optimized_params', {})
+
+            message = "📊 <b>PAPER TRADING STATS</b>\n\n"
+
+            # Balance info
+            balance = trading.get('current_balance', 0)
+            equity = trading.get('equity', 0)
+            initial = trading.get('initial_balance', 50000)
+            pnl = trading.get('net_pnl', 0)
+            roi = trading.get('roi', 0)
+
+            message += f"💰 <b>Balance:</b> ${balance:,.2f} USDT\n"
+            message += f"💎 <b>Equity:</b> ${equity:,.2f} USDT\n"
+            message += f"📈 <b>P&L:</b> ${pnl:,.2f} ({roi:+.2f}%)\n\n"
+
+            # Trading stats
+            total_trades = trading.get('total_trades', 0)
+            win_rate = trading.get('win_rate', 0)
+            profit_factor = trading.get('profit_factor', 0)
+            sharpe = trading.get('sharpe_ratio', 0)
+            dd = trading.get('max_drawdown', 0)
+
+            message += f"📊 <b>Trading:</b>\n"
+            message += f"• Total Trades: {total_trades}\n"
+            message += f"• Win Rate: {win_rate:.1f}%\n"
+            message += f"• Profit Factor: {profit_factor:.2f}\n"
+            message += f"• Sharpe Ratio: {sharpe:.2f}\n"
+            message += f"• Max Drawdown: {dd:.2f}%\n\n"
+
+            # Open positions
+            open_pos = trading.get('open_positions', 0)
+            message += f"🔄 <b>Posiciones Abiertas:</b> {open_pos}\n\n"
+
+            # ML Model info
+            if ml_model.get('available'):
+                metrics = ml_model.get('metrics', {})
+                acc = metrics.get('test_accuracy', 0)
+                prec = metrics.get('test_precision', 0)
+
+                message += f"🧠 <b>ML Model:</b>\n"
+                message += f"• Accuracy: {acc:.2%}\n"
+                message += f"• Precision: {prec:.2%}\n"
+                message += f"• Samples: {metrics.get('samples_total', 0)}\n\n"
+
+            # Optimized params
+            message += f"⚙️ <b>Parámetros:</b>\n"
+            message += f"• Flash Threshold: {params.get('flash_threshold', 0):.1f}\n"
+            message += f"• Min Confidence: {params.get('flash_min_confidence', 0)}%\n"
+            message += f"• Position Size: {params.get('position_size_pct', 0):.1f}%\n"
+
+            await self.send_status_message(message)
+
+        except Exception as e:
+            logger.error(f"Failed to send trading stats: {e}")
