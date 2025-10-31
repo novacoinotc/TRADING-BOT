@@ -15,6 +15,7 @@ from src.telegram_bot import TelegramNotifier
 from src.signal_tracker import SignalTracker
 from src.daily_reporter import DailyReporter
 from src.ml.ml_integration import MLIntegration
+from src.sentiment.sentiment_integration import SentimentIntegration
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,13 @@ class MarketMonitor:
             initial_balance=config.PAPER_TRADING_INITIAL_BALANCE,
             enable_ml=True  # Enable ML predictions
         ) if config.ENABLE_PAPER_TRADING else None
+
+        # Initialize Sentiment Analysis system
+        self.sentiment_system = SentimentIntegration(
+            cryptopanic_api_key=config.CRYPTOPANIC_API_KEY,
+            update_interval_minutes=config.SENTIMENT_UPDATE_INTERVAL,
+            enable_blocking=config.SENTIMENT_BLOCK_ON_EXTREME_FEAR
+        ) if config.ENABLE_SENTIMENT_ANALYSIS else None
 
         self.trading_pairs = config.TRADING_PAIRS
         self.timeframe = config.TIMEFRAME

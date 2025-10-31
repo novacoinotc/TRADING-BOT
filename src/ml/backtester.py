@@ -108,7 +108,7 @@ class Backtester:
         timeframe_data: Dict[str, pd.DataFrame]
     ) -> List[Dict]:
         """
-        Backtest de señales conservadoras (multi-timeframe)
+        Backtest de señales conservadoras (multi-timeframe) - OPTIMIZADO
 
         Args:
             pair: Par de trading
@@ -122,8 +122,11 @@ class Backtester:
         # Usar timeframe 1h como base
         df_1h = timeframe_data['1h']
 
-        # Iterar por cada vela (en orden cronológico)
-        for i in range(50, len(df_1h)):  # Necesitamos al menos 50 velas para indicadores
+        # OPTIMIZACIÓN: Analizar cada 10 velas en lugar de cada vela (10x más rápido)
+        step = 10
+
+        # Iterar por cada N velas (en orden cronológico)
+        for i in range(50, len(df_1h), step):  # Necesitamos al menos 50 velas para indicadores
             try:
                 # Obtener datos hasta este punto (evitar look-ahead bias)
                 dfs = {
@@ -203,7 +206,7 @@ class Backtester:
         df: pd.DataFrame
     ) -> List[Dict]:
         """
-        Backtest de señales flash (timeframe corto)
+        Backtest de señales flash (timeframe corto) - OPTIMIZADO
 
         Args:
             pair: Par de trading
@@ -214,8 +217,11 @@ class Backtester:
         """
         signals = []
 
-        # Iterar por cada vela
-        for i in range(30, len(df)):
+        # OPTIMIZACIÓN: Analizar cada 5 velas en lugar de cada vela (5x más rápido)
+        step = 5
+
+        # Iterar por cada N velas
+        for i in range(30, len(df), step):
             try:
                 # Datos hasta este punto
                 df_until_now = df.iloc[:i+1]

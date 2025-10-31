@@ -18,19 +18,25 @@ class FeatureEngineer:
     def __init__(self):
         self.feature_names = []
 
-    def create_features(self, indicators: Dict, signals: Dict, mtf_indicators: Dict = None) -> Dict:
+    def create_features(self, indicators: Dict, signals: Dict, mtf_indicators: Dict = None, sentiment_features: Dict = None) -> Dict:
         """
-        Crea conjunto completo de features desde indicadores
+        Crea conjunto completo de features desde indicadores + sentiment
 
         Args:
             indicators: Dict con indicadores (RSI, MACD, etc.)
             signals: Dict con señales generadas
             mtf_indicators: Multi-timeframe indicators (opcional)
+            sentiment_features: Features de sentiment analysis (opcional)
 
         Returns:
             Dict con features para ML
         """
         features = {}
+
+        # === SENTIMENT FEATURES (SI ESTÁN DISPONIBLES) ===
+        if sentiment_features:
+            for key, value in sentiment_features.items():
+                features[f'sentiment_{key}'] = value
 
         # === FEATURES BÁSICAS ===
 
