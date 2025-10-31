@@ -16,7 +16,7 @@ class TelegramNotifier:
     Handles Telegram notifications for trading signals
     """
 
-    def __init__(self, tracker=None):
+    def __init__(self, tracker=None, sentiment=None):
         if not config.TELEGRAM_BOT_TOKEN:
             raise ValueError("TELEGRAM_BOT_TOKEN not configured")
         if not config.TELEGRAM_CHAT_ID:
@@ -26,6 +26,7 @@ class TelegramNotifier:
         self.chat_id = config.TELEGRAM_CHAT_ID
         self.last_signals = {}  # Avoid duplicate notifications
         self.tracker = tracker  # Signal tracker for accuracy measurement
+        self.sentiment = sentiment  # Sentiment analysis system
 
     async def send_signal(self, pair: str, analysis: dict):
         """
@@ -212,6 +213,30 @@ class TelegramNotifier:
 
         message += "\n"
 
+        # Sentiment Analysis (if available)
+        if self.sentiment:
+            sentiment_signal = self.sentiment.get_sentiment_signal(pair)
+            if sentiment_signal['total_news'] > 0:
+                message += "📰 <b>Análisis de Sentimiento:</b>\n"
+
+                # Sentiment emoji
+                if sentiment_signal['action'] == 'bullish':
+                    sent_emoji = '🟢'
+                elif sentiment_signal['action'] == 'bearish':
+                    sent_emoji = '🔴'
+                else:
+                    sent_emoji = '⚪'
+
+                message += f"• Sentimiento: {sentiment_signal['action'].capitalize()} {sent_emoji}\n"
+                message += f"• Score: {sentiment_signal['score']:+.2f}\n"
+                message += f"• Noticias: {sentiment_signal['total_news']}\n"
+
+                if sentiment_signal['keywords']:
+                    keywords_str = ', '.join(sentiment_signal['keywords'][:3])
+                    message += f"• Keywords: {keywords_str}\n"
+
+                message += "\n"
+
         # Reasons
         message += "📈 <b>Razones:</b>\n"
         for reason in signals.get('reasons', [])[:6]:  # Limit to 6 reasons
@@ -221,7 +246,7 @@ class TelegramNotifier:
         message += f"\n⚠️ <b>Riesgo:</b> {signals.get('risk_level', 'MEDIUM')}\n"
         message += f"💡 <b>Confianza:</b> {signals.get('confidence', 0)}%\n"
 
-        message += f"\n⏰ <i>Análisis multi-timeframe 1h/4h/1d</i>"
+        message += f"\n⏰ <i>Análisis multi-timeframe 1h/4h/1d + Sentiment</i>"
 
         return message
 

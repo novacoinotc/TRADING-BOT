@@ -13,6 +13,7 @@ from src.advanced_technical_analysis import AdvancedTechnicalAnalyzer
 from src.telegram_bot import TelegramNotifier
 from src.signal_tracker import SignalTracker
 from src.daily_reporter import DailyReporter
+from src.sentiment_system import SentimentSystem
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,20 @@ class MarketMonitor:
         self.exchange = self._initialize_exchange()
         self.analyzer = AdvancedTechnicalAnalyzer()
 
+        # Initialize sentiment system
+        self.sentiment = None
+        if config.CRYPTOPANIC_API_KEY:
+            try:
+                self.sentiment = SentimentSystem(config.CRYPTOPANIC_API_KEY)
+                logger.info("Sentiment analysis enabled")
+            except Exception as e:
+                logger.warning(f"Failed to initialize sentiment system: {e}")
+
         # Initialize signal tracker
         self.tracker = SignalTracker() if config.TRACK_SIGNALS else None
 
-        # Initialize notifier with tracker
-        self.notifier = TelegramNotifier(tracker=self.tracker)
+        # Initialize notifier with tracker and sentiment
+        self.notifier = TelegramNotifier(tracker=self.tracker, sentiment=self.sentiment)
 
         # Initialize daily reporter
         self.reporter = DailyReporter(self.tracker, self.notifier) if self.tracker else None
@@ -116,6 +126,10 @@ class MarketMonitor:
         """
         try:
             logger.info(f"Analyzing {pair}...")
+
+            # Update sentiment data for this pair
+            if self.sentiment:
+                self.sentiment.update(pair)
 
             # Fetch multi-timeframe data
             dfs = {}

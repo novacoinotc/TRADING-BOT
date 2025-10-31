@@ -16,6 +16,9 @@ EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'kraken')
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_API_KEY', '')
 EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 
+# Sentiment Analysis Configuration
+CRYPTOPANIC_API_KEY = os.getenv('CRYPTOPANIC_API_KEY', '')
+
 # Trading Pairs to Monitor (Top cryptocurrencies by liquidity)
 # Kraken uses different symbols (e.g., BTC/USD instead of BTC/USDT)
 TRADING_PAIRS = [
