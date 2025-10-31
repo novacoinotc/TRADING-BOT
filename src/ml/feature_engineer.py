@@ -18,25 +18,39 @@ class FeatureEngineer:
     def __init__(self):
         self.feature_names = []
 
-    def create_features(self, indicators: Dict, signals: Dict, mtf_indicators: Dict = None, sentiment_features: Dict = None) -> Dict:
+    def create_features(self, indicators: Dict, signals: Dict, mtf_indicators: Dict = None,
+                       sentiment_features: Dict = None, orderbook_features: Dict = None,
+                       regime_features: Dict = None) -> Dict:
         """
-        Crea conjunto completo de features desde indicadores + sentiment
+        Crea conjunto completo de features desde indicadores + sentiment + orderbook + regime
 
         Args:
             indicators: Dict con indicadores (RSI, MACD, etc.)
             signals: Dict con señales generadas
             mtf_indicators: Multi-timeframe indicators (opcional)
             sentiment_features: Features de sentiment analysis (opcional)
+            orderbook_features: Features de order book analysis (opcional)
+            regime_features: Features de market regime detection (opcional)
 
         Returns:
-            Dict con features para ML
+            Dict con features para ML (hasta 62 features)
         """
         features = {}
 
-        # === SENTIMENT FEATURES (SI ESTÁN DISPONIBLES) ===
+        # === SENTIMENT FEATURES (12 features) ===
         if sentiment_features:
             for key, value in sentiment_features.items():
                 features[f'sentiment_{key}'] = value
+
+        # === ORDER BOOK FEATURES (6 features) ===
+        if orderbook_features:
+            for key, value in orderbook_features.items():
+                features[key] = value
+
+        # === MARKET REGIME FEATURES (4 features) ===
+        if regime_features:
+            for key, value in regime_features.items():
+                features[key] = value
 
         # === FEATURES BÁSICAS ===
 

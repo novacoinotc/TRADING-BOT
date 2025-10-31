@@ -31,7 +31,9 @@ class MLPredictor:
         else:
             logger.info("🧠 ML Predictor inicializado (sin modelo entrenado aún)")
 
-    def predict(self, indicators: Dict, signals: Dict, mtf_indicators: Dict = None, sentiment_features: Dict = None) -> Dict:
+    def predict(self, indicators: Dict, signals: Dict, mtf_indicators: Dict = None,
+               sentiment_features: Dict = None, orderbook_features: Dict = None,
+               regime_features: Dict = None) -> Dict:
         """
         Predice probabilidad de éxito de una señal
 
@@ -40,6 +42,8 @@ class MLPredictor:
             signals: Dict con señales generadas
             mtf_indicators: Indicadores multi-timeframe (opcional)
             sentiment_features: Features de sentiment analysis (opcional)
+            orderbook_features: Features de order book analysis (opcional)
+            regime_features: Features de market regime detection (opcional)
 
         Returns:
             Dict con predicción y probabilidad
@@ -48,12 +52,14 @@ class MLPredictor:
             return self._neutral_prediction("Predictor deshabilitado")
 
         try:
-            # Crear features (incluyendo sentiment si está disponible)
+            # Crear features (hasta 62 features totales)
             features = self.feature_engineer.create_features(
                 indicators=indicators,
                 signals=signals,
                 mtf_indicators=mtf_indicators,
-                sentiment_features=sentiment_features
+                sentiment_features=sentiment_features,
+                orderbook_features=orderbook_features,
+                regime_features=regime_features
             )
 
             # Predecir
@@ -75,7 +81,9 @@ class MLPredictor:
             logger.error(f"Error en predicción ML: {e}")
             return self._neutral_prediction(f"Error: {str(e)}")
 
-    def enhance_signal(self, signal: Dict, indicators: Dict, mtf_indicators: Dict = None, sentiment_features: Dict = None) -> Dict:
+    def enhance_signal(self, signal: Dict, indicators: Dict, mtf_indicators: Dict = None,
+                      sentiment_features: Dict = None, orderbook_features: Dict = None,
+                      regime_features: Dict = None) -> Dict:
         """
         Mejora señal con predicción ML
 
@@ -84,12 +92,17 @@ class MLPredictor:
             indicators: Indicadores técnicos
             mtf_indicators: Indicadores MTF
             sentiment_features: Features de sentiment analysis
+            orderbook_features: Features de order book analysis
+            regime_features: Features de market regime detection
 
         Returns:
             Señal mejorada con datos ML
         """
-        # Hacer predicción (incluyendo sentiment)
-        ml_prediction = self.predict(indicators, signal, mtf_indicators, sentiment_features)
+        # Hacer predicción (incluyendo todas las features)
+        ml_prediction = self.predict(
+            indicators, signal, mtf_indicators,
+            sentiment_features, orderbook_features, regime_features
+        )
 
         # Agregar datos ML a la señal
         enhanced_signal = signal.copy()

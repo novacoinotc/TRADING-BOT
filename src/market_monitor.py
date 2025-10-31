@@ -16,6 +16,8 @@ from src.signal_tracker import SignalTracker
 from src.daily_reporter import DailyReporter
 from src.ml.ml_integration import MLIntegration
 from src.sentiment.sentiment_integration import SentimentIntegration
+from src.orderbook.orderbook_analyzer import OrderBookAnalyzer
+from src.market_regime.regime_detector import RegimeDetector
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +58,12 @@ class MarketMonitor:
             update_interval_minutes=config.SENTIMENT_UPDATE_INTERVAL,
             enable_blocking=config.SENTIMENT_BLOCK_ON_EXTREME_FEAR
         ) if config.ENABLE_SENTIMENT_ANALYSIS else None
+
+        # Initialize Order Book Analyzer
+        self.orderbook_analyzer = OrderBookAnalyzer(depth_limit=100)
+
+        # Initialize Market Regime Detector
+        self.regime_detector = RegimeDetector()
 
         self.trading_pairs = config.TRADING_PAIRS
         self.timeframe = config.TIMEFRAME
@@ -165,10 +173,38 @@ class MarketMonitor:
 
             # UPDATE SENTIMENT DATA (every 15 minutes, cached)
             sentiment_data = None
+            sentiment_features = None
             if self.sentiment_system:
                 base_currency = pair.split('/')[0]
                 self.sentiment_system.update(currencies=[base_currency])
-                sentiment_data = self.sentiment_system.get_sentiment_features(pair)
+                sentiment_features = self.sentiment_system.get_sentiment_features(pair)
+                sentiment_data = sentiment_features  # Para telegram
+
+            # ANALYZE ORDER BOOK (10 second cache)
+            orderbook_analysis = None
+            orderbook_features = None
+            try:
+                orderbook_analysis = self.orderbook_analyzer.analyze(
+                    exchange=self.exchange,
+                    pair=pair,
+                    current_price=0  # Will be updated later
+                )
+                orderbook_features = self.orderbook_analyzer.get_orderbook_features(orderbook_analysis)
+            except Exception as e:
+                logger.warning(f"Order book analysis failed for {pair}: {e}")
+
+            # DETECT MARKET REGIME (15 minute cache)
+            regime_data = None
+            regime_features = None
+            try:
+                regime_data = self.regime_detector.detect(
+                    exchange=self.exchange,
+                    pair=pair,
+                    current_price=0  # Will be updated later
+                )
+                regime_features = self.regime_detector.get_regime_features(regime_data)
+            except Exception as e:
+                logger.warning(f"Regime detection failed for {pair}: {e}")
 
             # 1. CONSERVATIVE ANALYSIS - Multi-timeframe
             dfs = {}
@@ -192,11 +228,23 @@ class MarketMonitor:
                 # Store current price for tracking
                 self.current_prices[pair] = current_price
 
+                # Update order book and regime with actual current price
+                if orderbook_analysis:
+                    orderbook_analysis['current_price'] = current_price
+                if regime_data:
+                    regime_data['current_price'] = current_price
+
                 logger.info(
                     f"{pair}: {signals['action']} "
                     f"(Score: {signals.get('score', 0):.1f}/{signals.get('max_score', 10)}) "
                     f"@ ${current_price:.2f}"
                 )
+
+                # Log regime and orderbook info
+                if regime_data:
+                    logger.info(f"  Regime: {regime_data['regime']} ({regime_data['regime_strength']})")
+                if orderbook_analysis:
+                    logger.info(f"  Order Book: {orderbook_analysis['market_pressure']} (imbalance={orderbook_analysis['imbalance']:.2f})")
 
                 # APPLY SENTIMENT ANALYSIS TO SIGNALS
                 if self.sentiment_system and signals['action'] != 'HOLD':
@@ -209,9 +257,13 @@ class MarketMonitor:
                     signals = self.sentiment_system.adjust_signal_confidence(pair, signals)
                     logger.info(f"📊 Sentiment applied to {pair}: confidence={signals.get('confidence')}%")
 
-                # Add sentiment data to analysis
+                # Add all additional data to analysis for telegram notifications
                 if sentiment_data:
                     analysis['sentiment_data'] = sentiment_data
+                if orderbook_analysis:
+                    analysis['orderbook_data'] = orderbook_analysis
+                if regime_data:
+                    analysis['regime_data'] = regime_data
 
                 # Execute paper trade if enabled
                 if self.enable_paper_trading and self.ml_system and signals['action'] != 'HOLD':
@@ -221,7 +273,9 @@ class MarketMonitor:
                         indicators=analysis['indicators'],
                         current_price=current_price,
                         mtf_indicators=analysis.get('mtf_indicators'),
-                        sentiment_features=sentiment_data  # Pass sentiment to ML
+                        sentiment_features=sentiment_features,  # Pass all features to ML
+                        orderbook_features=orderbook_features,
+                        regime_features=regime_features
                     )
 
                     # Enhance analysis with ML data if trade was processed
@@ -269,9 +323,13 @@ class MarketMonitor:
                             # Adjust confidence
                             flash_signals = self.sentiment_system.adjust_signal_confidence(pair, flash_signals)
 
-                        # Add sentiment data to flash analysis
+                        # Add all additional data to flash analysis
                         if sentiment_data:
                             flash_analysis['sentiment_data'] = sentiment_data
+                        if orderbook_analysis:
+                            flash_analysis['orderbook_data'] = orderbook_analysis
+                        if regime_data:
+                            flash_analysis['regime_data'] = regime_data
 
                         # Execute paper trade for flash signal if enabled
                         if self.enable_paper_trading and self.ml_system and flash_signals['action'] != 'HOLD':
@@ -281,7 +339,9 @@ class MarketMonitor:
                                 indicators=flash_analysis['indicators'],
                                 current_price=flash_price,
                                 mtf_indicators=None,  # Flash signals don't use MTF
-                                sentiment_features=sentiment_data  # Pass sentiment to ML
+                                sentiment_features=sentiment_features,  # Pass all features to ML
+                                orderbook_features=orderbook_features,
+                                regime_features=regime_features
                             )
 
                             # Enhance analysis with ML data

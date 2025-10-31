@@ -68,7 +68,9 @@ class MLIntegration:
         indicators: Dict,
         current_price: float,
         mtf_indicators: Dict = None,
-        sentiment_features: Dict = None
+        sentiment_features: Dict = None,
+        orderbook_features: Dict = None,
+        regime_features: Dict = None
     ) -> Optional[Dict]:
         """
         Procesa señal completa con ML + Paper Trading
@@ -80,6 +82,8 @@ class MLIntegration:
             current_price: Precio actual
             mtf_indicators: Indicadores multi-timeframe
             sentiment_features: Features de sentiment analysis
+            orderbook_features: Features de order book analysis
+            regime_features: Features de market regime detection
 
         Returns:
             Resultado del trade o None
@@ -90,7 +94,9 @@ class MLIntegration:
                 signal=signal,
                 indicators=indicators,
                 mtf_indicators=mtf_indicators,
-                sentiment_features=sentiment_features
+                sentiment_features=sentiment_features,
+                orderbook_features=orderbook_features,
+                regime_features=regime_features
             )
 
             # Verificar si ML recomienda tradear
@@ -119,6 +125,8 @@ class MLIntegration:
                 indicators=indicators,
                 mtf_indicators=mtf_indicators,
                 sentiment_features=sentiment_features,
+                orderbook_features=orderbook_features,
+                regime_features=regime_features,
                 entry_price=current_price,
                 trade_id=trade_result.get('trade_id')
             )
@@ -233,17 +241,21 @@ class MLIntegration:
         indicators: Dict,
         mtf_indicators: Dict,
         sentiment_features: Dict,
+        orderbook_features: Dict,
+        regime_features: Dict,
         entry_price: float,
         trade_id: str
     ):
         """Guarda señal y features para entrenamiento futuro"""
         try:
-            # Crear features (ahora incluye sentiment)
+            # Crear features (ahora incluye sentiment + orderbook + regime)
             features = self.feature_engineer.create_features(
                 indicators=indicators,
                 signals=signal,
                 mtf_indicators=mtf_indicators,
-                sentiment_features=sentiment_features
+                sentiment_features=sentiment_features,
+                orderbook_features=orderbook_features,
+                regime_features=regime_features
             )
 
             # Guardar en buffer

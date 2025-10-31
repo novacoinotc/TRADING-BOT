@@ -41,13 +41,15 @@ class TelegramNotifier:
         signals = analysis['signals']
         indicators = analysis['indicators']
         sentiment_data = analysis.get('sentiment_data')  # Get sentiment data if available
+        orderbook_data = analysis.get('orderbook_data')  # Get order book data if available
+        regime_data = analysis.get('regime_data')  # Get regime data if available
 
         # Check if we should send this signal (avoid spam)
         if not self._should_send_signal(pair, signals):
             return
 
         # Format message
-        message = self._format_signal_message(pair, indicators, signals, sentiment_data)
+        message = self._format_signal_message(pair, indicators, signals, sentiment_data, orderbook_data, regime_data)
 
         # Send message
         try:
@@ -96,7 +98,9 @@ class TelegramNotifier:
 
         return True
 
-    def _format_signal_message(self, pair: str, indicators: dict, signals: dict, sentiment_data: dict = None) -> str:
+    def _format_signal_message(self, pair: str, indicators: dict, signals: dict,
+                              sentiment_data: dict = None, orderbook_data: dict = None,
+                              regime_data: dict = None) -> str:
         """
         Format advanced trading signal as HTML message
 
@@ -105,6 +109,8 @@ class TelegramNotifier:
             indicators: Technical indicators
             signals: Trading signals
             sentiment_data: Sentiment analysis data (optional)
+            orderbook_data: Order book analysis data (optional)
+            regime_data: Market regime data (optional)
 
         Returns:
             Formatted HTML message
@@ -221,6 +227,63 @@ class TelegramNotifier:
             message += f"• Resistencia: ${sr.get('nearest_resistance', 0):,.2f}\n"
 
         message += "\n"
+
+        # Market Regime (if available)
+        if regime_data:
+            message += "🎯 <b>Market Regime:</b>\n"
+
+            regime = regime_data.get('regime', 'SIDEWAYS')
+            regime_strength = regime_data.get('regime_strength', 'MODERATE')
+            confidence = regime_data.get('confidence', 50)
+
+            if regime == 'BULL':
+                regime_emoji = "🐂"
+                regime_label = "Alcista"
+            elif regime == 'BEAR':
+                regime_emoji = "🐻"
+                regime_label = "Bajista"
+            else:
+                regime_emoji = "↔️"
+                regime_label = "Lateral"
+
+            message += f"• Régimen: {regime_label} {regime_emoji} ({regime_strength})\n"
+            message += f"• Confianza: {confidence:.0f}%\n"
+            message += "\n"
+
+        # Order Book (if available)
+        if orderbook_data:
+            message += "📚 <b>Order Book:</b>\n"
+
+            imbalance = orderbook_data.get('imbalance', 0)
+            market_pressure = orderbook_data.get('market_pressure', 'NEUTRAL')
+
+            if market_pressure == 'STRONG_BUY':
+                pressure_emoji = "🟢🟢"
+            elif market_pressure == 'BUY':
+                pressure_emoji = "🟢"
+            elif market_pressure == 'STRONG_SELL':
+                pressure_emoji = "🔴🔴"
+            elif market_pressure == 'SELL':
+                pressure_emoji = "🔴"
+            else:
+                pressure_emoji = "⚪"
+
+            message += f"• Presión: {market_pressure} {pressure_emoji}\n"
+            message += f"• Imbalance: {imbalance:+.2f}\n"
+
+            # Bid walls
+            bid_walls = orderbook_data.get('bid_walls', [])
+            if bid_walls and len(bid_walls) > 0:
+                nearest_wall = bid_walls[0]
+                message += f"• Pared Compra: ${nearest_wall['price']:,.2f} ({nearest_wall['distance_pct']:.1f}% away) 🛡️\n"
+
+            # Ask walls
+            ask_walls = orderbook_data.get('ask_walls', [])
+            if ask_walls and len(ask_walls) > 0:
+                nearest_wall = ask_walls[0]
+                message += f"• Pared Venta: ${nearest_wall['price']:,.2f} ({nearest_wall['distance_pct']:.1f}% away) 🚧\n"
+
+            message += "\n"
 
         # Sentiment Analysis (if available)
         if sentiment_data:
