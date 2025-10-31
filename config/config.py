@@ -106,6 +106,15 @@ PROFIT_THRESHOLD = 2.0  # 2% profit to consider signal successful
 ENABLE_PAPER_TRADING = os.getenv('ENABLE_PAPER_TRADING', 'true').lower() == 'true'
 PAPER_TRADING_INITIAL_BALANCE = float(os.getenv('PAPER_TRADING_INITIAL_BALANCE', '50000.0'))  # $50,000 USDT
 
+# Historical Training Configuration (Pre-entrenar modelo con datos pasados)
+ENABLE_HISTORICAL_TRAINING = os.getenv('ENABLE_HISTORICAL_TRAINING', 'true').lower() == 'true'
+HISTORICAL_START_DATE = os.getenv('HISTORICAL_START_DATE', '2023-06-01')  # Desde cuándo descargar datos
+HISTORICAL_END_DATE = os.getenv('HISTORICAL_END_DATE', '2025-01-30')  # Hasta cuándo (normalmente "today")
+HISTORICAL_TIMEFRAMES = os.getenv('HISTORICAL_TIMEFRAMES', '1h,4h,1d,15m').split(',')  # Timeframes a descargar
+MIN_HISTORICAL_SAMPLES = int(os.getenv('MIN_HISTORICAL_SAMPLES', '200'))  # Mínimo de señales históricas requeridas
+FORCE_HISTORICAL_DOWNLOAD = os.getenv('FORCE_HISTORICAL_DOWNLOAD', 'false').lower() == 'true'  # Forzar re-descarga
+SKIP_HISTORICAL_IF_MODEL_EXISTS = os.getenv('SKIP_HISTORICAL_IF_MODEL_EXISTS', 'true').lower() == 'true'  # Skip si ya hay modelo
+
 # Technical Indicators Thresholds
 RSI_OVERSOLD = int(os.getenv('RSI_OVERSOLD', 30))
 RSI_OVERBOUGHT = int(os.getenv('RSI_OVERBOUGHT', 70))
