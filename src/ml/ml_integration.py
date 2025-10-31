@@ -67,7 +67,8 @@ class MLIntegration:
         signal: Dict,
         indicators: Dict,
         current_price: float,
-        mtf_indicators: Dict = None
+        mtf_indicators: Dict = None,
+        sentiment_features: Dict = None
     ) -> Optional[Dict]:
         """
         Procesa señal completa con ML + Paper Trading
@@ -78,6 +79,7 @@ class MLIntegration:
             indicators: Indicadores técnicos
             current_price: Precio actual
             mtf_indicators: Indicadores multi-timeframe
+            sentiment_features: Features de sentiment analysis
 
         Returns:
             Resultado del trade o None
@@ -87,7 +89,8 @@ class MLIntegration:
             enhanced_signal = self.predictor.enhance_signal(
                 signal=signal,
                 indicators=indicators,
-                mtf_indicators=mtf_indicators
+                mtf_indicators=mtf_indicators,
+                sentiment_features=sentiment_features
             )
 
             # Verificar si ML recomienda tradear
@@ -115,6 +118,7 @@ class MLIntegration:
                 signal=enhanced_signal,
                 indicators=indicators,
                 mtf_indicators=mtf_indicators,
+                sentiment_features=sentiment_features,
                 entry_price=current_price,
                 trade_id=trade_result.get('trade_id')
             )
@@ -228,16 +232,18 @@ class MLIntegration:
         signal: Dict,
         indicators: Dict,
         mtf_indicators: Dict,
+        sentiment_features: Dict,
         entry_price: float,
         trade_id: str
     ):
         """Guarda señal y features para entrenamiento futuro"""
         try:
-            # Crear features
+            # Crear features (ahora incluye sentiment)
             features = self.feature_engineer.create_features(
                 indicators=indicators,
                 signals=signal,
-                mtf_indicators=mtf_indicators
+                mtf_indicators=mtf_indicators,
+                sentiment_features=sentiment_features
             )
 
             # Guardar en buffer

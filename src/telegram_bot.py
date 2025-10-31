@@ -40,13 +40,14 @@ class TelegramNotifier:
 
         signals = analysis['signals']
         indicators = analysis['indicators']
+        sentiment_data = analysis.get('sentiment_data')  # Get sentiment data if available
 
         # Check if we should send this signal (avoid spam)
         if not self._should_send_signal(pair, signals):
             return
 
         # Format message
-        message = self._format_signal_message(pair, indicators, signals)
+        message = self._format_signal_message(pair, indicators, signals, sentiment_data)
 
         # Send message
         try:
@@ -95,7 +96,7 @@ class TelegramNotifier:
 
         return True
 
-    def _format_signal_message(self, pair: str, indicators: dict, signals: dict) -> str:
+    def _format_signal_message(self, pair: str, indicators: dict, signals: dict, sentiment_data: dict = None) -> str:
         """
         Format advanced trading signal as HTML message
 
@@ -103,6 +104,7 @@ class TelegramNotifier:
             pair: Trading pair
             indicators: Technical indicators
             signals: Trading signals
+            sentiment_data: Sentiment analysis data (optional)
 
         Returns:
             Formatted HTML message
@@ -219,6 +221,55 @@ class TelegramNotifier:
             message += f"• Resistencia: ${sr.get('nearest_resistance', 0):,.2f}\n"
 
         message += "\n"
+
+        # Sentiment Analysis (if available)
+        if sentiment_data:
+            message += "📰 <b>Sentiment Analysis:</b>\n"
+
+            # Fear & Greed Index
+            fg_index = sentiment_data.get('fear_greed_index', 0.5) * 100
+            if fg_index < 25:
+                fg_emoji = "😱"
+                fg_label = "Extreme Fear"
+            elif fg_index < 45:
+                fg_emoji = "😰"
+                fg_label = "Fear"
+            elif fg_index < 55:
+                fg_emoji = "😐"
+                fg_label = "Neutral"
+            elif fg_index < 75:
+                fg_emoji = "😊"
+                fg_label = "Greed"
+            else:
+                fg_emoji = "🤑"
+                fg_label = "Extreme Greed"
+
+            message += f"• Fear & Greed: {fg_index:.0f}/100 {fg_emoji} ({fg_label})\n"
+
+            # News sentiment
+            news_sentiment = sentiment_data.get('news_sentiment_overall', 0.5)
+            if news_sentiment >= 0.6:
+                news_emoji = "📈"
+                news_label = "Positivo"
+            elif news_sentiment >= 0.4:
+                news_emoji = "➡️"
+                news_label = "Neutral"
+            else:
+                news_emoji = "📉"
+                news_label = "Negativo"
+
+            message += f"• Noticias: {news_sentiment:.2f} {news_emoji} ({news_label})\n"
+
+            # High impact news
+            high_impact = int(sentiment_data.get('high_impact_news_count', 0))
+            if high_impact > 0:
+                message += f"• Noticias de Alto Impacto: {high_impact} 🔥\n"
+
+            # Sentiment trend
+            if sentiment_data.get('sentiment_trend_improving', 0) > 0.5:
+                message += f"• Tendencia: Mejorando ✅\n"
+
+            message += "\n"
 
         # Reasons
         message += "📈 <b>Razones:</b>\n"

@@ -31,7 +31,7 @@ class MLPredictor:
         else:
             logger.info("🧠 ML Predictor inicializado (sin modelo entrenado aún)")
 
-    def predict(self, indicators: Dict, signals: Dict, mtf_indicators: Dict = None) -> Dict:
+    def predict(self, indicators: Dict, signals: Dict, mtf_indicators: Dict = None, sentiment_features: Dict = None) -> Dict:
         """
         Predice probabilidad de éxito de una señal
 
@@ -39,6 +39,7 @@ class MLPredictor:
             indicators: Dict con indicadores técnicos
             signals: Dict con señales generadas
             mtf_indicators: Indicadores multi-timeframe (opcional)
+            sentiment_features: Features de sentiment analysis (opcional)
 
         Returns:
             Dict con predicción y probabilidad
@@ -47,11 +48,12 @@ class MLPredictor:
             return self._neutral_prediction("Predictor deshabilitado")
 
         try:
-            # Crear features
+            # Crear features (incluyendo sentiment si está disponible)
             features = self.feature_engineer.create_features(
                 indicators=indicators,
                 signals=signals,
-                mtf_indicators=mtf_indicators
+                mtf_indicators=mtf_indicators,
+                sentiment_features=sentiment_features
             )
 
             # Predecir
@@ -73,7 +75,7 @@ class MLPredictor:
             logger.error(f"Error en predicción ML: {e}")
             return self._neutral_prediction(f"Error: {str(e)}")
 
-    def enhance_signal(self, signal: Dict, indicators: Dict, mtf_indicators: Dict = None) -> Dict:
+    def enhance_signal(self, signal: Dict, indicators: Dict, mtf_indicators: Dict = None, sentiment_features: Dict = None) -> Dict:
         """
         Mejora señal con predicción ML
 
@@ -81,12 +83,13 @@ class MLPredictor:
             signal: Señal original
             indicators: Indicadores técnicos
             mtf_indicators: Indicadores MTF
+            sentiment_features: Features de sentiment analysis
 
         Returns:
             Señal mejorada con datos ML
         """
-        # Hacer predicción
-        ml_prediction = self.predict(indicators, signal, mtf_indicators)
+        # Hacer predicción (incluyendo sentiment)
+        ml_prediction = self.predict(indicators, signal, mtf_indicators, sentiment_features)
 
         # Agregar datos ML a la señal
         enhanced_signal = signal.copy()

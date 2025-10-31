@@ -155,12 +155,20 @@ class MarketMonitor:
         Analyze a trading pair with dual system:
         1. Conservative multi-timeframe analysis (1h/4h/1d)
         2. Flash signals (10m timeframe) if enabled
+        3. Sentiment analysis integration
 
         Args:
             pair: Trading pair to analyze
         """
         try:
             logger.info(f"Analyzing {pair}...")
+
+            # UPDATE SENTIMENT DATA (every 15 minutes, cached)
+            sentiment_data = None
+            if self.sentiment_system:
+                base_currency = pair.split('/')[0]
+                self.sentiment_system.update(currencies=[base_currency])
+                sentiment_data = self.sentiment_system.get_sentiment_features(pair)
 
             # 1. CONSERVATIVE ANALYSIS - Multi-timeframe
             dfs = {}
@@ -190,6 +198,21 @@ class MarketMonitor:
                     f"@ ${current_price:.2f}"
                 )
 
+                # APPLY SENTIMENT ANALYSIS TO SIGNALS
+                if self.sentiment_system and signals['action'] != 'HOLD':
+                    # Check if trade should be blocked by sentiment
+                    if self.sentiment_system.should_block_trade(pair, signals):
+                        logger.warning(f"🚫 Trade bloqueado por sentiment analysis extremo para {pair}")
+                        return  # Don't process this signal
+
+                    # Adjust signal confidence based on sentiment
+                    signals = self.sentiment_system.adjust_signal_confidence(pair, signals)
+                    logger.info(f"📊 Sentiment applied to {pair}: confidence={signals.get('confidence')}%")
+
+                # Add sentiment data to analysis
+                if sentiment_data:
+                    analysis['sentiment_data'] = sentiment_data
+
                 # Execute paper trade if enabled
                 if self.enable_paper_trading and self.ml_system and signals['action'] != 'HOLD':
                     trade_result = self.ml_system.process_signal(
@@ -197,7 +220,8 @@ class MarketMonitor:
                         signal=signals,
                         indicators=analysis['indicators'],
                         current_price=current_price,
-                        mtf_indicators=analysis.get('mtf_indicators')
+                        mtf_indicators=analysis.get('mtf_indicators'),
+                        sentiment_features=sentiment_data  # Pass sentiment to ML
                     )
 
                     # Enhance analysis with ML data if trade was processed
@@ -235,6 +259,20 @@ class MarketMonitor:
                             f"@ ${flash_price:.2f}"
                         )
 
+                        # APPLY SENTIMENT TO FLASH SIGNALS
+                        if self.sentiment_system and flash_signals['action'] != 'HOLD':
+                            # Check if should block
+                            if self.sentiment_system.should_block_trade(pair, flash_signals):
+                                logger.warning(f"🚫 Flash trade bloqueado por sentiment para {pair}")
+                                return
+
+                            # Adjust confidence
+                            flash_signals = self.sentiment_system.adjust_signal_confidence(pair, flash_signals)
+
+                        # Add sentiment data to flash analysis
+                        if sentiment_data:
+                            flash_analysis['sentiment_data'] = sentiment_data
+
                         # Execute paper trade for flash signal if enabled
                         if self.enable_paper_trading and self.ml_system and flash_signals['action'] != 'HOLD':
                             flash_trade_result = self.ml_system.process_signal(
@@ -242,7 +280,8 @@ class MarketMonitor:
                                 signal=flash_signals,
                                 indicators=flash_analysis['indicators'],
                                 current_price=flash_price,
-                                mtf_indicators=None  # Flash signals don't use MTF
+                                mtf_indicators=None,  # Flash signals don't use MTF
+                                sentiment_features=sentiment_data  # Pass sentiment to ML
                             )
 
                             # Enhance analysis with ML data
