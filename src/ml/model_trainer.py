@@ -90,7 +90,8 @@ class ModelTrainer:
 
         return X, y
 
-    def train(self, X: pd.DataFrame, y: pd.Series, test_size: float = 0.2) -> Dict:
+    def train(self, X: pd.DataFrame, y: pd.Series, test_size: float = 0.2,
+              sample_weights: Optional[np.ndarray] = None) -> Dict:
         """
         Entrena modelo XGBoost
 
@@ -98,6 +99,7 @@ class ModelTrainer:
             X: Features (DataFrame)
             y: Labels (Series) - 1=WIN, 0=LOSS
             test_size: Porcentaje de datos para test
+            sample_weights: Pesos para cada muestra (opcional, para temporal weighting)
 
         Returns:
             Dict con métricas de entrenamiento
@@ -110,28 +112,43 @@ class ModelTrainer:
             logger.warning(f"Insuficientes muestras para entrenar: {len(X)} < {self.min_samples}")
             return {}
 
-        # Split train/test
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=42, stratify=y
-        )
+        # Split train/test (también dividir sample_weights si se proporcionan)
+        if sample_weights is not None:
+            X_train, X_test, y_train, y_test, weights_train, weights_test = train_test_split(
+                X, y, sample_weights, test_size=test_size, random_state=42, stratify=y
+            )
+        else:
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=42, stratify=y
+            )
+            weights_train = None
+            weights_test = None
 
         logger.info(f"🧠 Entrenando modelo ML...")
         logger.info(f"   Train: {len(X_train)} samples | Test: {len(X_test)} samples")
 
         # Configurar XGBoost
-        self.model = XGBClassifier(
-            n_estimators=100,
-            max_depth=5,
-            learning_rate=0.1,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            random_state=42,
-            use_label_encoder=False,
-            eval_metric='logloss'
-        )
+        # Si model_config ya está definido (por initial_trainer), usarlo
+        if hasattr(self, 'model_config') and self.model_config:
+            self.model = XGBClassifier(**self.model_config)
+        else:
+            # Configuración por defecto
+            self.model = XGBClassifier(
+                n_estimators=100,
+                max_depth=5,
+                learning_rate=0.1,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                random_state=42,
+                use_label_encoder=False,
+                eval_metric='logloss'
+            )
 
-        # Entrenar
-        self.model.fit(X_train, y_train)
+        # Entrenar (con sample_weights si están disponibles)
+        if weights_train is not None:
+            self.model.fit(X_train, y_train, sample_weight=weights_train)
+        else:
+            self.model.fit(X_train, y_train)
 
         # Evaluar
         y_pred_train = self.model.predict(X_train)

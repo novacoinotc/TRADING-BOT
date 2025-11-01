@@ -42,6 +42,11 @@ class OrderBookAnalyzer:
         Returns:
             Dict con análisis completo del order book
         """
+        # Validar current_price
+        if current_price <= 0:
+            logger.warning(f"Precio inválido para {pair}: {current_price}")
+            return self._empty_analysis()
+
         # Check cache
         cache_key = f"{pair}_{int(datetime.now().timestamp() / 10)}"  # Cache de 10s
         if cache_key in self.cache:

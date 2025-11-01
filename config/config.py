@@ -89,8 +89,8 @@ FLASH_TIMEFRAME = '15m'  # Timeframe for flash signals (risky but faster) - Bina
 # Signal Types Configuration
 ENABLE_FLASH_SIGNALS = os.getenv('ENABLE_FLASH_SIGNALS', 'true').lower() == 'true'
 CONSERVATIVE_THRESHOLD = 7.0  # Score threshold for conservative signals (1h/4h/1d)
-FLASH_THRESHOLD = 5.0  # Medium threshold for flash signals (15m) - Más selectivo
-FLASH_MIN_CONFIDENCE = 50  # Minimum confidence % for flash signals
+FLASH_THRESHOLD = 6.5  # Threshold para flash signals - MÁS SELECTIVO (antes 5.0, subido para mejor Win Rate)
+FLASH_MIN_CONFIDENCE = 60  # Minimum confidence % for flash signals - MÁS SELECTIVO (antes 50)
 
 # Daily Report Configuration
 DAILY_REPORT_HOUR = 21  # 9 PM
@@ -108,8 +108,8 @@ PAPER_TRADING_INITIAL_BALANCE = float(os.getenv('PAPER_TRADING_INITIAL_BALANCE',
 
 # Historical Training Configuration (Pre-entrenar modelo con datos pasados)
 ENABLE_HISTORICAL_TRAINING = os.getenv('ENABLE_HISTORICAL_TRAINING', 'true').lower() == 'true'
-HISTORICAL_START_DATE = os.getenv('HISTORICAL_START_DATE', '2024-02-01')  # Desde cuándo descargar datos (OPTIMIZADO: 12 meses en lugar de 19)
-HISTORICAL_END_DATE = os.getenv('HISTORICAL_END_DATE', '2025-01-30')  # Hasta cuándo (normalmente "today")
+HISTORICAL_START_DATE = os.getenv('HISTORICAL_START_DATE', '2025-01-01')  # Solo 2025 (10 meses = más rápido y datos recientes)
+HISTORICAL_END_DATE = os.getenv('HISTORICAL_END_DATE', '2025-11-01')  # Hasta hoy
 HISTORICAL_TIMEFRAMES = os.getenv('HISTORICAL_TIMEFRAMES', '1h,4h,1d,15m').split(',')  # Timeframes a descargar
 MIN_HISTORICAL_SAMPLES = int(os.getenv('MIN_HISTORICAL_SAMPLES', '200'))  # Mínimo de señales históricas requeridas
 

@@ -45,6 +45,11 @@ class RegimeDetector:
         Returns:
             Dict con régimen y métricas
         """
+        # Validar current_price
+        if current_price <= 0:
+            logger.warning(f"Precio inválido para {pair}: {current_price}")
+            return self._default_regime()
+
         # Check cache
         cache_key = f"{pair}_{datetime.now().strftime('%Y%m%d%H%M')[:11]}"  # Cache 15 min
         if cache_key in self.cache:
