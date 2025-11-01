@@ -43,6 +43,7 @@ class LearningPersistence:
         rl_agent_state: Dict,
         optimizer_state: Dict,
         performance_history: Dict,
+        change_history: Optional[list] = None,
         metadata: Optional[Dict] = None
     ) -> bool:
         """
@@ -52,6 +53,7 @@ class LearningPersistence:
             rl_agent_state: Estado del RL Agent (Q-table, estadísticas, etc.)
             optimizer_state: Estado del Parameter Optimizer (trials, best config, etc.)
             performance_history: Historial de performance del bot
+            change_history: Histórico de cambios con razonamiento (NUEVO)
             metadata: Información adicional (versión, timestamp, etc.)
 
         Returns:
@@ -71,6 +73,7 @@ class LearningPersistence:
                 'rl_agent': rl_agent_state,
                 'parameter_optimizer': optimizer_state,
                 'performance_history': performance_history,
+                'change_history': change_history or [],  # Histórico de cambios con razonamiento
                 'metadata': metadata or {}
             }
 
@@ -165,6 +168,7 @@ class LearningPersistence:
         """Log resumen de lo que se guardó"""
         rl_stats = state.get('rl_agent', {}).get('statistics', {})
         opt_stats = state.get('parameter_optimizer', {})
+        change_history = state.get('change_history', [])
 
         logger.info(
             f"📊 Resumen guardado:\n"
@@ -173,6 +177,7 @@ class LearningPersistence:
             f"  • Parameter Optimizer: {opt_stats.get('total_trials', 0)} trials, "
             f"mejor score: {opt_stats.get('best_performance', 0):.3f}\n"
             f"  • Q-Table: {rl_stats.get('q_table_size', 0)} estados aprendidos\n"
+            f"  • Histórico de cambios: {len(change_history)} modificaciones registradas\n"
             f"  • Timestamp: {state.get('timestamp', 'N/A')}"
         )
 
@@ -180,6 +185,7 @@ class LearningPersistence:
         """Log resumen de lo que se cargó"""
         rl_stats = state.get('rl_agent', {}).get('statistics', {})
         opt_stats = state.get('parameter_optimizer', {})
+        change_history = state.get('change_history', [])
 
         logger.info(
             f"📊 Resumen cargado:\n"
@@ -187,6 +193,7 @@ class LearningPersistence:
             f"{rl_stats.get('success_rate', 0):.1f}% win rate\n"
             f"  • Parameter Optimizer: {opt_stats.get('total_trials', 0)} trials\n"
             f"  • Q-Table: {rl_stats.get('q_table_size', 0)} estados\n"
+            f"  • Histórico de cambios: {len(change_history)} modificaciones\n"
             f"  • Guardado: {state.get('timestamp', 'N/A')}"
         )
 

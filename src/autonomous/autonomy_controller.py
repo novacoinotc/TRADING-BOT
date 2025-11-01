@@ -11,6 +11,7 @@ from pathlib import Path
 from .rl_agent import RLAgent
 from .parameter_optimizer import ParameterOptimizer
 from .learning_persistence import LearningPersistence
+from .git_backup import GitBackup
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +71,18 @@ class AutonomyController:
         self.total_trades_processed = 0
         self.total_parameter_changes = 0
 
+        # Histórico de cambios con razonamiento (para memoria histórica)
+        self.change_history: List[Dict] = []
+
         # Control de decisiones
         self.decision_mode = "AUTONOMOUS"  # AUTONOMOUS, CONSERVATIVE, AGGRESSIVE
+
+        # Git Backup System
+        self.git_backup = GitBackup(
+            telegram_notifier=telegram_notifier,
+            backup_interval_hours=24.0,
+            backup_dir="data/autonomous"
+        )
 
         logger.info("🤖 AUTONOMY CONTROLLER INICIALIZADO - MODO: CONTROL ABSOLUTO")
         logger.info(f"   Auto-save: cada {self.auto_save_interval} min")
@@ -110,6 +121,10 @@ class AutonomyController:
             )
 
         self.active = True
+
+        # Iniciar Git Auto-Backup
+        await self.git_backup.start_auto_backup()
+
         logger.info("✅ Sistema Autónomo ACTIVO - Control total habilitado")
 
     async def _restore_from_state(self, state: Dict):
@@ -130,6 +145,11 @@ class AutonomyController:
             # Restaurar parámetros actuales
             if 'metadata' in state and 'current_parameters' in state['metadata']:
                 self.current_parameters = state['metadata']['current_parameters']
+
+            # Restaurar histórico de cambios
+            if 'change_history' in state:
+                self.change_history = state['change_history']
+                logger.info(f"📚 {len(self.change_history)} cambios históricos restaurados")
 
             logger.info("✅ Estado completo restaurado exitosamente")
 
@@ -310,6 +330,37 @@ class AutonomyController:
         self.last_optimization_time = datetime.now()
         self.total_parameter_changes += 1
 
+        # GUARDAR EN HISTÓRICO DE CAMBIOS (memoria histórica para futuro)
+        change_record = {
+            'timestamp': datetime.now().isoformat(),
+            'change_number': self.total_parameter_changes,
+            'trigger_reason': reason,
+            'strategy': strategy,
+            'performance_before': {
+                'win_rate': portfolio_metrics.get('win_rate', 0),
+                'roi': portfolio_metrics.get('roi', 0),
+                'sharpe_ratio': portfolio_metrics.get('sharpe_ratio', 0),
+                'max_drawdown': portfolio_metrics.get('max_drawdown', 0)
+            },
+            'parameters_changed': [
+                {
+                    'parameter': c['parameter'],
+                    'old_value': c['old_value'],
+                    'new_value': c['new_value'],
+                    'change_pct': c['change_pct']
+                }
+                for c in changes
+            ],
+            'reasoning': change_reason,
+            'exploration_factor': exploration_factor,
+            'total_trades_at_change': self.total_trades_processed
+        }
+        self.change_history.append(change_record)
+
+        # Mantener solo últimos 100 cambios (para no saturar)
+        if len(self.change_history) > 100:
+            self.change_history = self.change_history[-100:]
+
         # NOTIFICAR CAMBIOS A TELEGRAM
         await self._notify_parameter_changes(changes, strategy, change_reason, portfolio_metrics)
 
@@ -408,6 +459,7 @@ class AutonomyController:
             rl_agent_state=rl_state,
             optimizer_state=optimizer_state,
             performance_history=performance_summary,
+            change_history=self.change_history,  # Histórico de cambios con razonamiento
             metadata=metadata
         )
 
@@ -456,6 +508,9 @@ class AutonomyController:
 
         self.active = False
 
+        # Detener Git Auto-Backup
+        await self.git_backup.stop_auto_backup()
+
         # Guardar inteligencia final
         await self.save_intelligence()
 
@@ -470,3 +525,20 @@ class AutonomyController:
         )
 
         logger.info("✅ Sistema Autónomo apagado - Inteligencia preservada")
+
+    async def manual_export(self) -> bool:
+        """
+        Export manual de inteligencia (llamado por comando de Telegram)
+
+        Returns:
+            True si export fue exitoso
+        """
+        logger.info("📤 Export manual solicitado...")
+
+        # Guardar inteligencia primero
+        await self.save_intelligence()
+
+        # Realizar backup a Git
+        success = await self.git_backup.perform_backup(manual=True)
+
+        return success

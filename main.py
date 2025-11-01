@@ -17,6 +17,7 @@ from datetime import datetime
 # Import autonomous AI system
 if config.ENABLE_AUTONOMOUS_MODE:
     from src.autonomous.autonomy_controller import AutonomyController
+    from src.telegram_commands import TelegramCommands
 
 
 async def send_bot_status_message(monitor):
@@ -267,6 +268,7 @@ async def main():
 
         # Initialize Autonomous AI System if enabled
         autonomy_controller = None
+        telegram_commands = None
         if config.ENABLE_AUTONOMOUS_MODE:
             logger.info("🤖 Inicializando Sistema Autónomo - CONTROL ABSOLUTO")
             autonomy_controller = AutonomyController(
@@ -279,6 +281,14 @@ async def main():
             # Pass autonomous controller to monitor
             monitor.autonomy_controller = autonomy_controller
             logger.info("✅ Sistema Autónomo activo - IA tiene control total")
+
+            # Initialize Telegram Commands Handler
+            telegram_commands = TelegramCommands(
+                autonomy_controller=autonomy_controller,
+                telegram_token=config.TELEGRAM_BOT_TOKEN
+            )
+            await telegram_commands.start_command_listener()
+            logger.info("📱 Telegram Commands activos: /export_intelligence, /status")
 
         # Run historical training if enabled (pre-train ML model)
         if config.ENABLE_PAPER_TRADING:
@@ -294,12 +304,18 @@ async def main():
 
     except KeyboardInterrupt:
         logger.info("Received interrupt signal. Shutting down...")
+        # Shutdown telegram commands if active
+        if telegram_commands:
+            await telegram_commands.stop_command_listener()
         # Shutdown autonomous controller if active
         if autonomy_controller:
             await autonomy_controller.shutdown()
 
     except Exception as e:
         logger.error(f"Fatal error: {e}", exc_info=True)
+        # Shutdown telegram commands if active
+        if telegram_commands:
+            await telegram_commands.stop_command_listener()
         # Shutdown autonomous controller if active
         if autonomy_controller:
             await autonomy_controller.shutdown()

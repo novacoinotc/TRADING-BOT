@@ -6,10 +6,12 @@ from .rl_agent import RLAgent
 from .parameter_optimizer import ParameterOptimizer
 from .learning_persistence import LearningPersistence
 from .autonomy_controller import AutonomyController
+from .git_backup import GitBackup
 
 __all__ = [
     'RLAgent',
     'ParameterOptimizer',
     'LearningPersistence',
-    'AutonomyController'
+    'AutonomyController',
+    'GitBackup'
 ]
