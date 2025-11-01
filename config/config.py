@@ -112,6 +112,9 @@ HISTORICAL_START_DATE = os.getenv('HISTORICAL_START_DATE', '2025-01-01')  # Solo
 HISTORICAL_END_DATE = os.getenv('HISTORICAL_END_DATE', '2025-11-01')  # Hasta hoy
 HISTORICAL_TIMEFRAMES = os.getenv('HISTORICAL_TIMEFRAMES', '1h,4h,1d,15m').split(',')  # Timeframes a descargar
 MIN_HISTORICAL_SAMPLES = int(os.getenv('MIN_HISTORICAL_SAMPLES', '200'))  # Mínimo de señales históricas requeridas
+# IMPORTANTE: Si tienes errores de rate limit en Binance por múltiples redeploys,
+# temporalmente deshabilita el backtest con ENABLE_HISTORICAL_TRAINING=false en Railway
+# y espera 30-60 minutos antes de reactivarlo
 
 # Sentiment Analysis Configuration
 ENABLE_SENTIMENT_ANALYSIS = os.getenv('ENABLE_SENTIMENT_ANALYSIS', 'true').lower() == 'true'

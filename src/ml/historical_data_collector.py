@@ -117,8 +117,9 @@ class HistoricalDataCollector:
                     # Actualizar timestamp para siguiente chunk
                     current_since = ohlcv[-1][0] + 1
 
-                    # Evitar rate limits
-                    time.sleep(self.exchange.rateLimit / 1000)
+                    # Evitar rate limits - esperar más tiempo
+                    # Binance rateLimit es ~50ms, multiplicamos x3 para estar seguros
+                    time.sleep((self.exchange.rateLimit / 1000) * 3)
 
                     # Log progreso
                     current_date = datetime.fromtimestamp(current_since / 1000)
@@ -128,8 +129,22 @@ class HistoricalDataCollector:
                 except ccxt.BadSymbol:
                     logger.warning(f"Par {pair} no disponible en {self.exchange_name}")
                     return None
+                except ccxt.RateLimitExceeded as e:
+                    # Rate limit exceeded - esperar y reintentar
+                    wait_time = 60  # 1 minuto
+                    logger.warning(f"⚠️ Rate limit excedido para {pair}. Esperando {wait_time}s antes de reintentar...")
+                    time.sleep(wait_time)
+                    continue  # Reintentar este chunk
+                except ccxt.DDoSProtection as e:
+                    # Binance bloqueó temporalmente - esperar más
+                    wait_time = 120  # 2 minutos
+                    logger.warning(f"⚠️ Binance bloqueó requests. Esperando {wait_time}s antes de reintentar...")
+                    time.sleep(wait_time)
+                    continue  # Reintentar este chunk
                 except Exception as e:
                     logger.error(f"Error descargando chunk de {pair}: {e}")
+                    # Esperar un poco antes de continuar con siguiente par
+                    time.sleep(5)
                     break
 
             if not all_ohlcv:
@@ -212,8 +227,9 @@ class HistoricalDataCollector:
                 all_data[pair] = pair_data
 
             # Pausa entre pares para evitar rate limits
+            # Esperar más tiempo para no saturar Binance
             if idx < total_pairs:
-                time.sleep(1)
+                time.sleep(3)  # 3 segundos entre pares (antes: 1s)
 
         logger.info(f"\n✅ Descarga completa: {len(all_data)} pares con datos válidos")
 
