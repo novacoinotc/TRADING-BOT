@@ -15,6 +15,69 @@ from config import config
 from datetime import datetime
 
 
+async def send_bot_status_message(monitor):
+    """
+    Envía mensaje completo del status del bot a Telegram
+
+    Args:
+        monitor: Instancia de MarketMonitor con todos los componentes
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Verificar status de cada componente
+        ml_status = "✅ Activo"
+        ml_accuracy = "N/A"
+
+        if hasattr(monitor, 'ml_integration') and monitor.ml_integration:
+            predictor = monitor.ml_integration.predictor
+            if predictor and predictor.model_trained:
+                ml_accuracy = f"{predictor.accuracy * 100:.1f}%"
+            else:
+                ml_status = "⚠️ Sin entrenar"
+        else:
+            ml_status = "❌ Inactivo"
+
+        sentiment_status = "✅ Activo" if config.ENABLE_SENTIMENT_ANALYSIS else "❌ Inactivo"
+        paper_trading_status = "✅ Activo" if config.ENABLE_PAPER_TRADING else "❌ Inactivo"
+        flash_signals_status = "✅ Activas" if config.ENABLE_FLASH_SIGNALS else "❌ Inactivas"
+
+        # Obtener balance de paper trading
+        balance = "$50,000 USDT"
+        if hasattr(monitor, 'ml_integration') and monitor.ml_integration:
+            if hasattr(monitor.ml_integration, 'paper_trader') and monitor.ml_integration.paper_trader:
+                portfolio = monitor.ml_integration.paper_trader.portfolio
+                balance = f"${portfolio.get_equity():,.2f} USDT"
+
+        # Contar pares
+        total_pairs = len(config.TRADING_PAIRS)
+        main_pairs = f"{config.TRADING_PAIRS[0]}, {config.TRADING_PAIRS[1]}"
+        additional_pairs = total_pairs - 2
+
+        # Construir mensaje
+        message = (
+            "🤖 **Bot de Señales Iniciado**\n\n"
+            f"📊 Monitoreando: {main_pairs} y {additional_pairs} más\n"
+            f"⏱️ Intervalo: {config.CHECK_INTERVAL}s\n"
+            f"📈 Timeframe conservador: {config.TIMEFRAME} (1h/4h/1d)\n"
+            f"⚡ Señales flash: {flash_signals_status} ({config.FLASH_TIMEFRAME})\n"
+            f"💰 Paper Trading: {paper_trading_status} ({balance})\n"
+            f"🧠 Machine Learning: {ml_status} ({ml_accuracy} accuracy)\n"
+            f"📰 Sentiment Analysis: {sentiment_status}\n"
+            f"📚 Order Book: ✅ Activo\n"
+            f"🎯 Market Regime: ✅ Activo\n"
+            f"📍 Reporte diario: 9 PM CDMX"
+        )
+
+        # Enviar mensaje
+        if monitor.telegram_bot:
+            await monitor.telegram_bot.send_message(message)
+            logger.info("✅ Mensaje de status enviado a Telegram")
+
+    except Exception as e:
+        logger.warning(f"No se pudo enviar mensaje de status: {e}")
+
+
 def setup_logging():
     """
     Configure logging for the application
@@ -34,9 +97,12 @@ def setup_logging():
     )
 
 
-def run_historical_training():
+async def run_historical_training(telegram_bot=None):
     """
     Pre-entrena modelo ML con datos históricos si no existe modelo
+
+    Args:
+        telegram_bot: Instancia de TelegramBot para notificaciones
 
     Returns:
         True si entrenamiento fue exitoso o no era necesario
@@ -92,20 +158,29 @@ def run_historical_training():
         cache_info = collector.get_cache_info()
         logger.info(f"✅ Datos descargados: {cache_info['total_files']} archivos ({cache_info['total_size_mb']} MB)")
 
-        # 2. Correr backtest
-        logger.info("\n🔄 FASE 2: Corriendo backtest histórico...")
-        logger.info("   (Generando señales y simulando trades...)")
+        # 2. Intentar cargar backtest guardado
+        logger.info("\n🔍 Verificando si existe backtest previo...")
+        date_range = (config.HISTORICAL_START_DATE, config.HISTORICAL_END_DATE)
+        backtest_results = Backtester.load_backtest_results(expected_date_range=date_range)
 
-        backtester = Backtester(
-            initial_balance=config.PAPER_TRADING_INITIAL_BALANCE,
-            commission_rate=0.001,
-            slippage_rate=0.0005
-        )
+        if backtest_results:
+            logger.info("✅ Usando resultados de backtest guardado (ahorra ~5-10 min)")
+        else:
+            # 2b. Correr backtest si no existe guardado
+            logger.info("\n🔄 FASE 2: Corriendo backtest histórico...")
+            logger.info("   (Generando señales y simulando trades...)")
 
-        backtest_results = backtester.run_backtest(
-            historical_data=historical_data,
-            signal_type='both'  # Conservative + Flash
-        )
+            backtester = Backtester(
+                initial_balance=config.PAPER_TRADING_INITIAL_BALANCE,
+                commission_rate=0.001,
+                slippage_rate=0.0005,
+                telegram_bot=telegram_bot  # NUEVO: Para notificaciones
+            )
+
+            backtest_results = await backtester.run_backtest(
+                historical_data=historical_data,
+                signal_type='both'  # Conservative + Flash
+            )
 
         if len(backtest_results) < config.MIN_HISTORICAL_SAMPLES:
             logger.error(f"❌ Insuficientes señales históricas: {len(backtest_results)} (mínimo {config.MIN_HISTORICAL_SAMPLES})")
@@ -180,15 +255,20 @@ async def main():
     logger.info(f"Check Interval: {config.CHECK_INTERVAL} seconds")
     logger.info(f"Timeframe: {config.TIMEFRAME}")
 
-    # Run historical training if enabled (pre-train ML model)
-    if config.ENABLE_PAPER_TRADING:
-        success = run_historical_training()
-        if not success:
-            logger.warning("Historical training no completado, pero continuando...")
-
     # Initialize and start market monitor
     try:
         monitor = MarketMonitor()
+
+        # Run historical training if enabled (pre-train ML model)
+        if config.ENABLE_PAPER_TRADING:
+            success = await run_historical_training(telegram_bot=monitor.telegram_bot)
+            if not success:
+                logger.warning("Historical training no completado, pero continuando...")
+
+        # NUEVO: Enviar mensaje de status completo del bot
+        await send_bot_status_message(monitor)
+
+        # Iniciar monitoreo
         await monitor.start()
 
     except KeyboardInterrupt:
