@@ -82,7 +82,7 @@ TRADING_PAIRS = [
 ]
 
 # Analysis Configuration
-CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 90))  # 90 segundos (más frecuente para captar oportunidades)
+CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 120))  # 120 segundos - OPTIMIZADO para evitar rate limits con 37 pares
 TIMEFRAME = '1h'  # Candlestick timeframe for conservative signals
 FLASH_TIMEFRAME = '15m'  # Timeframe for flash signals (risky but faster) - Binance soporta: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
 
@@ -100,7 +100,7 @@ TIMEZONE = 'America/Mexico_City'  # Hora CDMX
 # Signal Tracking (for accuracy calculation)
 TRACK_SIGNALS = True
 TRACKING_FILE = 'logs/signal_tracking.json'
-PROFIT_THRESHOLD = 2.0  # 2% profit to consider signal successful
+PROFIT_THRESHOLD = 1.5  # 1.5% profit to consider signal successful - OPTIMIZADO (antes 2.0%, más realista)
 
 # Paper Trading + ML Configuration
 ENABLE_PAPER_TRADING = os.getenv('ENABLE_PAPER_TRADING', 'true').lower() == 'true'
@@ -123,8 +123,8 @@ FORCE_HISTORICAL_DOWNLOAD = os.getenv('FORCE_HISTORICAL_DOWNLOAD', 'false').lowe
 SKIP_HISTORICAL_IF_MODEL_EXISTS = os.getenv('SKIP_HISTORICAL_IF_MODEL_EXISTS', 'true').lower() == 'true'  # Skip si ya hay modelo
 
 # Technical Indicators Thresholds
-RSI_OVERSOLD = int(os.getenv('RSI_OVERSOLD', 30))
-RSI_OVERBOUGHT = int(os.getenv('RSI_OVERBOUGHT', 70))
+RSI_OVERSOLD = int(os.getenv('RSI_OVERSOLD', 35))  # OPTIMIZADO: 35 en lugar de 30 (captura rebotes más temprano)
+RSI_OVERBOUGHT = int(os.getenv('RSI_OVERBOUGHT', 65))  # OPTIMIZADO: 65 en lugar de 70 (captura reversiones más temprano)
 RSI_PERIOD = 14
 
 # MACD Configuration

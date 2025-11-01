@@ -132,23 +132,36 @@ class ModelTrainer:
         if hasattr(self, 'model_config') and self.model_config:
             self.model = XGBClassifier(**self.model_config)
         else:
-            # Configuración por defecto
+            # Configuración por defecto - OPTIMIZADO para reducir overfitting
             self.model = XGBClassifier(
-                n_estimators=100,
-                max_depth=5,
-                learning_rate=0.1,
-                subsample=0.8,
-                colsample_bytree=0.8,
+                n_estimators=150,  # Más árboles para mejor generalización
+                max_depth=4,  # Reducido de 5 a 4 (menos overfitting)
+                learning_rate=0.08,  # Reducido de 0.1 a 0.08 (aprendizaje más suave)
+                subsample=0.75,  # Reducido de 0.8 a 0.75 (más regularización)
+                colsample_bytree=0.75,  # Reducido de 0.8 a 0.75 (más regularización)
+                min_child_weight=3,  # NUEVO: Previene splits con pocas muestras
+                gamma=0.1,  # NUEVO: Penalización por complejidad
+                reg_alpha=0.1,  # NUEVO: L1 regularization
+                reg_lambda=1.0,  # NUEVO: L2 regularization
                 random_state=42,
                 use_label_encoder=False,
                 eval_metric='logloss'
             )
 
-        # Entrenar (con sample_weights si están disponibles)
+        # Entrenar (con sample_weights y early stopping si están disponibles)
         if weights_train is not None:
-            self.model.fit(X_train, y_train, sample_weight=weights_train)
+            self.model.fit(
+                X_train, y_train,
+                sample_weight=weights_train,
+                eval_set=[(X_test, y_test)],
+                verbose=False
+            )
         else:
-            self.model.fit(X_train, y_train)
+            self.model.fit(
+                X_train, y_train,
+                eval_set=[(X_test, y_test)],
+                verbose=False
+            )
 
         # Evaluar
         y_pred_train = self.model.predict(X_train)

@@ -21,10 +21,10 @@ class RiskManager:
     def __init__(
         self,
         portfolio: Portfolio,
-        base_position_size_pct: float = 5.0,
-        max_drawdown_limit: float = 20.0,
-        max_positions: int = 10,
-        max_risk_per_trade_pct: float = 2.0
+        base_position_size_pct: float = 4.0,  # OPTIMIZADO: 4% en lugar de 5% (más conservador)
+        max_drawdown_limit: float = 15.0,  # OPTIMIZADO: 15% en lugar de 20% (protección temprana)
+        max_positions: int = 8,  # OPTIMIZADO: 8 en lugar de 10 (mejor diversificación)
+        max_risk_per_trade_pct: float = 1.5  # OPTIMIZADO: 1.5% en lugar de 2% (más conservador)
     ):
         """
         Args:
@@ -69,14 +69,18 @@ class RiskManager:
         else:
             drawdown_factor = 1.0
 
-        # Factor 4: Win rate reciente
+        # Factor 4: Win rate reciente - OPTIMIZADO con más graduaciones
         win_rate = stats['win_rate']
-        if win_rate > 60:
-            winrate_factor = 1.2  # Aumentar si gana bien
-        elif win_rate < 40:
-            winrate_factor = 0.8  # Reducir si pierde mucho
+        if win_rate > 65:
+            winrate_factor = 1.3  # Aumentar significativamente si gana muy bien
+        elif win_rate > 55:
+            winrate_factor = 1.15  # Aumentar moderadamente
+        elif win_rate >= 45:
+            winrate_factor = 1.0  # Mantener
+        elif win_rate >= 35:
+            winrate_factor = 0.85  # Reducir moderadamente
         else:
-            winrate_factor = 1.0
+            winrate_factor = 0.7  # Reducir significativamente si pierde mucho
 
         # Calcular tamaño final
         position_size_pct = (
@@ -137,17 +141,21 @@ class RiskManager:
         """
         stats = self.portfolio.get_statistics()
 
-        # Reducir si:
-        # 1. Drawdown > 15%
-        if stats['max_drawdown'] > 15.0:
+        # Reducir si: - OPTIMIZADO con límites más conservadores
+        # 1. Drawdown > 12% (antes 15%)
+        if stats['max_drawdown'] > 12.0:
             return True
 
-        # 2. Win rate < 35%
-        if stats['win_rate'] < 35.0 and stats['total_trades'] > 10:
+        # 2. Win rate < 38% (antes 35%, más temprano)
+        if stats['win_rate'] < 38.0 and stats['total_trades'] > 10:
             return True
 
-        # 3. Pérdida neta > -5% del capital inicial
-        if stats['roi'] < -5.0:
+        # 3. Pérdida neta > -4% del capital inicial (antes -5%, más conservador)
+        if stats['roi'] < -4.0:
+            return True
+
+        # 4. NUEVO: Racha de pérdidas consecutivas
+        if hasattr(stats, 'consecutive_losses') and stats.get('consecutive_losses', 0) >= 5:
             return True
 
         return False
