@@ -14,6 +14,10 @@ from src.market_monitor import MarketMonitor
 from config import config
 from datetime import datetime
 
+# Import autonomous AI system
+if config.ENABLE_AUTONOMOUS_MODE:
+    from src.autonomous.autonomy_controller import AutonomyController
+
 
 async def send_bot_status_message(monitor):
     """
@@ -41,6 +45,7 @@ async def send_bot_status_message(monitor):
         sentiment_status = "✅ Activo" if config.ENABLE_SENTIMENT_ANALYSIS else "❌ Inactivo"
         paper_trading_status = "✅ Activo" if config.ENABLE_PAPER_TRADING else "❌ Inactivo"
         flash_signals_status = "✅ Activas" if config.ENABLE_FLASH_SIGNALS else "❌ Inactivas"
+        autonomous_status = "✅ MODO AUTÓNOMO ACTIVO" if config.ENABLE_AUTONOMOUS_MODE else "❌ Modo manual"
 
         # Obtener balance de paper trading
         balance = "$50,000 USDT"
@@ -66,6 +71,7 @@ async def send_bot_status_message(monitor):
             f"📰 Sentiment Analysis: {sentiment_status}\n"
             f"📚 Order Book: ✅ Activo\n"
             f"🎯 Market Regime: ✅ Activo\n"
+            f"🤖 Sistema Autónomo: {autonomous_status}\n"
             f"📍 Reporte diario: 9 PM CDMX"
         )
 
@@ -259,6 +265,21 @@ async def main():
     try:
         monitor = MarketMonitor()
 
+        # Initialize Autonomous AI System if enabled
+        autonomy_controller = None
+        if config.ENABLE_AUTONOMOUS_MODE:
+            logger.info("🤖 Inicializando Sistema Autónomo - CONTROL ABSOLUTO")
+            autonomy_controller = AutonomyController(
+                telegram_notifier=monitor.notifier,
+                auto_save_interval_minutes=config.AUTONOMOUS_AUTO_SAVE_INTERVAL,
+                optimization_check_interval_hours=config.AUTONOMOUS_OPTIMIZATION_INTERVAL,
+                min_trades_before_optimization=config.AUTONOMOUS_MIN_TRADES_BEFORE_OPT
+            )
+            await autonomy_controller.initialize()
+            # Pass autonomous controller to monitor
+            monitor.autonomy_controller = autonomy_controller
+            logger.info("✅ Sistema Autónomo activo - IA tiene control total")
+
         # Run historical training if enabled (pre-train ML model)
         if config.ENABLE_PAPER_TRADING:
             success = await run_historical_training(telegram_bot=monitor.notifier)
@@ -273,9 +294,15 @@ async def main():
 
     except KeyboardInterrupt:
         logger.info("Received interrupt signal. Shutting down...")
+        # Shutdown autonomous controller if active
+        if autonomy_controller:
+            await autonomy_controller.shutdown()
 
     except Exception as e:
         logger.error(f"Fatal error: {e}", exc_info=True)
+        # Shutdown autonomous controller if active
+        if autonomy_controller:
+            await autonomy_controller.shutdown()
         sys.exit(1)
 
     logger.info("Bot stopped successfully")

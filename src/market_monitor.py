@@ -74,6 +74,7 @@ class MarketMonitor:
         self.current_prices = {}  # Store current prices for tracking
         self.enable_flash = config.ENABLE_FLASH_SIGNALS
         self.enable_paper_trading = config.ENABLE_PAPER_TRADING  # New config option
+        self.autonomy_controller = None  # Will be set by main.py if autonomous mode enabled
 
     def _initialize_exchange(self) -> ccxt.Exchange:
         """
@@ -289,6 +290,16 @@ class MarketMonitor:
                     if closed_trade:
                         logger.info(f"Position closed for {pair}: {closed_trade}")
 
+                        # Send trade outcome to autonomous controller for learning
+                        if self.autonomy_controller:
+                            await self._process_trade_outcome_autonomous(
+                                closed_trade,
+                                analysis.get('indicators', {}),
+                                sentiment_data,
+                                orderbook_analysis,
+                                regime_data
+                            )
+
                 # Send signal notification if strong enough (score >= 7)
                 if signals['action'] != 'HOLD':
                     await self.notifier.send_signal(pair, analysis)
@@ -437,6 +448,77 @@ class MarketMonitor:
                 await asyncio.sleep(60)  # Wait 1 minute before retrying
 
         await self.notifier.send_status_message("🛑 <b>Bot de Señales Detenido</b>")
+
+    async def _process_trade_outcome_autonomous(
+        self,
+        closed_trade: Dict,
+        indicators: Dict,
+        sentiment_data: Optional[Dict],
+        orderbook_data: Optional[Dict],
+        regime_data: Optional[Dict]
+    ):
+        """
+        Procesa resultado de trade cerrado y lo envía al autonomy controller para aprendizaje
+
+        Args:
+            closed_trade: Datos del trade cerrado
+            indicators: Indicadores técnicos
+            sentiment_data: Datos de sentiment
+            orderbook_data: Datos de order book
+            regime_data: Datos de regime
+        """
+        try:
+            # Construir estado de mercado para el RL Agent
+            market_state = {
+                'rsi': indicators.get('rsi', 50),
+                'macd_signal': 'bullish' if indicators.get('macd_diff', 0) > 0 else 'bearish',
+                'trend': 'up' if indicators.get('ema_short', 0) > indicators.get('ema_long', 0) else 'down',
+                'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
+                'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+                'volatility': 'high' if indicators.get('atr', 0) > indicators.get('current_price', 1) * 0.02 else 'medium',
+                'win_rate': 0,  # Will be updated with portfolio metrics
+                'drawdown': 0   # Will be updated with portfolio metrics
+            }
+
+            # Obtener métricas del portfolio
+            portfolio_metrics = {}
+            if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
+                stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                market_state['win_rate'] = stats['win_rate']
+                market_state['drawdown'] = stats['max_drawdown']
+
+                portfolio_metrics = {
+                    'win_rate': stats['win_rate'],
+                    'roi': stats['roi'],
+                    'max_drawdown': stats['max_drawdown'],
+                    'sharpe_ratio': stats.get('sharpe_ratio', 0),
+                    'profit_factor': stats.get('profit_factor', 1.0),
+                    'total_trades': stats['total_trades']
+                }
+
+            # Preparar datos del trade
+            trade_data = {
+                'pair': closed_trade.get('pair', 'UNKNOWN'),
+                'action': closed_trade.get('action', 'UNKNOWN'),
+                'entry_price': closed_trade.get('entry_price', 0),
+                'exit_price': closed_trade.get('exit_price', 0),
+                'profit_pct': closed_trade.get('profit_pct', 0),
+                'profit_amount': closed_trade.get('profit', 0),
+                'duration': closed_trade.get('duration', 0),
+                'exit_reason': closed_trade.get('exit_reason', 'UNKNOWN')
+            }
+
+            # Enviar al autonomy controller
+            await self.autonomy_controller.process_trade_outcome(
+                trade_data=trade_data,
+                market_state=market_state,
+                portfolio_metrics=portfolio_metrics
+            )
+
+            logger.debug(f"✅ Trade outcome enviado a Autonomy Controller: {trade_data['pair']}")
+
+        except Exception as e:
+            logger.error(f"❌ Error procesando trade outcome para autonomy: {e}", exc_info=True)
 
     async def start(self):
         """
