@@ -302,16 +302,19 @@ class AdvancedTechnicalAnalyzer:
             score -= 1.5
             reasons.append(f"RSI overbought ({indicators['rsi']:.1f})")
 
-        # 2. Volume Confirmation (0-2 points)
+        # 2. Volume Confirmation (0-2 points) - OPTIMIZADO
         if indicators['volume_ratio'] > 1.5:
             score += 2.0 if score > 0 else -2.0
             reasons.append(f"📊 High volume confirmation (+{(indicators['volume_ratio']-1)*100:.0f}%)")
         elif indicators['volume_ratio'] > 1.2:
             score += 1.0 if score > 0 else -1.0
             reasons.append(f"Volume above average (+{(indicators['volume_ratio']-1)*100:.0f}%)")
+        elif indicators['volume_ratio'] > 0.9:
+            # Volumen normal - sin penalización
+            pass
         elif indicators['volume_ratio'] < 0.7:
             reasons.append("⚠️ Low volume - weak signal")
-            score *= 0.7  # Reduce score by 30% if low volume
+            score *= 0.85  # Penalización reducida (antes 0.7, ahora 0.85)
 
         # 3. Divergence Detection (0-1.5 points)
         if indicators['divergences']['rsi_divergence'] == 'bullish':
@@ -347,12 +350,15 @@ class AdvancedTechnicalAnalyzer:
             score -= 1.0
             reasons.append(f"📍 Near resistance level (${sr_levels['nearest_resistance']:.2f})")
 
-        # 7. ADX Trend Strength (bonus/penalty)
-        if indicators['adx'] > 25:
+        # 7. ADX Trend Strength (bonus/penalty) - OPTIMIZADO
+        if indicators['adx'] > 30:
+            score += 0.5  # Bonus por tendencia muy fuerte
+            reasons.append(f"💪 Very strong trend (ADX: {indicators['adx']:.1f})")
+        elif indicators['adx'] > 25:
             reasons.append(f"💪 Strong trend (ADX: {indicators['adx']:.1f})")
-        elif indicators['adx'] < 20:
-            reasons.append(f"⚠️ Weak trend (ADX: {indicators['adx']:.1f})")
-            score *= 0.8  # Reduce score in weak trends
+        elif indicators['adx'] < 15:
+            reasons.append(f"⚠️ Very weak trend (ADX: {indicators['adx']:.1f})")
+            score *= 0.90  # Penalización reducida (antes 0.8, ahora 0.90)
 
         # 8. Bollinger Bands
         if current_price < indicators['bb_lower']:
@@ -362,15 +368,38 @@ class AdvancedTechnicalAnalyzer:
             score -= 1.0
             reasons.append("Price above upper Bollinger Band")
 
+        # 9. EMA Alignment Bonus (0-1.5 points) - NUEVO
+        ema_short = indicators.get('ema_short', 0)
+        ema_medium = indicators.get('ema_medium', 0)
+        ema_long = indicators.get('ema_long', 0)
+
+        # Alineación alcista perfecta: Price > EMA9 > EMA21 > EMA50
+        if current_price > ema_short > ema_medium > ema_long and score > 0:
+            score += 1.5
+            reasons.append("🚀 Perfect bullish EMA alignment")
+        # Alineación bajista perfecta: Price < EMA9 < EMA21 < EMA50
+        elif current_price < ema_short < ema_medium < ema_long and score < 0:
+            score -= 1.5
+            reasons.append("🔻 Perfect bearish EMA alignment")
+        # Alineación alcista parcial
+        elif current_price > ema_short > ema_medium and score > 0:
+            score += 0.75
+            reasons.append("Partial bullish EMA alignment")
+        # Alineación bajista parcial
+        elif current_price < ema_short < ema_medium and score < 0:
+            score -= 0.75
+            reasons.append("Partial bearish EMA alignment")
+
         # Normalize score to 0-10 range
         final_score = max(0, min(abs(score), max_score))
 
-        # Determine action
-        if score >= 7:
+        # Determine action (usa threshold dinámico del config)
+        threshold = config.CONSERVATIVE_THRESHOLD
+        if score >= threshold:
             action = 'BUY'
             risk_level = 'LOW' if indicators['volume_ratio'] > 1.2 else 'MEDIUM'
             confidence = int((final_score / max_score) * 100)
-        elif score <= -7:
+        elif score <= -threshold:
             action = 'SELL'
             risk_level = 'LOW' if indicators['volume_ratio'] > 1.2 else 'MEDIUM'
             confidence = int((final_score / max_score) * 100)
@@ -378,7 +407,7 @@ class AdvancedTechnicalAnalyzer:
             action = 'HOLD'
             # Keep the real score for visibility (don't force to 0)
             confidence = 0
-            reasons.append(f'Signal not strong enough (need 7+ points, has {abs(score):.1f})')  # Show actual score
+            reasons.append(f'Signal not strong enough (need {threshold}+ points, has {abs(score):.1f})')  # Show actual score
 
         return {
             'action': action,

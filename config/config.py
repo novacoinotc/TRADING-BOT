@@ -82,15 +82,15 @@ TRADING_PAIRS = [
 ]
 
 # Analysis Configuration
-CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 120))  # 2 minutes (más frecuente para experimentar)
+CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 90))  # 90 segundos (más frecuente para captar oportunidades)
 TIMEFRAME = '1h'  # Candlestick timeframe for conservative signals
 FLASH_TIMEFRAME = '15m'  # Timeframe for flash signals (risky but faster) - Binance soporta: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
 
 # Signal Types Configuration
 ENABLE_FLASH_SIGNALS = os.getenv('ENABLE_FLASH_SIGNALS', 'true').lower() == 'true'
-CONSERVATIVE_THRESHOLD = 7.0  # Score threshold for conservative signals (1h/4h/1d)
-FLASH_THRESHOLD = 6.5  # Threshold para flash signals - MÁS SELECTIVO (antes 5.0, subido para mejor Win Rate)
-FLASH_MIN_CONFIDENCE = 60  # Minimum confidence % for flash signals - MÁS SELECTIVO (antes 50)
+CONSERVATIVE_THRESHOLD = 5.5  # Score threshold for conservative signals - OPTIMIZADO (antes 7.0, muy estricto)
+FLASH_THRESHOLD = 6.0  # Threshold para flash signals - BALANCEADO (selectivo pero genera señales)
+FLASH_MIN_CONFIDENCE = 55  # Minimum confidence % for flash signals - BALANCEADO
 
 # Daily Report Configuration
 DAILY_REPORT_HOUR = 21  # 9 PM

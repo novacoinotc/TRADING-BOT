@@ -172,6 +172,20 @@ class FlashSignalAnalyzer:
                 score -= 1.0
                 reasons.append("Precio en zona de sobrecompra (BB)")
 
+        # 7. Momentum Bonus (0-1 point) - NUEVO
+        # Si RSI y MACD concuerdan en dirección, es más fuerte
+        rsi_bullish = indicators['rsi'] < 40
+        rsi_bearish = indicators['rsi'] > 60
+        macd_bullish = indicators['macd_diff'] > 0
+        macd_bearish = indicators['macd_diff'] < 0
+
+        if rsi_bullish and macd_bullish and score > 0:
+            score += 1.0
+            reasons.append("🔥 Strong bullish momentum (RSI + MACD)")
+        elif rsi_bearish and macd_bearish and score < 0:
+            score -= 1.0
+            reasons.append("🔥 Strong bearish momentum (RSI + MACD)")
+
         # Normalize score
         final_score = max(0, min(abs(score), 10))
 
