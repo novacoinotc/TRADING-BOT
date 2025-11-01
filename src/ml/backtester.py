@@ -56,7 +56,7 @@ class Backtester:
         """Envía notificación a Telegram si telegram_bot está disponible"""
         if self.telegram_bot:
             try:
-                await self.telegram_bot.send_message(message)
+                await self.telegram_bot.send_status_message(message)
             except Exception as e:
                 logger.warning(f"No se pudo enviar notificación a Telegram: {e}")
 

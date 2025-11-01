@@ -71,7 +71,7 @@ async def send_bot_status_message(monitor):
 
         # Enviar mensaje
         if monitor.notifier:
-            await monitor.notifier.send_message(message)
+            await monitor.notifier.send_status_message(message)
             logger.info("✅ Mensaje de status enviado a Telegram")
 
     except Exception as e:
