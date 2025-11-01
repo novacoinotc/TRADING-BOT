@@ -126,9 +126,14 @@ class AdvancedTechnicalAnalyzer:
         indicators['bb_upper'] = round(bb_indicator.bollinger_hband().iloc[-1], 2)
         indicators['bb_middle'] = round(bb_indicator.bollinger_mavg().iloc[-1], 2)
         indicators['bb_lower'] = round(bb_indicator.bollinger_lband().iloc[-1], 2)
-        indicators['bb_width'] = round(
-            ((indicators['bb_upper'] - indicators['bb_lower']) / indicators['bb_middle']) * 100, 2
-        )
+
+        # Safe BB width calculation (avoid division by zero)
+        if indicators['bb_middle'] > 0 and (indicators['bb_upper'] - indicators['bb_lower']) > 0:
+            indicators['bb_width'] = round(
+                ((indicators['bb_upper'] - indicators['bb_lower']) / indicators['bb_middle']) * 100, 2
+            )
+        else:
+            indicators['bb_width'] = 0.0
 
         # ADX (Trend Strength)
         adx_indicator = ADXIndicator(high=high, low=low, close=close, window=14)
@@ -371,9 +376,9 @@ class AdvancedTechnicalAnalyzer:
             confidence = int((final_score / max_score) * 100)
         else:
             action = 'HOLD'
-            final_score = 0
+            # Keep the real score for visibility (don't force to 0)
             confidence = 0
-            reasons = ['Signal not strong enough (need 7+ points)']
+            reasons.append(f'Signal not strong enough (need 7+ points, has {abs(score):.1f})')  # Show actual score
 
         return {
             'action': action,
