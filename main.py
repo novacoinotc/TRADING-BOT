@@ -29,8 +29,8 @@ async def send_bot_status_message(monitor):
         ml_status = "✅ Activo"
         ml_accuracy = "N/A"
 
-        if hasattr(monitor, 'ml_integration') and monitor.ml_integration:
-            predictor = monitor.ml_integration.predictor
+        if hasattr(monitor, 'ml_system') and monitor.ml_system:
+            predictor = monitor.ml_system.predictor
             if predictor and predictor.model_trained:
                 ml_accuracy = f"{predictor.accuracy * 100:.1f}%"
             else:
@@ -44,9 +44,9 @@ async def send_bot_status_message(monitor):
 
         # Obtener balance de paper trading
         balance = "$50,000 USDT"
-        if hasattr(monitor, 'ml_integration') and monitor.ml_integration:
-            if hasattr(monitor.ml_integration, 'paper_trader') and monitor.ml_integration.paper_trader:
-                portfolio = monitor.ml_integration.paper_trader.portfolio
+        if hasattr(monitor, 'ml_system') and monitor.ml_system:
+            if hasattr(monitor.ml_system, 'paper_trader') and monitor.ml_system.paper_trader:
+                portfolio = monitor.ml_system.paper_trader.portfolio
                 balance = f"${portfolio.get_equity():,.2f} USDT"
 
         # Contar pares
@@ -70,8 +70,8 @@ async def send_bot_status_message(monitor):
         )
 
         # Enviar mensaje
-        if monitor.telegram_bot:
-            await monitor.telegram_bot.send_message(message)
+        if monitor.notifier:
+            await monitor.notifier.send_message(message)
             logger.info("✅ Mensaje de status enviado a Telegram")
 
     except Exception as e:
@@ -261,7 +261,7 @@ async def main():
 
         # Run historical training if enabled (pre-train ML model)
         if config.ENABLE_PAPER_TRADING:
-            success = await run_historical_training(telegram_bot=monitor.telegram_bot)
+            success = await run_historical_training(telegram_bot=monitor.notifier)
             if not success:
                 logger.warning("Historical training no completado, pero continuando...")
 
