@@ -74,9 +74,9 @@ class AutonomyController:
         self.decision_mode = "AUTONOMOUS"  # AUTONOMOUS, CONSERVATIVE, AGGRESSIVE
 
         logger.info("🤖 AUTONOMY CONTROLLER INICIALIZADO - MODO: CONTROL ABSOLUTO")
-        logger.info(f"   Auto-save: cada {auto_save_interval} min")
-        logger.info(f"   Optimization check: cada {optimization_check_interval} horas")
-        logger.info(f"   Min trades antes de optimizar: {min_trades_before_optimization}")
+        logger.info(f"   Auto-save: cada {self.auto_save_interval} min")
+        logger.info(f"   Optimization check: cada {self.optimization_interval} horas")
+        logger.info(f"   Min trades antes de optimizar: {self.min_trades_before_opt}")
 
     async def initialize(self):
         """
