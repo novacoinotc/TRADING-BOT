@@ -219,23 +219,28 @@ class FlashSignalAnalyzer:
     def _calculate_flash_sl_tp(self, entry_price: float, action: str, atr: float) -> dict:
         """
         Calculate tighter stop-loss and take-profit for flash signals (15m)
+        SCALPING STRATEGY: TPs pequeños y frecuentes (0.3%, 0.8%, 1.5%)
         """
         # Tighter stops for flash trading
         atr_multiplier_sl = 1.5  # 1.5x ATR for stop
-        atr_multiplier_tp1 = 2.0  # 2x ATR for TP1
-        atr_multiplier_tp2 = 3.0  # 3x ATR for TP2
-        atr_multiplier_tp3 = 4.0  # 4x ATR for TP3
+
+        # SCALPING: Percentage-based TPs for many small wins
+        tp_pct_1 = 0.003  # TP1 at 0.3%
+        tp_pct_2 = 0.008  # TP2 at 0.8%
+        tp_pct_3 = 0.015  # TP3 at 1.5%
 
         if action == 'BUY':
             stop_loss = entry_price - (atr * atr_multiplier_sl)
-            tp1 = entry_price + (atr * atr_multiplier_tp1)
-            tp2 = entry_price + (atr * atr_multiplier_tp2)
-            tp3 = entry_price + (atr * atr_multiplier_tp3)
+            # Percentage-based TPs for scalping
+            tp1 = entry_price * (1 + tp_pct_1)
+            tp2 = entry_price * (1 + tp_pct_2)
+            tp3 = entry_price * (1 + tp_pct_3)
         else:  # SELL
             stop_loss = entry_price + (atr * atr_multiplier_sl)
-            tp1 = entry_price - (atr * atr_multiplier_tp1)
-            tp2 = entry_price - (atr * atr_multiplier_tp2)
-            tp3 = entry_price - (atr * atr_multiplier_tp3)
+            # Percentage-based TPs for scalping
+            tp1 = entry_price * (1 - tp_pct_1)
+            tp2 = entry_price * (1 - tp_pct_2)
+            tp3 = entry_price * (1 - tp_pct_3)
 
         risk = abs(entry_price - stop_loss)
         reward = abs(tp1 - entry_price)

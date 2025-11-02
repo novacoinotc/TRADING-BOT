@@ -422,12 +422,15 @@ class AdvancedTechnicalAnalyzer:
     def _calculate_sl_tp(self, entry_price: float, action: str, atr: float, levels: dict) -> dict:
         """
         Calculate dynamic stop-loss and take-profit levels
+        SCALPING STRATEGY: TPs pequeños y frecuentes (0.3%, 0.8%, 1.5%)
         """
         # Use ATR for dynamic stops
         atr_multiplier_sl = 2.0  # Stop loss at 2x ATR
-        atr_multiplier_tp1 = 2.5  # TP1 at 2.5x ATR
-        atr_multiplier_tp2 = 4.0  # TP2 at 4x ATR
-        atr_multiplier_tp3 = 6.0  # TP3 at 6x ATR
+
+        # SCALPING: Percentage-based TPs for many small wins
+        tp_pct_1 = 0.003  # TP1 at 0.3%
+        tp_pct_2 = 0.008  # TP2 at 0.8%
+        tp_pct_3 = 0.015  # TP3 at 1.5%
 
         if action == 'BUY':
             stop_loss = entry_price - (atr * atr_multiplier_sl)
@@ -435,26 +438,30 @@ class AdvancedTechnicalAnalyzer:
             if levels['nearest_support'] and levels['nearest_support'] < entry_price:
                 stop_loss = max(stop_loss, levels['nearest_support'] * 0.98)
 
-            tp1 = entry_price + (atr * atr_multiplier_tp1)
-            tp2 = entry_price + (atr * atr_multiplier_tp2)
-            tp3 = entry_price + (atr * atr_multiplier_tp3)
+            # Percentage-based TPs for scalping
+            tp1 = entry_price * (1 + tp_pct_1)
+            tp2 = entry_price * (1 + tp_pct_2)
+            tp3 = entry_price * (1 + tp_pct_3)
 
-            # Adjust TPs if near resistance
+            # Adjust TPs if near resistance (only TP3 to avoid blocking small wins)
             if levels['nearest_resistance'] and levels['nearest_resistance'] > entry_price:
-                tp1 = min(tp1, levels['nearest_resistance'] * 0.99)
+                if tp3 > levels['nearest_resistance']:
+                    tp3 = levels['nearest_resistance'] * 0.99
         else:  # SELL
             stop_loss = entry_price + (atr * atr_multiplier_sl)
             # Adjust stop loss if above resistance
             if levels['nearest_resistance'] and levels['nearest_resistance'] > entry_price:
                 stop_loss = min(stop_loss, levels['nearest_resistance'] * 1.02)
 
-            tp1 = entry_price - (atr * atr_multiplier_tp1)
-            tp2 = entry_price - (atr * atr_multiplier_tp2)
-            tp3 = entry_price - (atr * atr_multiplier_tp3)
+            # Percentage-based TPs for scalping
+            tp1 = entry_price * (1 - tp_pct_1)
+            tp2 = entry_price * (1 - tp_pct_2)
+            tp3 = entry_price * (1 - tp_pct_3)
 
-            # Adjust TPs if near support
+            # Adjust TPs if near support (only TP3 to avoid blocking small wins)
             if levels['nearest_support'] and levels['nearest_support'] < entry_price:
-                tp1 = max(tp1, levels['nearest_support'] * 1.01)
+                if tp1 < levels['nearest_support']:
+                    tp3 = levels['nearest_support'] * 1.01
 
         risk = abs(entry_price - stop_loss)
         reward = abs(tp2 - entry_price)  # Use TP2 for R:R calculation

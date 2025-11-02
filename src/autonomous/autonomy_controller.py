@@ -374,50 +374,48 @@ class AutonomyController:
         metrics: Dict
     ):
         """
-        Notifica cambios de parámetros a Telegram
-        Cada modificación que la IA hace es notificada
+        Notifica cambios de parámetros a Telegram (versión resumida)
+        Cada modificación que la IA hace es notificada de forma concisa
         """
         if not self.telegram_notifier:
             return
 
-        # Construir mensaje
+        # VERSIÓN RESUMIDA (más concisa para no saturar)
         message_parts = [
-            "🤖 **IA MODIFICÓ PARÁMETROS AUTÓNOMAMENTE**",
+            f"🤖 <b>IA realizó {len(changes)} cambios</b> ({strategy})",
             "",
-            f"🎯 Estrategia: {strategy}",
-            f"📊 Performance Actual:",
-            f"   • Win Rate: {metrics.get('win_rate', 0):.1f}%",
-            f"   • ROI: {metrics.get('roi', 0):.2f}%",
-            f"   • Sharpe: {metrics.get('sharpe_ratio', 0):.2f}",
-            "",
-            "💡 Razón del cambio:",
-            reason,
-            "",
-            f"🔧 Parámetros Modificados ({len(changes)}):"
+            f"📊 Performance: Win Rate {metrics.get('win_rate', 0):.1f}% | ROI {metrics.get('roi', 0):+.2f}%",
         ]
 
-        # Listar cambios (máximo 10 para no saturar mensaje)
-        for i, change in enumerate(changes[:10], 1):
-            param = change['parameter']
-            old = change['old_value']
-            new = change['new_value']
-            pct = change['change_pct']
+        # Razón resumida (max 120 caracteres)
+        reason_lines = reason.split('\n')
+        brief_reason = reason_lines[0] if reason_lines else reason
+        if len(brief_reason) > 120:
+            brief_reason = brief_reason[:117] + "..."
+        message_parts.append(f"💡 {brief_reason}")
 
-            direction = "📈" if new > old else "📉"
-            message_parts.append(
-                f"{i}. {direction} **{param}**: {old} → {new} "
-                f"({pct:+.1f}%)" if old else f"{i}. ✨ **{param}**: → {new}"
-            )
+        # Top 3-5 cambios más significativos solamente
+        sorted_changes = sorted(changes, key=lambda x: abs(x.get('change_pct', 0)), reverse=True)
+        top_changes = sorted_changes[:5]
 
-        if len(changes) > 10:
-            message_parts.append(f"   ... y {len(changes) - 10} más")
+        if top_changes:
+            message_parts.append("")
+            message_parts.append("🔧 <b>Principales cambios:</b>")
+            for change in top_changes:
+                param = change['parameter']
+                new = change['new_value']
+                direction = "📈" if change.get('change_pct', 0) > 0 else "📉"
+
+                # Nombre más corto para parámetros comunes
+                param_short = param.replace('_THRESHOLD', '').replace('_PCT', '').replace('_PERIOD', '')
+                message_parts.append(f"  {direction} {param_short}: {new}")
+
+        if len(changes) > 5:
+            message_parts.append(f"  ... +{len(changes) - 5} parámetros más")
 
         message_parts.extend([
             "",
-            f"🧠 Total cambios realizados: {self.total_parameter_changes}",
-            f"📚 Trades procesados: {self.total_trades_processed}",
-            "",
-            "La IA continúa aprendiendo y optimizando... 🚀"
+            f"🧠 Total: {self.total_parameter_changes} cambios | {self.total_trades_processed} trades"
         ])
 
         message = "\n".join(message_parts)
@@ -435,8 +433,13 @@ class AutonomyController:
             await self.save_intelligence()
             self.last_save_time = datetime.now()
 
-    async def save_intelligence(self):
-        """Guarda toda la inteligencia aprendida"""
+    async def save_intelligence(self) -> str:
+        """
+        Guarda toda la inteligencia aprendida
+
+        Returns:
+            Path al archivo de exportación, o string vacío si falló
+        """
         logger.info("💾 Guardando inteligencia aprendida...")
 
         rl_state = self.rl_agent.save_to_dict()
@@ -470,8 +473,11 @@ class AutonomyController:
             export_path = self.persistence.export_for_import()
             if export_path:
                 logger.info(f"📤 Archivo de exportación: {export_path}")
+                return export_path
         else:
             logger.error("❌ Error guardando inteligencia")
+
+        return ""
 
     def get_current_parameters(self) -> Dict[str, Any]:
         """Retorna parámetros actuales (para aplicar en el bot)"""
@@ -526,19 +532,21 @@ class AutonomyController:
 
         logger.info("✅ Sistema Autónomo apagado - Inteligencia preservada")
 
-    async def manual_export(self) -> bool:
+    async def manual_export(self) -> tuple[bool, str]:
         """
         Export manual de inteligencia (llamado por comando de Telegram)
 
         Returns:
-            True si export fue exitoso
+            Tupla (success, export_file_path)
+            - success: True si backup a Git fue exitoso
+            - export_file_path: Path al archivo .json exportado
         """
         logger.info("📤 Export manual solicitado...")
 
-        # Guardar inteligencia primero
-        await self.save_intelligence()
+        # Guardar inteligencia primero y obtener path del export
+        export_path = await self.save_intelligence()
 
         # Realizar backup a Git
         success = await self.git_backup.perform_backup(manual=True)
 
-        return success
+        return success, export_path

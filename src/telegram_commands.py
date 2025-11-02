@@ -69,7 +69,7 @@ class TelegramCommands:
     async def export_intelligence_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Comando /export_intelligence
-        Realiza export manual y backup a Git
+        Realiza export manual, envía archivo, y hace backup a Git
         """
         try:
             logger.info("📤 Comando /export_intelligence recibido")
@@ -86,13 +86,31 @@ class TelegramCommands:
                 )
                 return
 
-            # Realizar export
-            success = await self.autonomy_controller.manual_export()
+            # Realizar export (retorna tupla: success, export_path)
+            success, export_path = await self.autonomy_controller.manual_export()
 
+            # Enviar archivo de inteligencia al usuario
+            if export_path:
+                try:
+                    with open(export_path, 'rb') as f:
+                        await update.message.reply_document(
+                            document=f,
+                            filename="intelligence_export.json",
+                            caption="📤 Inteligencia aprendida exportada\n"
+                                   "Puedes usar este archivo para restaurar el aprendizaje después de un redeploy"
+                        )
+                    logger.info(f"✅ Archivo enviado: {export_path}")
+                except Exception as e:
+                    logger.error(f"Error enviando archivo: {e}")
+                    await update.message.reply_text(
+                        f"⚠️ No se pudo enviar el archivo, pero está guardado localmente en:\n{export_path}"
+                    )
+
+            # Mensaje de confirmación
             if success:
                 await update.message.reply_text(
                     "✅ **Export Completado**\n\n"
-                    "✅ Inteligencia guardada localmente\n"
+                    "✅ Archivo enviado por Telegram\n"
                     "✅ Backup realizado a Git\n"
                     "✅ Código pusheado a GitHub\n\n"
                     "El aprendizaje está seguro para futuros redeploys 🎉"
@@ -100,9 +118,10 @@ class TelegramCommands:
             else:
                 await update.message.reply_text(
                     "⚠️ **Export Parcial**\n\n"
+                    "✅ Archivo enviado por Telegram\n"
                     "✅ Inteligencia guardada localmente\n"
                     "❌ Backup a Git falló\n\n"
-                    "La inteligencia local está guardada, pero el push a Git no se completó.\n"
+                    "Tienes el archivo guardado, pero el push a Git no se completó.\n"
                     "Puedes intentar nuevamente en unos minutos."
                 )
 

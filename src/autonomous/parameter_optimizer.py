@@ -25,6 +25,7 @@ class ParameterOptimizer:
 
         # Definir rangos de búsqueda para TODOS los parámetros
         # Sin limitaciones - la IA tiene control TOTAL
+        # NOTA: Balance inicial (PAPER_TRADING_INITIAL_BALANCE) está PROTEGIDO - nunca se modifica
         self.parameter_ranges = {
             # Trading Configuration
             'CHECK_INTERVAL': (60, 300, 'int'),  # 1-5 minutos

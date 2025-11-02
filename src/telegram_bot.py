@@ -48,8 +48,8 @@ class TelegramNotifier:
         if not self._should_send_signal(pair, signals):
             return
 
-        # Format message
-        message = self._format_signal_message(pair, indicators, signals, sentiment_data, orderbook_data, regime_data)
+        # Format message (pass full analysis to show trade decision)
+        message = self._format_signal_message(pair, indicators, signals, sentiment_data, orderbook_data, regime_data, analysis)
 
         # Send message
         try:
@@ -100,7 +100,7 @@ class TelegramNotifier:
 
     def _format_signal_message(self, pair: str, indicators: dict, signals: dict,
                               sentiment_data: dict = None, orderbook_data: dict = None,
-                              regime_data: dict = None) -> str:
+                              regime_data: dict = None, analysis: dict = None) -> str:
         """
         Format advanced trading signal as HTML message
 
@@ -111,6 +111,7 @@ class TelegramNotifier:
             sentiment_data: Sentiment analysis data (optional)
             orderbook_data: Order book analysis data (optional)
             regime_data: Market regime data (optional)
+            analysis: Full analysis dict including trade_result (optional)
 
         Returns:
             Formatted HTML message
@@ -139,13 +140,33 @@ class TelegramNotifier:
             message += f"⚠️ <i>Operación de alto riesgo ({timeframe})</i>\n\n"
         else:
             message = f"{emoji} <b>SEÑAL DE TRADING FUERTE</b> {emoji}\n\n"
+
+        # PAR Y DECISIÓN (más claro sobre si se tomó el trade)
         message += f"<b>Par:</b> {pair}\n"
-        message += f"<b>Acción:</b> {action_text}\n"
+
+        # Verificar si el trade fue tomado
+        trade_result = analysis.get('trade_result') if analysis else None
+        if trade_result:
+            if trade_result.get('status') == 'OPEN':
+                message += f"✅ <b>TRADE ABIERTO:</b> {action_text}\n"
+            else:
+                message += f"⚠️ <b>SEÑAL DETECTADA</b> (evaluando condiciones)\n"
+        else:
+            message += f"<b>Señal:</b> {action_text}\n"
+
+        # BREVE RESUMEN DEL "POR QUÉ" (top 3 razones)
+        reasons_list = signals.get('reasons', [])
+        if len(reasons_list) > 0:
+            top_reasons = reasons_list[:2]  # Top 2 razones
+            brief_summary = ", ".join(top_reasons)
+            if len(brief_summary) > 100:
+                brief_summary = brief_summary[:97] + "..."
+            message += f"\n💡 <b>Por qué:</b> {brief_summary}\n"
 
         # Quality score
         score = signals.get('score', 0)
         max_score = signals.get('max_score', 10)
-        message += f"💎 <b>Calidad:</b> {score:.1f}/{max_score} "
+        message += f"\n💎 <b>Calidad:</b> {score:.1f}/{max_score} "
 
         if score >= 9:
             message += "(EXCEPCIONAL)\n"
