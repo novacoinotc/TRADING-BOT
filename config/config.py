@@ -119,7 +119,7 @@ MIN_HISTORICAL_SAMPLES = int(os.getenv('MIN_HISTORICAL_SAMPLES', '200'))  # Mín
 # Sentiment Analysis Configuration
 ENABLE_SENTIMENT_ANALYSIS = os.getenv('ENABLE_SENTIMENT_ANALYSIS', 'true').lower() == 'true'
 CRYPTOPANIC_API_KEY = os.getenv('CRYPTOPANIC_API_KEY', '')  # Get free key from cryptopanic.com
-SENTIMENT_UPDATE_INTERVAL = int(os.getenv('SENTIMENT_UPDATE_INTERVAL', '5'))  # Minutos entre updates (optimizado: 1 request general)
+SENTIMENT_UPDATE_INTERVAL = int(os.getenv('SENTIMENT_UPDATE_INTERVAL', '15'))  # Minutos entre updates (optimizado GROWTH: 2,880 req/mes)
 SENTIMENT_BLOCK_ON_EXTREME_FEAR = os.getenv('SENTIMENT_BLOCK_ON_EXTREME_FEAR', 'true').lower() == 'true'
 SENTIMENT_BOOST_ON_POSITIVE = os.getenv('SENTIMENT_BOOST_ON_POSITIVE', 'true').lower() == 'true'
 FORCE_HISTORICAL_DOWNLOAD = os.getenv('FORCE_HISTORICAL_DOWNLOAD', 'false').lower() == 'true'  # Forzar re-descarga

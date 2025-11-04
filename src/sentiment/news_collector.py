@@ -32,12 +32,13 @@ class NewsCollector:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # URLs
-        self.cryptopanic_url = 'https://cryptopanic.com/api/v1/posts/'
+        # URLs - GROWTH API v2 (real-time data)
+        self.cryptopanic_url = 'https://cryptopanic.com/api/growth/v2/posts/'
         self.fear_greed_url = 'https://api.alternative.me/fng/'
 
-        # Cache
+        # Cache (30 segundos recomendado por CryptoPanic - server-side cache)
         self.news_cache_file = self.cache_dir / 'news_cache.json'
+        self.cache_duration_seconds = 30  # Official recommendation
         self.last_update = None
         self.cached_news = []
 
@@ -127,26 +128,89 @@ class NewsCollector:
 
             news = []
             for item in data['results'][:limit]:
+                # GROWTH API v2 - Extraer TODOS los campos disponibles
+                votes = item.get('votes', {})
+                instruments = item.get('instruments', [])
+                source = item.get('source', {})
+
                 news_item = {
+                    # Basic fields
                     'id': item.get('id'),
+                    'slug': item.get('slug', ''),
                     'title': item.get('title'),
                     'url': item.get('url'),
+                    'original_url': item.get('original_url', ''),
                     'published_at': item.get('published_at'),
-                    'source': item.get('source', {}).get('title', 'Unknown'),
-                    'currencies': [c.get('code') for c in item.get('currencies', [])],
-                    'votes': item.get('votes', {}),
-                    'kind': item.get('kind', 'news')  # news, media, blog
+                    'created_at': item.get('created_at'),
+                    'kind': item.get('kind', 'news'),  # news, media, blog, twitter, reddit
+
+                    # Source metadata (GROWTH exclusive)
+                    'source_title': source.get('title', 'Unknown'),
+                    'source_domain': source.get('domain', ''),
+                    'source_type': source.get('type', 'feed'),  # feed, blog, twitter, media, reddit
+                    'source_region': source.get('region', 'en'),
+
+                    # Author (GROWTH)
+                    'author': item.get('author', ''),
+
+                    # Instruments with market data (GROWTH exclusive)
+                    'instruments': instruments,
+                    'currencies': [inst.get('code') for inst in instruments],
+
+                    # Votes detallados (GROWTH enhanced)
+                    'votes': votes,
+                    'votes_negative': votes.get('negative', 0),
+                    'votes_positive': votes.get('positive', 0),
+                    'votes_important': votes.get('important', 0),
+                    'votes_liked': votes.get('liked', 0),
+                    'votes_disliked': votes.get('disliked', 0),
+                    'votes_lol': votes.get('lol', 0),
+                    'votes_toxic': votes.get('toxic', 0),
+                    'votes_saved': votes.get('saved', 0),
+                    'votes_comments': votes.get('comments', 0),
                 }
 
-                # Calcular sentiment simple basado en votes
-                positive = news_item['votes'].get('positive', 0)
-                negative = news_item['votes'].get('negative', 0)
-                total = positive + negative
+                # Calcular sentiment mejorado basado en votes
+                positive = votes.get('positive', 0)
+                negative = votes.get('negative', 0)
+                important = votes.get('important', 0)
+                saved = votes.get('saved', 0)
+                comments = votes.get('comments', 0)
 
-                if total > 0:
-                    news_item['vote_sentiment'] = (positive - negative) / total
+                total_votes = positive + negative
+                if total_votes > 0:
+                    news_item['vote_sentiment'] = (positive - negative) / total_votes
                 else:
                     news_item['vote_sentiment'] = 0
+
+                # Engagement score (saved + comments = cuánto interesa)
+                news_item['engagement_score'] = saved + comments
+
+                # Importance score (important votes / total)
+                if total_votes > 0:
+                    news_item['importance_ratio'] = important / total_votes
+                else:
+                    news_item['importance_ratio'] = 0
+
+                # Extractar market data de instruments
+                if instruments:
+                    # Market caps de todas las monedas mencionadas
+                    news_item['total_market_cap'] = sum(
+                        inst.get('market_cap_usd', 0) for inst in instruments
+                    )
+
+                    # Menor market rank = más importante (BTC=1, ETH=2, etc)
+                    market_ranks = [inst.get('market_rank', 999) for inst in instruments if inst.get('market_rank')]
+                    news_item['min_market_rank'] = min(market_ranks) if market_ranks else 999
+
+                    # Detectar si menciona top 10
+                    news_item['mentions_top10'] = any(
+                        inst.get('market_rank', 999) <= 10 for inst in instruments
+                    )
+                else:
+                    news_item['total_market_cap'] = 0
+                    news_item['min_market_rank'] = 999
+                    news_item['mentions_top10'] = False
 
                 news.append(news_item)
 
@@ -324,11 +388,25 @@ class NewsCollector:
             logger.error(f"Error cargando cache de noticias: {e}")
 
     def should_update(self, interval_minutes: int = 15) -> bool:
-        """Verifica si es tiempo de actualizar noticias"""
+        """
+        Verifica si es tiempo de actualizar noticias
+
+        Usa cache de 30s (oficial) + intervalo configurable (default 15 min)
+        """
         if not self.last_update:
             return True
 
-        return datetime.now() - self.last_update >= timedelta(minutes=interval_minutes)
+        time_since_update = (datetime.now() - self.last_update).total_seconds()
+
+        # Si pasó menos de 30s, usar cache (recomendación CryptoPanic)
+        if time_since_update < self.cache_duration_seconds:
+            return False
+
+        # Si pasó más de 30s pero menos del intervalo configurado, usar cache
+        if time_since_update < (interval_minutes * 60):
+            return False
+
+        return True
 
     def get_summary(self) -> Dict:
         """Retorna resumen de noticias actuales"""

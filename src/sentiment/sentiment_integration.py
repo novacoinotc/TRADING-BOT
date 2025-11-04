@@ -103,14 +103,15 @@ class SentimentIntegration:
             if (news['sentiment_score'] > 0.75 or news['sentiment_score'] < 0.25)
         ]
 
-        # Update state
+        # Update state (incluir raw news para GROWTH features)
         self.current_sentiment = {
             'timestamp': datetime.now().isoformat(),
             'general': general_analysis,
             'fear_greed': fear_greed,
             'pair_sentiments': pair_sentiments,
             'high_impact_news': analyzed_high_impact,
-            'critical_news': critical_news
+            'critical_news': critical_news,
+            'raw_news': all_news.get('cryptopanic', [])  # GROWTH API - noticias completas
         }
 
         # Save to history
@@ -144,7 +145,34 @@ class SentimentIntegration:
         fear_greed = self.current_sentiment.get('fear_greed', {})
         pair_sentiment = self.current_sentiment.get('pair_sentiments', {}).get(pair, {})
 
-        # Features básicas
+        # GROWTH API - Calcular features avanzados desde noticias raw
+        all_news = self.current_sentiment.get('raw_news', [])
+
+        # Calcular engagement, importance, source types
+        total_engagement = 0
+        total_importance_votes = 0
+        total_votes = 0
+        twitter_count = 0
+        reddit_count = 0
+        top10_mentions = 0
+        total_market_cap_mentioned = 0
+
+        for news in all_news:
+            total_engagement += news.get('engagement_score', 0)
+            total_importance_votes += news.get('votes_important', 0)
+            total_votes += news.get('votes_positive', 0) + news.get('votes_negative', 0)
+
+            if news.get('source_type') == 'twitter':
+                twitter_count += 1
+            elif news.get('source_type') == 'reddit':
+                reddit_count += 1
+
+            if news.get('mentions_top10', False):
+                top10_mentions += 1
+
+            total_market_cap_mentioned += news.get('total_market_cap', 0)
+
+        # Features básicas + GROWTH exclusivas
         features = {
             # General sentiment
             'news_sentiment_overall': general.get('overall_sentiment', 0.5),
@@ -164,6 +192,27 @@ class SentimentIntegration:
             # High impact
             'high_impact_news_count': len(self.current_sentiment.get('high_impact_news', [])),
             'critical_news_count': len(self.current_sentiment.get('critical_news', [])),
+
+            # GROWTH API - Engagement Features
+            'avg_engagement_score': total_engagement / max(len(all_news), 1),
+            'total_engagement': total_engagement,
+
+            # GROWTH API - Importance Features
+            'importance_votes_ratio': total_importance_votes / max(total_votes, 1),
+            'high_importance_news': 1 if total_importance_votes > 50 else 0,
+
+            # GROWTH API - Source Type Features
+            'twitter_news_count': twitter_count,
+            'reddit_news_count': reddit_count,
+            'twitter_ratio': twitter_count / max(len(all_news), 1),
+            'reddit_ratio': reddit_count / max(len(all_news), 1),
+            'social_buzz': 1 if (twitter_count + reddit_count) > 10 else 0,
+
+            # GROWTH API - Market Data Features
+            'top10_mentions_count': top10_mentions,
+            'top10_mentions_ratio': top10_mentions / max(len(all_news), 1),
+            'total_market_cap_mentioned': total_market_cap_mentioned / 1e12,  # Normalizar a trillones
+            'high_market_cap_news': 1 if total_market_cap_mentioned > 1e12 else 0,
 
             # Momentum (requiere histórico)
             'sentiment_momentum': 0,
@@ -357,8 +406,9 @@ class SentimentIntegration:
             logger.error(f"Error cargando historial: {e}")
 
     def _get_neutral_features(self) -> Dict:
-        """Retorna features neutrales cuando no hay datos"""
+        """Retorna features neutrales cuando no hay datos (incluye GROWTH features)"""
         return {
+            # Basic features
             'news_sentiment_overall': 0.5,
             'news_count_24h': 0,
             'news_positive_ratio': 0.5,
@@ -371,7 +421,22 @@ class SentimentIntegration:
             'high_impact_news_count': 0,
             'critical_news_count': 0,
             'sentiment_momentum': 0,
-            'sentiment_trend_improving': 0
+            'sentiment_trend_improving': 0,
+
+            # GROWTH API features (neutral defaults)
+            'avg_engagement_score': 0,
+            'total_engagement': 0,
+            'importance_votes_ratio': 0,
+            'high_importance_news': 0,
+            'twitter_news_count': 0,
+            'reddit_news_count': 0,
+            'twitter_ratio': 0,
+            'reddit_ratio': 0,
+            'social_buzz': 0,
+            'top10_mentions_count': 0,
+            'top10_mentions_ratio': 0,
+            'total_market_cap_mentioned': 0,
+            'high_market_cap_news': 0,
         }
 
     def get_summary(self) -> str:
