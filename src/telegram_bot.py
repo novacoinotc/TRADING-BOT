@@ -398,6 +398,105 @@ class TelegramNotifier:
         message = f"⚠️ <b>ERROR</b>\n\n{error}"
         await self.send_status_message(message)
 
+    async def send_trade_opened(self, trade_data: dict):
+        """
+        Notifica cuando se abre un trade
+
+        Args:
+            trade_data: Información del trade abierto
+        """
+        try:
+            pair = trade_data.get('pair', 'UNKNOWN')
+            side = trade_data.get('side', 'BUY')
+            entry_price = trade_data.get('entry_price', 0)
+            quantity = trade_data.get('quantity', 0)
+            position_value = trade_data.get('position_value', 0)
+
+            emoji = "🟢" if side == 'BUY' else "🔴"
+
+            message = (
+                f"{emoji} <b>TRADE ABIERTO</b> {emoji}\n\n"
+                f"📌 <b>Par:</b> {pair}\n"
+                f"📊 <b>Dirección:</b> {side}\n"
+                f"💰 <b>Precio Entrada:</b> ${entry_price:,.4f}\n"
+                f"📦 <b>Cantidad:</b> {quantity:.6f}\n"
+                f"💵 <b>Valor Posición:</b> ${position_value:,.2f}\n"
+            )
+
+            # Add TPs if available
+            take_profit = trade_data.get('take_profit', {})
+            if take_profit:
+                tp1 = take_profit.get('tp1', 0)
+                tp2 = take_profit.get('tp2', 0)
+                tp3 = take_profit.get('tp3', 0)
+
+                message += f"\n🎯 <b>Take Profits:</b>\n"
+                if tp1:
+                    tp1_pct = ((tp1 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp1 - 1) * 100)
+                    message += f"   TP1: ${tp1:,.4f} ({tp1_pct:+.2f}%)\n"
+                if tp2:
+                    tp2_pct = ((tp2 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp2 - 1) * 100)
+                    message += f"   TP2: ${tp2:,.4f} ({tp2_pct:+.2f}%)\n"
+                if tp3:
+                    tp3_pct = ((tp3 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp3 - 1) * 100)
+                    message += f"   TP3: ${tp3:,.4f} ({tp3_pct:+.2f}%)\n"
+
+            # Add SL if available
+            stop_loss = trade_data.get('stop_loss')
+            if stop_loss:
+                sl_pct = ((stop_loss / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / stop_loss - 1) * 100)
+                message += f"\n🛡️ <b>Stop Loss:</b> ${stop_loss:,.4f} ({sl_pct:+.2f}%)"
+
+            await self.send_status_message(message)
+
+        except Exception as e:
+            logger.error(f"Error enviando notificación de trade abierto: {e}")
+
+    async def send_trade_closed(self, trade_data: dict):
+        """
+        Notifica cuando se cierra un trade
+
+        Args:
+            trade_data: Información del trade cerrado
+        """
+        try:
+            pair = trade_data.get('pair', 'UNKNOWN')
+            side = trade_data.get('side', 'BUY')
+            entry_price = trade_data.get('entry_price', 0)
+            exit_price = trade_data.get('exit_price', 0)
+            pnl = trade_data.get('pnl', 0)
+            pnl_pct = trade_data.get('pnl_pct', 0)
+            reason = trade_data.get('reason', 'UNKNOWN')
+
+            # Emoji según resultado
+            if pnl > 0:
+                emoji = "✅"
+                result_text = "GANANCIA"
+            else:
+                emoji = "❌"
+                result_text = "PÉRDIDA"
+
+            message = (
+                f"{emoji} <b>TRADE CERRADO - {result_text}</b> {emoji}\n\n"
+                f"📌 <b>Par:</b> {pair}\n"
+                f"📊 <b>Dirección:</b> {side}\n"
+                f"💰 <b>Entrada:</b> ${entry_price:,.4f}\n"
+                f"💰 <b>Salida:</b> ${exit_price:,.4f}\n"
+                f"📈 <b>P&L:</b> ${pnl:,.2f} (<b>{pnl_pct:+.2f}%</b>)\n"
+                f"🏁 <b>Razón:</b> {reason}\n"
+            )
+
+            # Extra info si es ganancia > 1%
+            if pnl_pct > 1.0:
+                message += f"\n🎉 <b>Excelente trade!</b>"
+            elif pnl_pct > 0.5:
+                message += f"\n👍 <b>Buen trade</b>"
+
+            await self.send_status_message(message)
+
+        except Exception as e:
+            logger.error(f"Error enviando notificación de trade cerrado: {e}")
+
     async def send_trading_stats(self, stats: dict):
         """
         Send paper trading statistics

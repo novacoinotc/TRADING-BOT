@@ -26,11 +26,12 @@ class MLIntegration:
     - Optimiza parámetros continuamente
     """
 
-    def __init__(self, initial_balance: float = 50000.0, enable_ml: bool = True):
+    def __init__(self, initial_balance: float = 50000.0, enable_ml: bool = True, telegram_notifier=None):
         """
         Args:
             initial_balance: Balance inicial en USDT
             enable_ml: Habilitar predicciones ML (False = solo paper trading sin ML)
+            telegram_notifier: Notificador de Telegram para enviar alertas de trades
         """
         # Componentes ML
         self.predictor = MLPredictor()
@@ -40,6 +41,9 @@ class MLIntegration:
 
         # Paper Trading
         self.paper_trader = PaperTrader(initial_balance=initial_balance)
+
+        # Telegram notifier para alertas de trades
+        self.telegram_notifier = telegram_notifier
 
         # Estado
         self.enable_ml = enable_ml
@@ -131,10 +135,30 @@ class MLIntegration:
                 trade_id=trade_result.get('trade_id')
             )
 
+            # Notificar apertura de trade por Telegram
+            if self.telegram_notifier:
+                try:
+                    import asyncio
+                    asyncio.create_task(
+                        self.telegram_notifier.send_trade_opened(trade_result)
+                    )
+                except Exception as e:
+                    logger.error(f"Error enviando notificación de trade abierto: {e}")
+
         # 5. Si se cerró un trade, actualizar contadores y verificar si reentrenar
         if trade_result and trade_result.get('status') == 'CLOSED':
             self.trades_since_last_training += 1
             self.trades_since_last_optimization += 1
+
+            # Notificar cierre de trade por Telegram
+            if self.telegram_notifier:
+                try:
+                    import asyncio
+                    asyncio.create_task(
+                        self.telegram_notifier.send_trade_closed(trade_result)
+                    )
+                except Exception as e:
+                    logger.error(f"Error enviando notificación de trade cerrado: {e}")
 
             # Verificar si reentrenar modelo
             stats = self.paper_trader.get_statistics()
@@ -168,6 +192,16 @@ class MLIntegration:
         if result and result.get('status') == 'CLOSED':
             self.trades_since_last_training += 1
             self.trades_since_last_optimization += 1
+
+            # Notificar cierre de trade por Telegram
+            if self.telegram_notifier:
+                try:
+                    import asyncio
+                    asyncio.create_task(
+                        self.telegram_notifier.send_trade_closed(result)
+                    )
+                except Exception as e:
+                    logger.error(f"Error enviando notificación de trade cerrado: {e}")
 
             # Verificar reentrenamiento y optimización
             stats = self.paper_trader.get_statistics()

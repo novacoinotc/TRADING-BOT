@@ -24,8 +24,15 @@ class ParameterOptimizer:
         """Inicializa optimizador con rangos de búsqueda para cada parámetro"""
 
         # Definir rangos de búsqueda para TODOS los parámetros
-        # Sin limitaciones - la IA tiene control TOTAL
-        # NOTA: Balance inicial (PAPER_TRADING_INITIAL_BALANCE) está PROTEGIDO - nunca se modifica
+        # Sin limitaciones - la IA tiene control TOTAL sobre parámetros listados
+        #
+        # PARÁMETROS PROTEGIDOS (NO MODIFICABLES POR IA):
+        # - PAPER_TRADING_INITIAL_BALANCE: $50,000 USDT (fijo)
+        # - TAKE_PROFITS: 0.3%, 0.8%, 1.5% (estrategia scalping fija)
+        # - STOP_LOSS: Basado en ATR (lógica fija en análisis técnico)
+        #
+        # Los TPs/SLs se calculan en advanced_technical_analysis.py y flash_signal_analyzer.py
+        # usando valores fijos, NO son parámetros optimizables
         self.parameter_ranges = {
             # Trading Configuration
             'CHECK_INTERVAL': (60, 300, 'int'),  # 1-5 minutos
@@ -237,39 +244,133 @@ class ParameterOptimizer:
 
     def _generate_change_reason(self, changes: List[Dict], strategy: str,
                                 performance: Dict) -> str:
-        """Genera explicación humana de por qué se hicieron los cambios"""
+        """
+        Genera explicación DETALLADA de por qué se hicieron los cambios
+        Incluye: diagnóstico, objetivo, cambios específicos, y expectativa de resultado
+        """
         if not changes:
             return "Sin cambios - configuración óptima mantenida"
 
         win_rate = performance.get('win_rate', 0)
         roi = performance.get('roi', 0)
+        sharpe = performance.get('sharpe_ratio', 0)
+        drawdown = performance.get('max_drawdown', 0)
+        total_trades = performance.get('total_trades', 0)
 
         reasons = []
 
-        # Razón basada en performance
-        if win_rate < 45:
-            reasons.append(f"Win rate bajo ({win_rate:.1f}%) - ajustando selectividad")
-        elif win_rate > 60:
-            reasons.append(f"Win rate alto ({win_rate:.1f}%) - aumentando agresividad")
+        # SECCIÓN 1: DIAGNÓSTICO DE PERFORMANCE ACTUAL
+        reasons.append("=== DIAGNÓSTICO ===")
 
-        if roi < -2:
-            reasons.append(f"ROI negativo ({roi:.1f}%) - reduciendo riesgo")
-        elif roi > 5:
-            reasons.append(f"ROI positivo ({roi:.1f}%) - manteniendo estrategia ganadora")
-
-        # Razón basada en estrategia
-        if strategy == "EXPLORATION":
-            reasons.append("Explorando nuevas configuraciones para encontrar óptimos")
+        # Análisis de win rate
+        if win_rate < 40:
+            reasons.append(f"⚠️ Win Rate CRÍTICO: {win_rate:.1f}% (objetivo: 50%+)")
+            reasons.append("   → Problema: Demasiados trades perdedores, señales de baja calidad")
+        elif win_rate < 50:
+            reasons.append(f"⚠️ Win Rate BAJO: {win_rate:.1f}% (objetivo: 50%+)")
+            reasons.append("   → Necesita ajustar selectividad de señales")
+        elif win_rate > 70:
+            reasons.append(f"✅ Win Rate EXCELENTE: {win_rate:.1f}%")
+            reasons.append("   → Podemos ser más agresivos para aumentar frecuencia")
         else:
-            reasons.append("Optimizando configuración basado en mejores resultados previos")
+            reasons.append(f"✅ Win Rate SALUDABLE: {win_rate:.1f}%")
 
-        # Top 3 cambios más significativos
-        top_changes = sorted(changes, key=lambda x: abs(x['change_pct']), reverse=True)[:3]
-        for change in top_changes:
-            param = change['parameter']
-            old = change['old_value']
-            new = change['new_value']
-            reasons.append(f"  • {param}: {old} → {new}")
+        # Análisis de ROI
+        if roi < -5:
+            reasons.append(f"🚨 ROI MUY NEGATIVO: {roi:.2f}% - REDUCIR RIESGO URGENTE")
+        elif roi < 0:
+            reasons.append(f"⚠️ ROI NEGATIVO: {roi:.2f}% - Estrategia necesita ajustes")
+        elif roi > 10:
+            reasons.append(f"🎉 ROI EXCELENTE: {roi:.2f}% - Estrategia funcionando muy bien")
+        else:
+            reasons.append(f"ROI ACTUAL: {roi:.2f}%")
+
+        # Análisis de drawdown
+        if drawdown > 15:
+            reasons.append(f"⚠️ Drawdown ALTO: {drawdown:.1f}% - Reducir tamaño de posiciones")
+        elif drawdown > 10:
+            reasons.append(f"⚠️ Drawdown MODERADO: {drawdown:.1f}%")
+
+        # SECCIÓN 2: ESTRATEGIA Y OBJETIVO
+        reasons.append("\n=== ESTRATEGIA ===")
+        if strategy == "EXPLORATION":
+            reasons.append("🔍 EXPLORACIÓN: Probando configuraciones nuevas para descubrir mejores setups")
+            reasons.append(f"   → Trials completados: {self.total_trials}")
+            reasons.append("   → Objetivo: Salir de óptimos locales y encontrar mejores configuraciones")
+        else:
+            reasons.append("🎯 OPTIMIZACIÓN: Refinando configuración basado en resultados previos")
+            reasons.append(f"   → Usando aprendizajes de {len(self.trial_history)} trials anteriores")
+            reasons.append("   → Objetivo: Mejorar configuración actual incrementalmente")
+
+        # SECCIÓN 3: CAMBIOS ESPECÍFICOS CON RAZONAMIENTO
+        reasons.append("\n=== CAMBIOS REALIZADOS ===")
+        reasons.append(f"Total de parámetros modificados: {len(changes)}\n")
+
+        # Agrupar cambios por categoría
+        risk_changes = [c for c in changes if any(x in c['parameter'] for x in ['RISK', 'POSITION_SIZE', 'DRAWDOWN'])]
+        indicator_changes = [c for c in changes if any(x in c['parameter'] for x in ['RSI', 'MACD', 'EMA', 'BB'])]
+        threshold_changes = [c for c in changes if 'THRESHOLD' in c['parameter']]
+        ml_changes = [c for c in changes if any(x in c['parameter'] for x in ['ESTIMATORS', 'DEPTH', 'LEARNING'])]
+
+        if risk_changes:
+            reasons.append("📊 GESTIÓN DE RIESGO:")
+            for change in risk_changes[:3]:  # Top 3
+                param = change['parameter']
+                old, new = change['old_value'], change['new_value']
+                direction = "↑" if new > old else "↓"
+                reasons.append(f"   {direction} {param}: {old} → {new}")
+                if 'POSITION_SIZE' in param:
+                    if new > old:
+                        reasons.append("      Razón: Incrementar exposición en mercado favorable")
+                    else:
+                        reasons.append("      Razón: Reducir exposición para proteger capital")
+
+        if indicator_changes:
+            reasons.append("\n📈 INDICADORES TÉCNICOS:")
+            for change in indicator_changes[:3]:
+                param = change['parameter']
+                old, new = change['old_value'], change['new_value']
+                direction = "↑" if new > old else "↓"
+                reasons.append(f"   {direction} {param}: {old} → {new}")
+                if 'RSI' in param:
+                    reasons.append("      Razón: Ajustar sensibilidad a sobrecompra/sobreventa")
+                elif 'MACD' in param:
+                    reasons.append("      Razón: Mejorar detección de cambios de tendencia")
+
+        if threshold_changes:
+            reasons.append("\n🎯 UMBRALES DE SEÑALES:")
+            for change in threshold_changes[:3]:
+                param = change['parameter']
+                old, new = change['old_value'], change['new_value']
+                direction = "↑" if new > old else "↓"
+                reasons.append(f"   {direction} {param}: {old} → {new}")
+                if new > old:
+                    reasons.append("      Razón: Aumentar selectividad - solo señales de mayor calidad")
+                else:
+                    reasons.append("      Razón: Reducir selectividad - aumentar frecuencia de trades")
+
+        if ml_changes:
+            reasons.append("\n🧠 MODELO MACHINE LEARNING:")
+            for change in ml_changes[:2]:
+                param = change['parameter']
+                old, new = change['old_value'], change['new_value']
+                reasons.append(f"   • {param}: {old} → {new}")
+            reasons.append("      Razón: Ajustar complejidad y capacidad de aprendizaje del modelo")
+
+        # SECCIÓN 4: EXPECTATIVA
+        reasons.append("\n=== RESULTADO ESPERADO ===")
+        if win_rate < 45:
+            reasons.append("🎯 Objetivo inmediato: Aumentar win rate a 50%+")
+            reasons.append("   → Aumentando selectividad de señales")
+            reasons.append("   → Mejorando precisión de indicadores")
+        elif roi < 0:
+            reasons.append("🎯 Objetivo inmediato: Revertir a ROI positivo")
+            reasons.append("   → Reduciendo tamaño de posiciones")
+            reasons.append("   → Protegiendo capital con mejor gestión de riesgo")
+        else:
+            reasons.append("🎯 Objetivo: Optimizar estrategia exitosa para maximizar retornos")
+            reasons.append("   → Manteniendo lo que funciona")
+            reasons.append("   → Refinando parámetros para mejor performance")
 
         return "\n".join(reasons)
 

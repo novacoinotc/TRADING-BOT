@@ -49,7 +49,8 @@ class MarketMonitor:
         # Initialize ML + Paper Trading system
         self.ml_system = MLIntegration(
             initial_balance=config.PAPER_TRADING_INITIAL_BALANCE,
-            enable_ml=True  # Enable ML predictions
+            enable_ml=True,  # Enable ML predictions
+            telegram_notifier=self.notifier  # Para notificaciones de trades
         ) if config.ENABLE_PAPER_TRADING else None
 
         # Initialize Sentiment Analysis system
@@ -181,6 +182,14 @@ class MarketMonitor:
                 sentiment_features = self.sentiment_system.get_sentiment_features(pair)
                 sentiment_data = sentiment_features  # Para telegram
 
+            # Obtener precio actual del ticker PRIMERO (para orderbook y regime)
+            current_price_ticker = 0
+            try:
+                ticker = self.exchange.fetch_ticker(pair)
+                current_price_ticker = ticker['last'] if ticker and 'last' in ticker else 0
+            except Exception as e:
+                logger.warning(f"No se pudo obtener ticker para {pair}: {e}")
+
             # ANALYZE ORDER BOOK (10 second cache)
             orderbook_analysis = None
             orderbook_features = None
@@ -188,7 +197,7 @@ class MarketMonitor:
                 orderbook_analysis = self.orderbook_analyzer.analyze(
                     exchange=self.exchange,
                     pair=pair,
-                    current_price=0  # Will be updated later
+                    current_price=current_price_ticker
                 )
                 orderbook_features = self.orderbook_analyzer.get_orderbook_features(orderbook_analysis)
             except Exception as e:
@@ -201,7 +210,7 @@ class MarketMonitor:
                 regime_data = self.regime_detector.detect(
                     exchange=self.exchange,
                     pair=pair,
-                    current_price=0  # Will be updated later
+                    current_price=current_price_ticker
                 )
                 regime_features = self.regime_detector.get_regime_features(regime_data)
             except Exception as e:
