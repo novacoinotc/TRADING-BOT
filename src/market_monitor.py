@@ -483,14 +483,22 @@ class MarketMonitor:
         try:
             # Construir estado de mercado para el RL Agent
             market_state = {
+                # Technical indicators
                 'rsi': indicators.get('rsi', 50),
                 'macd_signal': 'bullish' if indicators.get('macd_diff', 0) > 0 else 'bearish',
                 'trend': 'up' if indicators.get('ema_short', 0) > indicators.get('ema_long', 0) else 'down',
                 'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
-                'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
                 'volatility': 'high' if indicators.get('atr', 0) > indicators.get('current_price', 1) * 0.02 else 'medium',
-                'win_rate': 0,  # Will be updated with portfolio metrics
-                'drawdown': 0   # Will be updated with portfolio metrics
+
+                # Basic sentiment (legacy)
+                'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+
+                # GROWTH API - Todos los sentiment features para RL learning
+                'sentiment_features': sentiment_data if sentiment_data else {},
+
+                # Portfolio metrics (updated below)
+                'win_rate': 0,
+                'drawdown': 0
             }
 
             # Obtener métricas del portfolio

@@ -10,6 +10,7 @@ import json
 
 from src.sentiment.news_collector import NewsCollector
 from src.sentiment.sentiment_analyzer import SentimentAnalyzer
+from src.sentiment.news_trigger import NewsTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ class SentimentIntegration:
     ):
         self.news_collector = NewsCollector(cryptopanic_api_key=cryptopanic_api_key)
         self.sentiment_analyzer = SentimentAnalyzer()
+        self.news_trigger = NewsTrigger()  # GROWTH API - News-triggered trading
 
         self.update_interval = update_interval_minutes
         self.enable_blocking = enable_blocking  # Bloquear trades en sentiment extremo negativo
@@ -297,52 +299,167 @@ class SentimentIntegration:
         # Get sentiment features
         features = self.get_sentiment_features(pair)
 
-        # Ajustes
+        # MULTI-LAYER CONFIDENCE SYSTEM (5 capas)
         adjustment = 0
+        adjustment_breakdown = {}
 
-        # Fear & Greed
+        # LAYER 1: Fear & Greed (básico)
         fg = features['fear_greed_index']
+        fg_adjust = 0
         if signal.get('action') == 'BUY':
             if fg < 0.3:  # Fear -> más confianza en BUY
-                adjustment += 5
+                fg_adjust = 5
             elif fg > 0.7:  # Greed -> menos confianza en BUY
-                adjustment -= 5
+                fg_adjust = -5
         elif signal.get('action') == 'SELL':
             if fg > 0.7:  # Greed -> más confianza en SELL
-                adjustment += 5
+                fg_adjust = 5
             elif fg < 0.3:  # Fear -> menos confianza en SELL
-                adjustment -= 5
+                fg_adjust = -5
 
-        # News sentiment
+        adjustment += fg_adjust
+        adjustment_breakdown['fear_greed'] = fg_adjust
+
+        # LAYER 2: News Sentiment (básico)
         news_sentiment = features['news_sentiment_overall']
+        news_adjust = 0
         if signal.get('action') == 'BUY':
             if news_sentiment > 0.7:  # Very positive
-                adjustment += 8
+                news_adjust = 8
             elif news_sentiment < 0.3:  # Very negative
-                adjustment -= 8
+                news_adjust = -8
         elif signal.get('action') == 'SELL':
             if news_sentiment < 0.3:
-                adjustment += 8
+                news_adjust = 8
             elif news_sentiment > 0.7:
-                adjustment -= 8
+                news_adjust = -8
 
-        # High impact news
+        adjustment += news_adjust
+        adjustment_breakdown['news_sentiment'] = news_adjust
+
+        # LAYER 3: GROWTH - News Importance (NUEVO)
+        importance_adjust = 0
+        importance_ratio = features.get('importance_votes_ratio', 0)
+        high_importance = features.get('high_importance_news', 0)
+
+        if importance_ratio > 0.4 or high_importance == 1:
+            # Noticias importantes detectadas
+            if signal.get('action') == 'BUY':
+                importance_adjust = 10  # Aumentar confianza
+            elif signal.get('action') == 'SELL':
+                importance_adjust = 5
+        elif importance_ratio > 0.25:
+            importance_adjust = 5
+
+        adjustment += importance_adjust
+        adjustment_breakdown['importance'] = importance_adjust
+
+        # LAYER 4: GROWTH - Social Buzz (NUEVO)
+        social_adjust = 0
+        social_buzz = features.get('social_buzz', 0)
+        twitter_ratio = features.get('twitter_ratio', 0)
+        reddit_ratio = features.get('reddit_ratio', 0)
+
+        if social_buzz == 1:
+            # Alto buzz en redes sociales
+            if signal.get('action') == 'BUY':
+                social_adjust = 8  # Buzz generalmente precede pump
+            elif signal.get('action') == 'SELL':
+                social_adjust = 3
+        elif twitter_ratio > 0.15 or reddit_ratio > 0.1:
+            # Buzz moderado
+            social_adjust = 4
+
+        adjustment += social_adjust
+        adjustment_breakdown['social_buzz'] = social_adjust
+
+        # LAYER 5: GROWTH - Market Cap Filter (NUEVO)
+        market_cap_adjust = 0
+        top10_ratio = features.get('top10_mentions_ratio', 0)
+        high_market_cap = features.get('high_market_cap_news', 0)
+
+        if top10_ratio > 0.5 or high_market_cap == 1:
+            # Noticias sobre grandes caps (más seguras)
+            market_cap_adjust = 5
+        elif top10_ratio > 0.3:
+            market_cap_adjust = 3
+
+        adjustment += market_cap_adjust
+        adjustment_breakdown['market_cap'] = market_cap_adjust
+
+        # LAYER 6: High impact news (volatilidad)
+        volatility_adjust = 0
         high_impact_count = features['high_impact_news_count']
-        if high_impact_count > 3:
-            # Mucha volatilidad esperada, reducir confianza
-            adjustment -= 3
+        if high_impact_count > 5:
+            # Mucha volatilidad esperada, reducir confianza ligeramente
+            volatility_adjust = -3
+        elif high_impact_count > 10:
+            volatility_adjust = -5
+
+        adjustment += volatility_adjust
+        adjustment_breakdown['volatility'] = volatility_adjust
 
         # Apply adjustment
         adjusted_confidence = max(0, min(100, original_confidence + adjustment))
 
         adjusted_signal['confidence'] = adjusted_confidence
         adjusted_signal['sentiment_adjustment'] = adjustment
+        adjusted_signal['sentiment_adjustment_breakdown'] = adjustment_breakdown
         adjusted_signal['sentiment_features'] = features
 
         if adjustment != 0:
-            logger.info(f"📊 Confidence ajustada: {original_confidence}% → {adjusted_confidence}% ({adjustment:+d}%)")
+            # Log detallado con breakdown
+            breakdown_str = ", ".join([f"{k}: {v:+d}" for k, v in adjustment_breakdown.items() if v != 0])
+            logger.info(
+                f"📊 Confidence ajustada: {original_confidence}% → {adjusted_confidence}% "
+                f"({adjustment:+d}%) [{breakdown_str}]"
+            )
 
         return adjusted_signal
+
+    def get_news_triggered_signals(
+        self,
+        current_pairs: List[str],
+        current_price_changes: Dict[str, float] = None
+    ) -> List[Dict]:
+        """
+        Genera señales de trading basadas en noticias críticas (GROWTH API)
+
+        Args:
+            current_pairs: Lista de pares disponibles para trading
+            current_price_changes: Dict con cambios de precio 1h {pair: %change}
+
+        Returns:
+            Lista de señales urgentes generadas por noticias
+        """
+        if not self.current_sentiment:
+            return []
+
+        all_news = self.current_sentiment.get('raw_news', [])
+
+        if not all_news:
+            return []
+
+        # Detectar noticias críticas
+        critical_news = self.news_trigger.detect_critical_news(all_news)
+
+        # Detectar buzz social
+        social_buzz = self.news_trigger.detect_social_buzz(all_news)
+
+        # Detectar patrones pre-pump
+        pre_pump = []
+        if current_price_changes:
+            pre_pump = self.news_trigger.detect_pre_pump(all_news, current_price_changes)
+
+        # Generar señales
+        signals = self.news_trigger.generate_news_signal(
+            critical_news=critical_news,
+            social_buzz=social_buzz,
+            pre_pump=pre_pump,
+            current_pairs=current_pairs
+        )
+
+        return signals
 
     def get_critical_news_alerts(self) -> List[Dict]:
         """Retorna noticias críticas para alertar en Telegram"""
