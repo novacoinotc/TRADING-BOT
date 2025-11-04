@@ -246,14 +246,18 @@ class FlashSignalAnalyzer:
         reward = abs(tp1 - entry_price)
         risk_reward = round(reward / risk, 2) if risk > 0 else 0
 
+        # Ajustar decimales de redondeo según el precio
+        # Para precios bajos (< $1), usar más decimales para evitar que TP = entry_price
+        decimals = 4 if entry_price < 1.0 else 2
+
         return {
-            'stop_loss': round(stop_loss, 2),
+            'stop_loss': round(stop_loss, decimals),
             'take_profit': {
-                'tp1': round(tp1, 2),
-                'tp2': round(tp2, 2),
-                'tp3': round(tp3, 2)
+                'tp1': round(tp1, decimals),
+                'tp2': round(tp2, decimals),
+                'tp3': round(tp3, decimals)
             },
             'risk_reward': risk_reward,
-            'risk_amount': round(risk, 2),
-            'reward_amount': round(reward, 2)
+            'risk_amount': round(risk, decimals),
+            'reward_amount': round(reward, decimals)
         }
