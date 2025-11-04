@@ -337,12 +337,18 @@ class ParameterOptimizer:
             for change in risk_changes[:3]:  # Top 3
                 param = change['parameter']
                 old, new = change['old_value'], change['new_value']
-                direction = "↑" if new > old else "↓"
+
+                # Validar que old y new no sean None antes de comparar
+                if old is not None and new is not None:
+                    direction = "↑" if new > old else "↓"
+                else:
+                    direction = "→"
+
                 reasons.append(f"   {direction} {param}: {old} → {new}")
                 if 'POSITION_SIZE' in param:
-                    if new > old:
+                    if old is not None and new is not None and new > old:
                         reasons.append("      Razón: Incrementar exposición en mercado favorable")
-                    else:
+                    elif old is not None and new is not None:
                         reasons.append("      Razón: Reducir exposición para proteger capital")
 
         if indicator_changes:
@@ -350,7 +356,13 @@ class ParameterOptimizer:
             for change in indicator_changes[:3]:
                 param = change['parameter']
                 old, new = change['old_value'], change['new_value']
-                direction = "↑" if new > old else "↓"
+
+                # Validar que old y new no sean None antes de comparar
+                if old is not None and new is not None:
+                    direction = "↑" if new > old else "↓"
+                else:
+                    direction = "→"
+
                 reasons.append(f"   {direction} {param}: {old} → {new}")
                 if 'RSI' in param:
                     reasons.append("      Razón: Ajustar sensibilidad a sobrecompra/sobreventa")
@@ -362,12 +374,19 @@ class ParameterOptimizer:
             for change in threshold_changes[:3]:
                 param = change['parameter']
                 old, new = change['old_value'], change['new_value']
-                direction = "↑" if new > old else "↓"
-                reasons.append(f"   {direction} {param}: {old} → {new}")
-                if new > old:
-                    reasons.append("      Razón: Aumentar selectividad - solo señales de mayor calidad")
+
+                # Validar que old y new no sean None antes de comparar
+                if old is not None and new is not None:
+                    direction = "↑" if new > old else "↓"
                 else:
-                    reasons.append("      Razón: Reducir selectividad - aumentar frecuencia de trades")
+                    direction = "→"
+
+                reasons.append(f"   {direction} {param}: {old} → {new}")
+                if old is not None and new is not None:
+                    if new > old:
+                        reasons.append("      Razón: Aumentar selectividad - solo señales de mayor calidad")
+                    else:
+                        reasons.append("      Razón: Reducir selectividad - aumentar frecuencia de trades")
 
         if ml_changes:
             reasons.append("\n🧠 MODELO MACHINE LEARNING:")
