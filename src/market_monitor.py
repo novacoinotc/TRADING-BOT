@@ -185,8 +185,9 @@ class MarketMonitor:
                 # ⚡ CHECK NEWS-TRIGGERED SIGNALS (CRITICAL NEWS)
                 # Esto da ventaja de 5-30 min antes del mercado
                 try:
+                    from config import config
                     news_signals = self.sentiment_system.get_news_triggered_signals(
-                        current_pairs=self.pairs,
+                        current_pairs=config.TRADING_PAIRS,
                         current_price_changes=getattr(self, 'price_changes_1h', {})
                     )
 

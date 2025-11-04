@@ -474,6 +474,7 @@ class TelegramCommands:
             return False
 
         try:
+            # Intentar con Markdown primero
             await self.application.bot.send_message(
                 chat_id=self.chat_id,
                 text=message,
@@ -481,5 +482,15 @@ class TelegramCommands:
             )
             return True
         except Exception as e:
-            logger.error(f"Error enviando mensaje a Telegram: {e}")
-            return False
+            # Si falla Markdown, intentar sin formato
+            logger.warning(f"Error con Markdown, reintentando sin formato: {e}")
+            try:
+                await self.application.bot.send_message(
+                    chat_id=self.chat_id,
+                    text=message,
+                    parse_mode=None
+                )
+                return True
+            except Exception as e2:
+                logger.error(f"Error enviando mensaje a Telegram: {e2}")
+                return False
