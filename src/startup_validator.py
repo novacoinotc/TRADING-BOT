@@ -289,10 +289,10 @@ class StartupValidator:
         """Valida Learning Persistence (Export/Import)"""
         try:
             if hasattr(monitor, 'autonomy_controller') and monitor.autonomy_controller:
-                persistence = monitor.autonomy_controller.learning_persistence
+                persistence = monitor.autonomy_controller.persistence  # ✅ Correcto: 'persistence' no 'learning_persistence'
                 if persistence:
                     import os
-                    data_dir = persistence.data_dir if hasattr(persistence, 'data_dir') else 'data/autonomous'
+                    data_dir = persistence.storage_dir if hasattr(persistence, 'storage_dir') else 'data/autonomous'
                     exists = os.path.exists(data_dir)
                     return True, f"Directorio: {data_dir} ({'existe' if exists else 'será creado'})"
             return False, "No inicializado"
