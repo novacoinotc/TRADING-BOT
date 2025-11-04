@@ -182,6 +182,67 @@ class MarketMonitor:
                 sentiment_features = self.sentiment_system.get_sentiment_features(pair)
                 sentiment_data = sentiment_features  # Para telegram
 
+                # ⚡ CHECK NEWS-TRIGGERED SIGNALS (CRITICAL NEWS)
+                # Esto da ventaja de 5-30 min antes del mercado
+                try:
+                    news_signals = self.sentiment_system.get_news_triggered_signals(
+                        current_pairs=self.pairs,
+                        current_price_changes=getattr(self, 'price_changes_1h', {})
+                    )
+
+                    # Process urgent news signals for this pair
+                    for news_signal in news_signals:
+                        if news_signal.get('pair') == pair and news_signal.get('urgency') == 'HIGH':
+                            logger.warning(
+                                f"⚡ NEWS-TRIGGERED SIGNAL para {pair}: "
+                                f"{news_signal.get('action')} "
+                                f"(confidence={news_signal.get('confidence')}%) "
+                                f"- {news_signal.get('reason', 'Critical news detected')}"
+                            )
+
+                            # Send urgent notification to Telegram
+                            if self.notifier:
+                                await self.notifier.send_message(
+                                    f"⚡ **SEÑAL URGENTE POR NOTICIAS**\n\n"
+                                    f"Par: {pair}\n"
+                                    f"Acción: {news_signal.get('action')}\n"
+                                    f"Confianza: {news_signal.get('confidence')}%\n"
+                                    f"Urgencia: {news_signal.get('urgency')}\n"
+                                    f"Razón: {news_signal.get('reason')}\n\n"
+                                    f"🎯 Ventana: {news_signal.get('expected_timeframe', '5-30min')}\n"
+                                    f"📈 Movimiento esperado: {news_signal.get('expected_move', 'N/A')}"
+                                )
+
+                            # Execute news-triggered trade immediately (if paper trading enabled)
+                            if self.enable_paper_trading and self.ml_system:
+                                # Get current price for execution
+                                try:
+                                    ticker = self.exchange.fetch_ticker(pair)
+                                    news_price = ticker['last'] if ticker and 'last' in ticker else 0
+
+                                    if news_price > 0:
+                                        logger.info(f"⚡ Ejecutando trade por NEWS-TRIGGER en {pair} @ ${news_price}")
+
+                                        # Process news signal as a trade
+                                        news_trade_result = self.ml_system.process_signal(
+                                            pair=pair,
+                                            signal=news_signal,
+                                            indicators={'current_price': news_price},
+                                            current_price=news_price,
+                                            mtf_indicators=None,
+                                            sentiment_features=sentiment_features,
+                                            orderbook_features=None,
+                                            regime_features=None
+                                        )
+
+                                        if news_trade_result:
+                                            logger.info(f"✅ News-triggered trade ejecutado: {news_trade_result}")
+                                except Exception as e:
+                                    logger.error(f"Error ejecutando news-triggered trade: {e}")
+
+                except Exception as e:
+                    logger.error(f"Error checking news-triggered signals: {e}")
+
             # Obtener precio actual del ticker PRIMERO (para orderbook y regime)
             current_price_ticker = 0
             try:

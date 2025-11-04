@@ -36,10 +36,14 @@ async def send_bot_status_message(monitor):
 
         if hasattr(monitor, 'ml_system') and monitor.ml_system:
             predictor = monitor.ml_system.predictor
-            if predictor and predictor.model_trained:
-                ml_accuracy = f"{predictor.accuracy * 100:.1f}%"
+            if predictor:
+                model_info = predictor.get_model_info()
+                if model_info.get('available'):
+                    ml_accuracy = f"{model_info.get('metrics', {}).get('test_accuracy', 0) * 100:.1f}%"
+                else:
+                    ml_status = "⚠️ Sin entrenar"
             else:
-                ml_status = "⚠️ Sin entrenar"
+                ml_status = "❌ Inactivo"
         else:
             ml_status = "❌ Inactivo"
 
@@ -285,10 +289,12 @@ async def main():
             # Initialize Telegram Commands Handler
             telegram_commands = TelegramCommands(
                 autonomy_controller=autonomy_controller,
-                telegram_token=config.TELEGRAM_BOT_TOKEN
+                telegram_token=config.TELEGRAM_BOT_TOKEN,
+                chat_id=config.TELEGRAM_CHAT_ID
             )
+            monitor.telegram_commands = telegram_commands
             await telegram_commands.start_command_listener()
-            logger.info("📱 Telegram Commands activos: /export_intelligence, /status")
+            logger.info("📱 Telegram Commands activos: /export_intelligence, /status, /stats, /params")
 
         # Run historical training if enabled (pre-train ML model)
         if config.ENABLE_PAPER_TRADING:
@@ -296,8 +302,12 @@ async def main():
             if not success:
                 logger.warning("Historical training no completado, pero continuando...")
 
-        # NUEVO: Enviar mensaje de status completo del bot
-        await send_bot_status_message(monitor)
+        # ✅ VALIDACIÓN COMPLETA DE SERVICIOS AL INICIO
+        from src.startup_validator import run_startup_validation
+        logger.info("")
+        logger.info("🔍 Ejecutando validación completa de servicios...")
+        validation_results = await run_startup_validation(monitor)
+        logger.info("")
 
         # Iniciar monitoreo
         await monitor.start()

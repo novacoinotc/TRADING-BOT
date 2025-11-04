@@ -19,14 +19,16 @@ class TelegramCommands:
     - /status: Status del sistema autónomo
     """
 
-    def __init__(self, autonomy_controller=None, telegram_token: str = None):
+    def __init__(self, autonomy_controller=None, telegram_token: str = None, chat_id: str = None):
         """
         Args:
             autonomy_controller: Instancia del AutonomyController
             telegram_token: Token del bot de Telegram
+            chat_id: Chat ID para enviar mensajes proactivos
         """
         self.autonomy_controller = autonomy_controller
         self.telegram_token = telegram_token
+        self.chat_id = chat_id
         self.application = None
         self.waiting_for_import_file = False  # Flag para saber si esperamos archivo
 
@@ -49,6 +51,8 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("import_intelligence", self.import_intelligence_command))
             self.application.add_handler(CommandHandler("import", self.import_intelligence_command))  # Alias
             self.application.add_handler(CommandHandler("status", self.status_command))
+            self.application.add_handler(CommandHandler("stats", self.stats_command))
+            self.application.add_handler(CommandHandler("params", self.params_command))
             self.application.add_handler(CommandHandler("help", self.help_command))
 
             # Handler para recibir archivos (documentos)
@@ -217,6 +221,130 @@ class TelegramCommands:
         except Exception as e:
             logger.error(f"Error en comando help: {e}", exc_info=True)
 
+    async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /stats
+        Muestra estadísticas de trading y performance
+        """
+        try:
+            logger.info("📈 Comando /stats recibido")
+
+            if not self.autonomy_controller:
+                await update.message.reply_text("⚠️ Sistema autónomo no disponible")
+                return
+
+            # Obtener estadísticas de paper trading
+            paper_trader = self.autonomy_controller.paper_trader if hasattr(self.autonomy_controller, 'paper_trader') else None
+
+            if not paper_trader:
+                await update.message.reply_text("⚠️ Paper trading no disponible")
+                return
+
+            portfolio = paper_trader.portfolio
+            stats = paper_trader.get_statistics()
+
+            # Calcular métricas
+            equity = portfolio.get_equity()
+            initial_balance = 50000  # Balance inicial
+            pnl = equity - initial_balance
+            pnl_pct = (pnl / initial_balance) * 100
+
+            message = (
+                "📈 **Estadísticas de Trading**\n\n"
+                "**💰 Balance:**\n"
+                f"  • Equity actual: ${equity:,.2f} USDT\n"
+                f"  • Balance inicial: ${initial_balance:,.2f} USDT\n"
+                f"  • P&L total: ${pnl:+,.2f} ({pnl_pct:+.2f}%)\n\n"
+                "**📊 Performance:**\n"
+                f"  • Trades totales: {stats.get('total_trades', 0)}\n"
+                f"  • Trades ganadores: {stats.get('winning_trades', 0)}\n"
+                f"  • Trades perdedores: {stats.get('losing_trades', 0)}\n"
+                f"  • Win rate: {stats.get('win_rate', 0):.1f}%\n\n"
+                "**💵 Resultados:**\n"
+                f"  • Profit total: ${stats.get('total_profit', 0):,.2f}\n"
+                f"  • Loss total: ${stats.get('total_loss', 0):,.2f}\n"
+                f"  • Profit promedio: ${stats.get('avg_profit', 0):,.2f}\n"
+                f"  • Loss promedio: ${stats.get('avg_loss', 0):,.2f}\n\n"
+                "**📍 Posiciones:**\n"
+                f"  • Abiertas: {len(portfolio.open_positions)}\n"
+                f"  • Cerradas: {len(portfolio.closed_positions)}\n\n"
+                "Usa /status para ver estado del sistema autónomo"
+            )
+
+            await update.message.reply_text(message)
+
+        except Exception as e:
+            logger.error(f"Error en comando stats: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error obteniendo stats:\n{str(e)}")
+
+    async def params_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /params
+        Muestra parámetros actuales optimizables
+        """
+        try:
+            logger.info("🎯 Comando /params recibido")
+
+            if not self.autonomy_controller:
+                await update.message.reply_text("⚠️ Sistema autónomo no disponible")
+                return
+
+            optimizer = self.autonomy_controller.parameter_optimizer
+            if not optimizer:
+                await update.message.reply_text("⚠️ Parameter optimizer no disponible")
+                return
+
+            # Obtener parámetros actuales
+            current_params = optimizer.current_parameters
+
+            # Agrupar por categoría
+            risk_params = {k: v for k, v in current_params.items() if any(x in k for x in ['RISK', 'POSITION', 'DRAWDOWN', 'STOP'])}
+            indicator_params = {k: v for k, v in current_params.items() if any(x in k for x in ['RSI', 'MACD', 'EMA', 'BB'])}
+            threshold_params = {k: v for k, v in current_params.items() if 'THRESHOLD' in k or 'CONFIDENCE' in k}
+            news_params = {k: v for k, v in current_params.items() if any(x in k for x in ['NEWS', 'IMPORTANCE', 'ENGAGEMENT', 'SOCIAL', 'BUZZ'])}
+            tp_params = {k: v for k, v in current_params.items() if 'TP' in k or 'DYNAMIC' in k}
+
+            message = "🎯 **Parámetros Actuales (41 optimizables)**\n\n"
+
+            if news_params:
+                message += "**📰 News-Triggered Trading:**\n"
+                for param, value in list(news_params.items())[:5]:
+                    message += f"  • {param}: {value}\n"
+                message += "\n"
+
+            if tp_params:
+                message += "**💰 Dynamic TPs:**\n"
+                for param, value in list(tp_params.items())[:5]:
+                    message += f"  • {param}: {value}\n"
+                message += "\n"
+
+            if threshold_params:
+                message += "**🎯 Thresholds:**\n"
+                for param, value in list(threshold_params.items())[:5]:
+                    message += f"  • {param}: {value}\n"
+                message += "\n"
+
+            if risk_params:
+                message += "**📊 Risk Management:**\n"
+                for param, value in list(risk_params.items())[:4]:
+                    message += f"  • {param}: {value}\n"
+                message += "\n"
+
+            # Stats de optimización
+            trials = len(optimizer.trial_history) if hasattr(optimizer, 'trial_history') else 0
+            best_score = optimizer.best_score if hasattr(optimizer, 'best_score') else 0
+
+            message += f"**📈 Optimización:**\n"
+            message += f"  • Trials completados: {trials}\n"
+            message += f"  • Mejor score: {best_score:.3f}\n\n"
+            message += "⚡ IA ajusta estos parámetros automáticamente para maximizar rentabilidad"
+
+            await update.message.reply_text(message)
+
+        except Exception as e:
+            logger.error(f"Error en comando params: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error obteniendo params:\n{str(e)}")
+
     async def import_intelligence_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Comando /import_intelligence
@@ -330,3 +458,28 @@ class TelegramCommands:
             await update.message.reply_text(
                 f"❌ **Error procesando archivo**\n\n{str(e)}"
             )
+
+    async def send_message(self, message: str):
+        """
+        Envía mensaje proactivo al chat configurado
+
+        Args:
+            message: Texto del mensaje a enviar
+
+        Returns:
+            True si se envió correctamente, False si hubo error
+        """
+        if not self.application or not self.chat_id:
+            logger.warning("No se puede enviar mensaje: application o chat_id no configurado")
+            return False
+
+        try:
+            await self.application.bot.send_message(
+                chat_id=self.chat_id,
+                text=message,
+                parse_mode='Markdown'
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error enviando mensaje a Telegram: {e}")
+            return False

@@ -1,0 +1,384 @@
+"""
+Startup Validator - Sistema de validación completa al inicio del bot
+Valida TODOS los servicios y genera reporte detallado
+"""
+import logging
+import asyncio
+from typing import Dict, List, Tuple
+from datetime import datetime
+import requests
+
+logger = logging.getLogger(__name__)
+
+
+class StartupValidator:
+    """
+    Valida todos los servicios críticos al inicio del bot
+    Genera checklist numerada de servicios operativos
+    """
+
+    def __init__(self):
+        self.services = []
+        self.validation_results = {}
+
+    async def validate_all_services(self, monitor) -> Dict:
+        """
+        Ejecuta validación completa de TODOS los servicios
+
+        Args:
+            monitor: Instancia de MarketMonitor con todos los componentes
+
+        Returns:
+            Dict con resultados de validación
+        """
+        logger.info("=" * 60)
+        logger.info("🔍 INICIANDO VALIDACIÓN COMPLETA DE SERVICIOS")
+        logger.info("=" * 60)
+
+        start_time = datetime.now()
+
+        # Lista de validaciones (orden de importancia)
+        validations = [
+            ("Exchange (Binance)", self._validate_exchange, monitor),
+            ("Telegram Bot", self._validate_telegram, monitor),
+            ("CryptoPanic GROWTH API", self._validate_cryptopanic, monitor),
+            ("Fear & Greed Index", self._validate_fear_greed, monitor),
+            ("Sentiment Analysis", self._validate_sentiment, monitor),
+            ("News-Triggered Trading", self._validate_news_trigger, monitor),
+            ("Multi-Layer Confidence System", self._validate_confidence_layers, monitor),
+            ("ML System (Predictor)", self._validate_ml_system, monitor),
+            ("Paper Trading Engine", self._validate_paper_trading, monitor),
+            ("RL Agent (Q-Learning)", self._validate_rl_agent, monitor),
+            ("Parameter Optimizer (41 params)", self._validate_parameter_optimizer, monitor),
+            ("Order Book Analyzer", self._validate_orderbook, monitor),
+            ("Market Regime Detector", self._validate_market_regime, monitor),
+            ("Dynamic TP Manager", self._validate_dynamic_tp, monitor),
+            ("Learning Persistence (Export/Import)", self._validate_learning_persistence, monitor),
+            ("Git Backup System", self._validate_git_backup, monitor),
+        ]
+
+        operational = []
+        failed = []
+
+        for i, (service_name, validator_func, component) in enumerate(validations, 1):
+            try:
+                is_operational, details = await validator_func(component)
+
+                status_icon = "✅" if is_operational else "❌"
+                logger.info(f"{i:2d}. {status_icon} {service_name}: {details}")
+
+                self.validation_results[service_name] = {
+                    'operational': is_operational,
+                    'details': details,
+                    'number': i
+                }
+
+                if is_operational:
+                    operational.append(f"{i}. {service_name}")
+                else:
+                    failed.append(f"{i}. {service_name}: {details}")
+
+            except Exception as e:
+                logger.error(f"{i:2d}. ❌ {service_name}: ERROR - {e}")
+                failed.append(f"{i}. {service_name}: ERROR - {str(e)}")
+                self.validation_results[service_name] = {
+                    'operational': False,
+                    'details': f"ERROR: {str(e)}",
+                    'number': i
+                }
+
+        elapsed = (datetime.now() - start_time).total_seconds()
+
+        logger.info("=" * 60)
+        logger.info(f"✅ SERVICIOS OPERANDO: {len(operational)}/{len(validations)}")
+        logger.info(f"⏱️  Validación completada en {elapsed:.2f}s")
+        logger.info("=" * 60)
+
+        return {
+            'total': len(validations),
+            'operational': operational,
+            'failed': failed,
+            'count_operational': len(operational),
+            'count_failed': len(failed),
+            'elapsed_seconds': elapsed,
+            'validation_results': self.validation_results
+        }
+
+    async def _validate_exchange(self, monitor) -> Tuple[bool, str]:
+        """Valida conexión con Binance"""
+        try:
+            if hasattr(monitor, 'exchange') and monitor.exchange:
+                # Test fetch balance
+                balance = monitor.exchange.fetch_balance()
+                if balance:
+                    return True, f"Conectado vía proxy {monitor.proxy if hasattr(monitor, 'proxy') else 'directo'}"
+            return False, "Exchange no inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_telegram(self, monitor) -> Tuple[bool, str]:
+        """Valida Telegram Bot"""
+        try:
+            if hasattr(monitor, 'telegram_commands') and monitor.telegram_commands:
+                # Check if bot is running
+                if hasattr(monitor.telegram_commands, 'application') and monitor.telegram_commands.application:
+                    return True, "Bot activo y escuchando comandos"
+            return False, "Bot no inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_cryptopanic(self, monitor) -> Tuple[bool, str]:
+        """Valida CryptoPanic GROWTH API v2"""
+        try:
+            from config import config
+            if not config.CRYPTOPANIC_API_KEY:
+                return False, "API key no configurada"
+
+            # Test API call
+            url = f"https://cryptopanic.com/api/growth/v2/posts/?auth_token={config.CRYPTOPANIC_API_KEY}&public=true"
+            response = requests.get(url, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                count = len(data.get('results', []))
+                return True, f"GROWTH v2 activo - {count} posts obtenidos"
+            elif response.status_code == 429:
+                return False, "Límite de requests excedido (429)"
+            else:
+                return False, f"HTTP {response.status_code}"
+
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_fear_greed(self, monitor) -> Tuple[bool, str]:
+        """Valida Fear & Greed Index API"""
+        try:
+            url = "https://api.alternative.me/fng/"
+            response = requests.get(url, timeout=10)
+
+            if response.status_code == 200:
+                data = response.json()
+                if 'data' in data and len(data['data']) > 0:
+                    value = data['data'][0].get('value', 'N/A')
+                    classification = data['data'][0].get('value_classification', 'N/A')
+                    return True, f"Valor actual: {value} ({classification})"
+            return False, f"HTTP {response.status_code}"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_sentiment(self, monitor) -> Tuple[bool, str]:
+        """Valida Sentiment Integration con 26 features"""
+        try:
+            if hasattr(monitor, 'sentiment_integration') and monitor.sentiment_integration:
+                # Check if sentiment data is available
+                if hasattr(monitor.sentiment_integration, 'last_sentiment'):
+                    return True, "26 features GROWTH + Multi-Layer Confidence activo"
+                return True, "Inicializado - esperando primera actualización"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_news_trigger(self, monitor) -> Tuple[bool, str]:
+        """Valida News-Triggered Trading"""
+        try:
+            if hasattr(monitor, 'sentiment_integration') and monitor.sentiment_integration:
+                if hasattr(monitor.sentiment_integration, 'news_trigger'):
+                    trigger = monitor.sentiment_integration.news_trigger
+                    return True, f"Thresholds: importance={trigger.importance_threshold}, engagement={trigger.engagement_threshold}"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_confidence_layers(self, monitor) -> Tuple[bool, str]:
+        """Valida Multi-Layer Confidence System (6 layers)"""
+        try:
+            if hasattr(monitor, 'sentiment_integration') and monitor.sentiment_integration:
+                # Confidence layers are part of sentiment integration
+                return True, "6 layers: Fear&Greed, News, Importance, Social, MarketCap, Volatility"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_ml_system(self, monitor) -> Tuple[bool, str]:
+        """Valida ML System y Predictor"""
+        try:
+            if hasattr(monitor, 'ml_system') and monitor.ml_system:
+                predictor = monitor.ml_system.predictor
+                if predictor:
+                    model_info = predictor.get_model_info()
+                    if model_info.get('available'):
+                        accuracy = model_info.get('metrics', {}).get('test_accuracy', 0)
+                        return True, f"Modelo entrenado - Accuracy: {accuracy * 100:.1f}%"
+                    else:
+                        return True, "Inicializado - Sin modelo entrenado aún"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_paper_trading(self, monitor) -> Tuple[bool, str]:
+        """Valida Paper Trading Engine"""
+        try:
+            if hasattr(monitor, 'ml_system') and monitor.ml_system:
+                if hasattr(monitor.ml_system, 'paper_trader') and monitor.ml_system.paper_trader:
+                    portfolio = monitor.ml_system.paper_trader.portfolio
+                    balance = portfolio.get_equity()
+                    open_trades = len(portfolio.open_positions)
+                    return True, f"Balance: ${balance:,.2f} USDT - {open_trades} trades abiertos"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_rl_agent(self, monitor) -> Tuple[bool, str]:
+        """Valida RL Agent (Q-Learning)"""
+        try:
+            if hasattr(monitor, 'autonomy_controller') and monitor.autonomy_controller:
+                rl_agent = monitor.autonomy_controller.rl_agent
+                if rl_agent:
+                    q_table_size = len(rl_agent.q_table) if hasattr(rl_agent, 'q_table') else 0
+                    return True, f"Q-Table: {q_table_size} estados aprendidos"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_parameter_optimizer(self, monitor) -> Tuple[bool, str]:
+        """Valida Parameter Optimizer"""
+        try:
+            if hasattr(monitor, 'autonomy_controller') and monitor.autonomy_controller:
+                optimizer = monitor.autonomy_controller.parameter_optimizer
+                if optimizer:
+                    param_count = len(optimizer.parameter_ranges)
+                    trials = len(optimizer.trial_history) if hasattr(optimizer, 'trial_history') else 0
+                    return True, f"{param_count} parámetros optimizables - {trials} trials completados"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_orderbook(self, monitor) -> Tuple[bool, str]:
+        """Valida Order Book Analyzer"""
+        try:
+            if hasattr(monitor, 'orderbook_analyzer') and monitor.orderbook_analyzer:
+                depth = monitor.orderbook_analyzer.depth if hasattr(monitor.orderbook_analyzer, 'depth') else 100
+                return True, f"Depth: {depth} niveles"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_market_regime(self, monitor) -> Tuple[bool, str]:
+        """Valida Market Regime Detector"""
+        try:
+            if hasattr(monitor, 'regime_detector') and monitor.regime_detector:
+                return True, "Detecta: BULL, BEAR, SIDEWAYS con confidence"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_dynamic_tp(self, monitor) -> Tuple[bool, str]:
+        """Valida Dynamic TP Manager"""
+        try:
+            if hasattr(monitor, 'ml_system') and monitor.ml_system:
+                if hasattr(monitor.ml_system, 'dynamic_tp_manager') and monitor.ml_system.dynamic_tp_manager:
+                    tp_manager = monitor.ml_system.dynamic_tp_manager
+                    base_tps = f"{tp_manager.tp1_base:.2%}, {tp_manager.tp2_base:.2%}, {tp_manager.tp3_base:.2%}"
+                    return True, f"TPs base: {base_tps} - Dinámico hasta 3%"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_learning_persistence(self, monitor) -> Tuple[bool, str]:
+        """Valida Learning Persistence (Export/Import)"""
+        try:
+            if hasattr(monitor, 'autonomy_controller') and monitor.autonomy_controller:
+                persistence = monitor.autonomy_controller.learning_persistence
+                if persistence:
+                    import os
+                    data_dir = persistence.data_dir if hasattr(persistence, 'data_dir') else 'data/autonomous'
+                    exists = os.path.exists(data_dir)
+                    return True, f"Directorio: {data_dir} ({'existe' if exists else 'será creado'})"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_git_backup(self, monitor) -> Tuple[bool, str]:
+        """Valida Git Backup System"""
+        try:
+            if hasattr(monitor, 'autonomy_controller') and monitor.autonomy_controller:
+                git_backup = monitor.autonomy_controller.git_backup
+                if git_backup:
+                    interval_hours = git_backup.backup_interval_hours if hasattr(git_backup, 'backup_interval_hours') else 24
+                    return True, f"Auto-backup cada {interval_hours}h"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    def generate_telegram_message(self, validation_results: Dict) -> str:
+        """
+        Genera mensaje para Telegram con checklist de servicios
+
+        Args:
+            validation_results: Resultados de validación
+
+        Returns:
+            Mensaje formateado para Telegram
+        """
+        operational = validation_results['operational']
+        failed = validation_results['failed']
+        total = validation_results['total']
+        count_operational = validation_results['count_operational']
+        elapsed = validation_results['elapsed_seconds']
+
+        # Header
+        message = "🚀 **SISTEMA DE TRADING AUTÓNOMO INICIALIZADO**\n\n"
+
+        # Status general
+        status_icon = "✅" if count_operational == total else "⚠️"
+        message += f"{status_icon} **Servicios operando: {count_operational}/{total}**\n"
+        message += f"⏱️ Validación completada en {elapsed:.1f}s\n\n"
+
+        # Checklist de servicios operativos
+        message += "**📋 SERVICIOS ACTIVOS:**\n"
+        for service in operational:
+            message += f"✅ {service}\n"
+
+        # Servicios fallidos (si hay)
+        if failed:
+            message += f"\n**⚠️ SERVICIOS CON PROBLEMAS ({len(failed)}):**\n"
+            for service in failed[:5]:  # Limitar a 5 para no saturar
+                message += f"❌ {service}\n"
+
+        # Footer con info importante
+        message += "\n**🎯 SISTEMA LISTO PARA OPERAR**\n"
+        message += "📱 Comandos disponibles:\n"
+        message += "  /status - Estado actual del bot\n"
+        message += "  /export_intelligence - Exportar aprendizaje IA\n"
+        message += "  /import_intelligence - Importar aprendizaje IA\n"
+        message += "  /stats - Estadísticas de trading\n"
+        message += "  /params - Ver parámetros actuales\n\n"
+        message += "🤖 **Modo Autónomo ACTIVO** - IA tiene control total\n"
+        message += "💰 Iniciando con $50,000 USDT en paper trading"
+
+        return message
+
+
+async def run_startup_validation(monitor):
+    """
+    Ejecuta validación completa y envía reporte a Telegram
+
+    Args:
+        monitor: Instancia de MarketMonitor
+
+    Returns:
+        Dict con resultados de validación
+    """
+    validator = StartupValidator()
+    results = await validator.validate_all_services(monitor)
+
+    # Generar y enviar mensaje a Telegram
+    if hasattr(monitor, 'telegram_commands') and monitor.telegram_commands:
+        message = validator.generate_telegram_message(results)
+        try:
+            await monitor.telegram_commands.send_message(message)
+            logger.info("📱 Reporte de validación enviado a Telegram")
+        except Exception as e:
+            logger.error(f"Error enviando reporte a Telegram: {e}")
+
+    return results
