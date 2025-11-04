@@ -338,14 +338,28 @@ class ParameterOptimizer:
                     scores.append(trial['score'])
 
             if len(param_values) >= 5:
-                # Correlación simple
-                correlation = np.corrcoef(param_values, scores)[0, 1]
-                if not np.isnan(correlation):
-                    # Actualizar importancia (promedio móvil)
-                    self.parameter_importance[param] = (
-                        0.7 * self.parameter_importance[param] +
-                        0.3 * abs(correlation)
-                    )
+                # Filtrar valores inválidos (inf, -inf, nan) antes de correlación
+                valid_indices = [
+                    i for i, score in enumerate(scores)
+                    if np.isfinite(score)  # Filtra inf, -inf, y nan
+                ]
+
+                if len(valid_indices) >= 5:  # Necesitamos al menos 5 valores válidos
+                    valid_param_values = [param_values[i] for i in valid_indices]
+                    valid_scores = [scores[i] for i in valid_indices]
+
+                    # Correlación simple con valores válidos
+                    try:
+                        correlation = np.corrcoef(valid_param_values, valid_scores)[0, 1]
+                        if not np.isnan(correlation):
+                            # Actualizar importancia (promedio móvil)
+                            self.parameter_importance[param] = (
+                                0.7 * self.parameter_importance[param] +
+                                0.3 * abs(correlation)
+                            )
+                    except (ValueError, RuntimeWarning):
+                        # Si falla el cálculo, simplemente skip
+                        pass
 
     def get_optimization_statistics(self) -> Dict:
         """Retorna estadísticas del proceso de optimización"""

@@ -279,10 +279,12 @@ class MarketMonitor:
                         regime_features=regime_features
                     )
 
-                    # Enhance analysis with ML data if trade was processed
-                    if trade_result and 'ml' in signals:
-                        analysis['ml_data'] = signals['ml']
+                    # Enhance analysis with trade result if trade was processed
+                    if trade_result:
                         analysis['trade_result'] = trade_result
+                        # Add ML data if available
+                        if 'ml' in signals:
+                            analysis['ml_data'] = signals['ml']
 
                 # Update existing positions
                 if self.enable_paper_trading and self.ml_system:
@@ -355,10 +357,12 @@ class MarketMonitor:
                                 regime_features=regime_features
                             )
 
-                            # Enhance analysis with ML data
-                            if flash_trade_result and 'ml' in flash_signals:
-                                flash_analysis['ml_data'] = flash_signals['ml']
+                            # Enhance analysis with trade result
+                            if flash_trade_result:
                                 flash_analysis['trade_result'] = flash_trade_result
+                                # Add ML data if available
+                                if 'ml' in flash_signals:
+                                    flash_analysis['ml_data'] = flash_signals['ml']
 
                         # Send flash signal notification if threshold met (5+ points)
                         if flash_signals['action'] != 'HOLD':

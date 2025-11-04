@@ -550,3 +550,63 @@ class AutonomyController:
         success = await self.git_backup.perform_backup(manual=True)
 
         return success, export_path
+
+    async def manual_import(self, file_path: str) -> bool:
+        """
+        Import manual de inteligencia desde archivo (llamado por comando de Telegram)
+
+        Args:
+            file_path: Path al archivo .json con la inteligencia
+
+        Returns:
+            True si import fue exitoso
+        """
+        logger.info(f"📥 Import manual solicitado desde: {file_path}")
+
+        # Importar el archivo
+        success = self.persistence.import_from_file(file_path)
+
+        if not success:
+            logger.error("❌ Falló la importación del archivo")
+            return False
+
+        # Recargar la inteligencia importada
+        loaded = self.persistence.load_full_state()
+
+        if not loaded:
+            logger.error("❌ No se pudo cargar la inteligencia importada")
+            return False
+
+        # Restaurar todo el estado
+        try:
+            # Restaurar RL Agent
+            self.rl_agent.load_from_dict(loaded['rl_agent'])
+            logger.info("✅ RL Agent restaurado")
+
+            # Restaurar Parameter Optimizer
+            self.parameter_optimizer.load_from_dict(loaded['parameter_optimizer'])
+            logger.info("✅ Parameter Optimizer restaurado")
+
+            # Restaurar historial de cambios
+            self.change_history = loaded.get('change_history', [])
+            logger.info(f"✅ Histórico de cambios restaurado: {len(self.change_history)} cambios")
+
+            # Restaurar metadata
+            metadata = loaded.get('metadata', {})
+            if metadata:
+                self.current_parameters = metadata.get('current_parameters', {})
+                self.total_trades_processed = metadata.get('total_trades_processed', 0)
+                self.total_parameter_changes = metadata.get('total_parameter_changes', 0)
+                self.decision_mode = metadata.get('decision_mode', 'BALANCED')
+
+            # Restaurar performance history
+            perf_history = loaded.get('performance_history', {})
+            if perf_history.get('recent_performance'):
+                self.performance_history = perf_history['recent_performance']
+
+            logger.info("✅ Inteligencia importada y restaurada completamente")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Error restaurando estado importado: {e}", exc_info=True)
+            return False

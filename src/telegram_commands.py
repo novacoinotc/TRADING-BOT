@@ -3,9 +3,11 @@ Telegram Commands Handler
 Maneja comandos de Telegram para el bot
 """
 import logging
+import os
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from typing import Optional
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +28,7 @@ class TelegramCommands:
         self.autonomy_controller = autonomy_controller
         self.telegram_token = telegram_token
         self.application = None
+        self.waiting_for_import_file = False  # Flag para saber si esperamos archivo
 
         if telegram_token:
             logger.info("📱 Telegram Commands Handler inicializado")
@@ -43,8 +46,13 @@ class TelegramCommands:
             # Agregar handlers
             self.application.add_handler(CommandHandler("export_intelligence", self.export_intelligence_command))
             self.application.add_handler(CommandHandler("export", self.export_intelligence_command))  # Alias
+            self.application.add_handler(CommandHandler("import_intelligence", self.import_intelligence_command))
+            self.application.add_handler(CommandHandler("import", self.import_intelligence_command))  # Alias
             self.application.add_handler(CommandHandler("status", self.status_command))
             self.application.add_handler(CommandHandler("help", self.help_command))
+
+            # Handler para recibir archivos (documentos)
+            self.application.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
 
             # Iniciar polling
             logger.info("✅ Telegram command listener iniciado")
@@ -188,17 +196,137 @@ class TelegramCommands:
                 "/export_intelligence (o /export)\n"
                 "  ├─ Export manual de inteligencia\n"
                 "  ├─ Guarda aprendizaje localmente\n"
-                "  └─ Hace backup a Git/GitHub\n\n"
+                "  ├─ Hace backup a Git/GitHub\n"
+                "  └─ Te envía el archivo .json\n\n"
+                "/import_intelligence (o /import)\n"
+                "  ├─ Restaura inteligencia desde archivo\n"
+                "  ├─ Envía el archivo .json después del comando\n"
+                "  └─ Útil después de redeploys\n\n"
                 "/status\n"
                 "  ├─ Muestra estado del sistema autónomo\n"
                 "  ├─ Estadísticas de aprendizaje\n"
                 "  └─ Info de backups\n\n"
                 "/help\n"
                 "  └─ Muestra este mensaje\n\n"
-                "**Auto-Backup**: Cada 24h automático"
+                "**Auto-Backup**: Cada 24h automático\n"
+                "**Flujo**: /export antes de redeploy → /import después"
             )
 
             await update.message.reply_text(message)
 
         except Exception as e:
             logger.error(f"Error en comando help: {e}", exc_info=True)
+
+    async def import_intelligence_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /import_intelligence
+        Solicita al usuario que envíe el archivo .json para restaurar
+        """
+        try:
+            logger.info("📥 Comando /import_intelligence recibido")
+
+            self.waiting_for_import_file = True
+
+            await update.message.reply_text(
+                "📥 **Import de Inteligencia**\n\n"
+                "Por favor, envía el archivo .json que descargaste con /export\n\n"
+                "El archivo debe ser:\n"
+                "  • Formato: .json\n"
+                "  • Nombre: intelligence_export*.json\n"
+                "  • Del comando /export anterior\n\n"
+                "⏳ Esperando archivo..."
+            )
+
+        except Exception as e:
+            logger.error(f"Error en comando import: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ **Error en Import**\n\n{str(e)}"
+            )
+
+    async def handle_document(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Handler para recibir documentos (archivos)
+        Se activa cuando el usuario está esperando enviar archivo de import
+        """
+        try:
+            # Solo procesar si estamos esperando un archivo de import
+            if not self.waiting_for_import_file:
+                return
+
+            document = update.message.document
+
+            # Validar que sea un archivo JSON
+            if not document.file_name.endswith('.json'):
+                await update.message.reply_text(
+                    "⚠️ **Formato Inválido**\n\n"
+                    "Por favor envía un archivo .json\n"
+                    f"Recibido: {document.file_name}"
+                )
+                return
+
+            await update.message.reply_text(
+                "📥 **Archivo Recibido**\n\n"
+                f"📄 {document.file_name}\n"
+                f"💾 {document.file_size / 1024:.1f} KB\n\n"
+                "Descargando y procesando... ⏳"
+            )
+
+            # Descargar archivo
+            file = await context.bot.get_file(document.file_id)
+
+            # Guardar temporalmente
+            temp_dir = Path("data/temp")
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            temp_path = temp_dir / document.file_name
+
+            await file.download_to_drive(temp_path)
+
+            logger.info(f"📥 Archivo descargado a: {temp_path}")
+
+            # Importar inteligencia
+            if not self.autonomy_controller:
+                await update.message.reply_text(
+                    "⚠️ **Error**: Sistema autónomo no disponible"
+                )
+                return
+
+            success = await self.autonomy_controller.manual_import(str(temp_path))
+
+            # Limpiar archivo temporal
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+
+            # Resetear flag
+            self.waiting_for_import_file = False
+
+            # Enviar resultado
+            if success:
+                await update.message.reply_text(
+                    "✅ **Import Completado**\n\n"
+                    "✅ Archivo procesado correctamente\n"
+                    "✅ Inteligencia restaurada:\n"
+                    "   • RL Agent (Q-table y stats)\n"
+                    "   • Parameter Optimizer (trials y config)\n"
+                    "   • Histórico de cambios\n"
+                    "   • Performance history\n\n"
+                    "🧠 El bot continuará aprendiendo desde donde lo dejó 🎉"
+                )
+            else:
+                await update.message.reply_text(
+                    "❌ **Import Falló**\n\n"
+                    "El archivo no pudo ser procesado.\n"
+                    "Posibles causas:\n"
+                    "  • Archivo corrupto\n"
+                    "  • Formato inválido\n"
+                    "  • Versión incompatible\n\n"
+                    "Intenta con otro archivo o usa /export para generar uno nuevo."
+                )
+
+        except Exception as e:
+            logger.error(f"Error procesando documento: {e}", exc_info=True)
+            self.waiting_for_import_file = False
+            await update.message.reply_text(
+                f"❌ **Error procesando archivo**\n\n{str(e)}"
+            )
