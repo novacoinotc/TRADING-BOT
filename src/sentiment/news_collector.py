@@ -65,9 +65,10 @@ class NewsCollector:
         # CryptoPanic
         if self.cryptopanic_api_key:
             try:
-                cp_news = self.get_cryptopanic_news(currencies=currencies, limit=50)
+                # Request general (no filtrar por moneda) - más eficiente con quota
+                cp_news = self.get_cryptopanic_news(currencies=None, limit=100)
                 all_news['cryptopanic'] = cp_news
-                logger.info(f"   ✅ CryptoPanic: {len(cp_news)} noticias")
+                logger.info(f"   ✅ CryptoPanic: {len(cp_news)} noticias (todas las monedas)")
             except Exception as e:
                 logger.error(f"   ❌ Error en CryptoPanic: {e}")
         else:

@@ -68,8 +68,8 @@ class SentimentIntegration:
 
         logger.info("📰 Actualizando sentiment analysis...")
 
-        # Recolectar noticias
-        all_news = self.news_collector.collect_all_news(currencies=currencies)
+        # Recolectar noticias (1 request general para todas las monedas - más eficiente)
+        all_news = self.news_collector.collect_all_news(currencies=None)
 
         # Analizar sentiment general
         general_analysis = self.sentiment_analyzer.analyze_bulk(
