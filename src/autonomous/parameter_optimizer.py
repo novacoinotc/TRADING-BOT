@@ -28,11 +28,12 @@ class ParameterOptimizer:
         #
         # PARÁMETROS PROTEGIDOS (NO MODIFICABLES POR IA):
         # - PAPER_TRADING_INITIAL_BALANCE: $50,000 USDT (fijo)
-        # - TAKE_PROFITS: 0.3%, 0.8%, 1.5% (estrategia scalping fija)
         # - STOP_LOSS: Basado en ATR (lógica fija en análisis técnico)
         #
-        # Los TPs/SLs se calculan en advanced_technical_analysis.py y flash_signal_analyzer.py
-        # usando valores fijos, NO son parámetros optimizables
+        # PARÁMETROS AHORA OPTIMIZABLES (con límites conservadores):
+        # - TAKE_PROFITS: 0.3-2.0% (dinámicos según oportunidad)
+        # - News Triggers: thresholds de importance, engagement, social buzz
+        # - Multi-Layer Confidence: weights de cada capa
         self.parameter_ranges = {
             # Trading Configuration
             'CHECK_INTERVAL': (60, 300, 'int'),  # 1-5 minutos
@@ -70,6 +71,25 @@ class ParameterOptimizer:
             'GAMMA': (0.0, 0.3, 'float'),
             'REG_ALPHA': (0.0, 0.3, 'float'),
             'REG_LAMBDA': (0.5, 2.0, 'float'),
+
+            # GROWTH API - News-Triggered Trading (NUEVO)
+            'NEWS_IMPORTANCE_THRESHOLD': (0.25, 0.55, 'float'),  # % important votes
+            'NEWS_ENGAGEMENT_THRESHOLD': (15, 50, 'int'),  # saves + comments
+            'SOCIAL_BUZZ_THRESHOLD': (5, 20, 'int'),  # min social posts
+            'RECENT_NEWS_WINDOW_MIN': (3, 15, 'int'),  # minutos para "reciente"
+            'PRE_PUMP_MIN_SCORE': (65, 90, 'int'),  # score mínimo para pre-pump signal
+
+            # GROWTH API - Multi-Layer Confidence Weights (NUEVO)
+            'IMPORTANCE_WEIGHT': (5, 15, 'int'),  # importance layer weight
+            'SOCIAL_BUZZ_WEIGHT': (4, 12, 'int'),  # social buzz layer weight
+            'MARKET_CAP_WEIGHT': (3, 8, 'int'),  # market cap layer weight
+
+            # Dynamic Take Profits (NUEVO - antes fijos)
+            'TP1_BASE_PCT': (0.25, 0.5, 'float'),  # TP1 base (scalping)
+            'TP2_BASE_PCT': (0.6, 1.2, 'float'),  # TP2 base (medio)
+            'TP3_BASE_PCT': (1.0, 2.0, 'float'),  # TP3 base (agresivo)
+            'DYNAMIC_TP_MULTIPLIER': (1.0, 2.5, 'float'),  # multiplicador en oportunidades críticas
+            'HIGH_CRITICALITY_THRESHOLD': (80, 95, 'int'),  # score para usar TPs altos
         }
 
         # Historial de configuraciones probadas y sus resultados
