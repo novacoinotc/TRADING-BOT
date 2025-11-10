@@ -65,6 +65,7 @@ class RLAgent:
     def get_state_representation(self, market_data: Dict) -> str:
         """
         Convierte datos de mercado a representación de estado
+        Formato: "{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_{confidence_range}"
 
         Args:
             market_data: Dict con indicadores técnicos, sentiment, regime, etc.
@@ -73,22 +74,38 @@ class RLAgent:
             Hash único del estado
         """
         # Extraer features clave
+        pair = market_data.get('pair', 'UNKNOWN')
+        side = market_data.get('side', 'NEUTRAL')  # BUY/SELL/NEUTRAL
         rsi = market_data.get('rsi', 50)
-        macd_signal = market_data.get('macd_signal', 'neutral')
-        trend = market_data.get('trend', 'sideways')
         regime = market_data.get('regime', 'SIDEWAYS')
-        sentiment = market_data.get('sentiment', 'neutral')
-        volatility = market_data.get('volatility', 'medium')
-        win_rate = market_data.get('win_rate', 50)
-        drawdown = market_data.get('drawdown', 0)
+        regime_strength = market_data.get('regime_strength', 'MEDIUM')  # LOW/MEDIUM/HIGH
+        orderbook = market_data.get('orderbook', 'NEUTRAL')  # BUY_PRESSURE/SELL_PRESSURE/NEUTRAL
+        confidence = market_data.get('confidence', 50)
 
-        # Discretizar valores continuos
-        rsi_bucket = 'oversold' if rsi < 35 else ('overbought' if rsi > 65 else 'neutral')
-        wr_bucket = 'high' if win_rate > 55 else ('low' if win_rate < 45 else 'medium')
-        dd_bucket = 'critical' if drawdown > 15 else ('high' if drawdown > 10 else 'safe')
+        # Discretizar RSI
+        if rsi < 30:
+            rsi_range = 'OVERSOLD'
+        elif rsi < 40:
+            rsi_range = 'LOW'
+        elif rsi < 60:
+            rsi_range = 'NEUTRAL'
+        elif rsi < 70:
+            rsi_range = 'HIGH'
+        else:
+            rsi_range = 'OVERBOUGHT'
 
-        # Crear estado compuesto
-        state = f"{rsi_bucket}|{macd_signal}|{trend}|{regime}|{sentiment}|{volatility}|{wr_bucket}|{dd_bucket}"
+        # Discretizar confidence
+        if confidence < 40:
+            confidence_range = 'LOW'
+        elif confidence < 60:
+            confidence_range = 'MEDIUM'
+        elif confidence < 80:
+            confidence_range = 'HIGH'
+        else:
+            confidence_range = 'VERY_HIGH'
+
+        # Crear estado compuesto con formato específico
+        state = f"{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_{confidence_range}"
 
         return state
 

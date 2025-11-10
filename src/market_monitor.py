@@ -227,13 +227,21 @@ class MarketMonitor:
                                         rl_news_decision = None
 
                                         if self.autonomy_controller:
+                                            # Derivar orderbook status de orderbook_analysis
+                                            orderbook_status_news = 'NEUTRAL'
+                                            if orderbook_analysis:
+                                                pressure = orderbook_analysis.get('market_pressure', 'NEUTRAL')
+                                                if pressure == 'BUY_PRESSURE':
+                                                    orderbook_status_news = 'BUY_PRESSURE'
+                                                elif pressure == 'SELL_PRESSURE':
+                                                    orderbook_status_news = 'SELL_PRESSURE'
+
                                             # Construir market state básico para news trade
                                             market_state_news = {
                                                 'rsi': 50,  # No tenemos indicadores detallados aún
-                                                'macd_signal': 'bullish' if news_signal.get('action') == 'BUY' else 'bearish',
-                                                'trend': 'up' if news_signal.get('action') == 'BUY' else 'down',
                                                 'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
-                                                'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+                                                'regime_strength': regime_data.get('regime_strength', 'HIGH') if regime_data else 'HIGH',  # News = high volatility
+                                                'orderbook': orderbook_status_news,
                                                 'volatility': 'high'  # News trades son inherentemente volátiles
                                             }
 
@@ -391,13 +399,21 @@ class MarketMonitor:
                     rl_decision = None
 
                     if self.autonomy_controller:
+                        # Derivar orderbook status de orderbook_analysis
+                        orderbook_status = 'NEUTRAL'
+                        if orderbook_analysis:
+                            pressure = orderbook_analysis.get('market_pressure', 'NEUTRAL')
+                            if pressure == 'BUY_PRESSURE':
+                                orderbook_status = 'BUY_PRESSURE'
+                            elif pressure == 'SELL_PRESSURE':
+                                orderbook_status = 'SELL_PRESSURE'
+
                         # Construir market state para RL Agent
                         market_state = {
                             'rsi': analysis['indicators'].get('rsi', 50),
-                            'macd_signal': 'bullish' if analysis['indicators'].get('macd_diff', 0) > 0 else 'bearish',
-                            'trend': 'up' if analysis['indicators'].get('ema_short', 0) > analysis['indicators'].get('ema_long', 0) else 'down',
                             'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
-                            'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+                            'regime_strength': regime_data.get('regime_strength', 'MEDIUM') if regime_data else 'MEDIUM',
+                            'orderbook': orderbook_status,
                             'volatility': 'high' if analysis['indicators'].get('atr', 0) > current_price * 0.02 else 'medium'
                         }
 
@@ -520,13 +536,21 @@ class MarketMonitor:
                             rl_flash_decision = None
 
                             if self.autonomy_controller:
+                                # Derivar orderbook status de orderbook_analysis
+                                orderbook_status_flash = 'NEUTRAL'
+                                if orderbook_analysis:
+                                    pressure = orderbook_analysis.get('market_pressure', 'NEUTRAL')
+                                    if pressure == 'BUY_PRESSURE':
+                                        orderbook_status_flash = 'BUY_PRESSURE'
+                                    elif pressure == 'SELL_PRESSURE':
+                                        orderbook_status_flash = 'SELL_PRESSURE'
+
                                 # Construir market state para RL Agent
                                 market_state_flash = {
                                     'rsi': flash_analysis['indicators'].get('rsi', 50),
-                                    'macd_signal': 'bullish' if flash_analysis['indicators'].get('macd_diff', 0) > 0 else 'bearish',
-                                    'trend': 'up' if flash_analysis['indicators'].get('ema_short', 0) > flash_analysis['indicators'].get('ema_long', 0) else 'down',
                                     'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
-                                    'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+                                    'regime_strength': regime_data.get('regime_strength', 'MEDIUM') if regime_data else 'MEDIUM',
+                                    'orderbook': orderbook_status_flash,
                                     'volatility': 'high' if flash_analysis['indicators'].get('atr', 0) > flash_price * 0.02 else 'medium'
                                 }
 
@@ -690,22 +714,26 @@ class MarketMonitor:
             regime_data: Datos de regime
         """
         try:
-            # Construir estado de mercado para el RL Agent
+            # Derivar orderbook status de orderbook_data
+            orderbook_status_outcome = 'NEUTRAL'
+            if orderbook_data:
+                pressure = orderbook_data.get('market_pressure', 'NEUTRAL')
+                if pressure == 'BUY_PRESSURE':
+                    orderbook_status_outcome = 'BUY_PRESSURE'
+                elif pressure == 'SELL_PRESSURE':
+                    orderbook_status_outcome = 'SELL_PRESSURE'
+
+            # Construir estado de mercado para el RL Agent (formato actualizado)
             market_state = {
-                # Technical indicators
+                # Nuevo formato requerido por RL Agent
                 'rsi': indicators.get('rsi', 50),
-                'macd_signal': 'bullish' if indicators.get('macd_diff', 0) > 0 else 'bearish',
-                'trend': 'up' if indicators.get('ema_short', 0) > indicators.get('ema_long', 0) else 'down',
                 'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
+                'regime_strength': regime_data.get('regime_strength', 'MEDIUM') if regime_data else 'MEDIUM',
+                'orderbook': orderbook_status_outcome,
                 'volatility': 'high' if indicators.get('atr', 0) > indicators.get('current_price', 1) * 0.02 else 'medium',
 
-                # Basic sentiment (legacy)
-                'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
-
-                # GROWTH API - Todos los sentiment features para RL learning
+                # Campos adicionales para contexto (no usados en state representation)
                 'sentiment_features': sentiment_data if sentiment_data else {},
-
-                # Portfolio metrics (updated below)
                 'win_rate': 0,
                 'drawdown': 0
             }

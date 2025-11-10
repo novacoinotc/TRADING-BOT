@@ -186,16 +186,31 @@ class AutonomyController:
             }
 
         try:
+            # Determinar side de la señal (BUY/SELL)
+            signal_action = signal.get('action', 'HOLD')
+            side = 'BUY' if signal_action == 'BUY' else ('SELL' if signal_action == 'SELL' else 'NEUTRAL')
+
+            # Extraer regime strength del regime_data si está disponible
+            regime = market_state.get('regime', 'SIDEWAYS')
+            regime_strength = market_state.get('regime_strength', 'MEDIUM')
+
+            # Si no hay regime_strength pero hay volatilidad, derivarlo
+            if regime_strength == 'MEDIUM':
+                volatility = market_state.get('volatility', 'medium')
+                if volatility == 'high':
+                    regime_strength = 'HIGH'
+                elif volatility == 'low':
+                    regime_strength = 'LOW'
+
             # Construir datos de mercado para RL Agent
             market_data = {
+                'pair': pair,
+                'side': side,
                 'rsi': market_state.get('rsi', 50),
-                'macd_signal': market_state.get('macd_signal', 'neutral'),
-                'trend': market_state.get('trend', 'sideways'),
-                'regime': market_state.get('regime', 'SIDEWAYS'),
-                'sentiment': market_state.get('sentiment', 'neutral'),
-                'volatility': market_state.get('volatility', 'medium'),
-                'win_rate': portfolio_metrics.get('win_rate', 50),
-                'drawdown': abs(portfolio_metrics.get('max_drawdown', 0))
+                'regime': regime,
+                'regime_strength': regime_strength,
+                'orderbook': market_state.get('orderbook', 'NEUTRAL'),
+                'confidence': signal.get('confidence', 50)
             }
 
             # RL Agent decide si abrir trade
