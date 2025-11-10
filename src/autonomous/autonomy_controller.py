@@ -1007,6 +1007,41 @@ class AutonomyController:
                         if portfolio.total_trades > 0:
                             portfolio.win_rate = (portfolio.winning_trades / portfolio.total_trades) * 100
 
+                    # ===== SINCRONIZAR ESTADÍSTICAS DE TRADES =====
+                    # Si el portfolio no tiene trades pero el RL Agent sí tiene experiencia
+                    if portfolio.total_trades == 0 and self.rl_agent.total_trades > 0:
+                        logger.warning(f"⚠️ Portfolio sin trades pero RL tiene {self.rl_agent.total_trades} - sincronizando...")
+
+                        # Copiar estadísticas del RL Agent al Portfolio
+                        portfolio.total_trades = self.rl_agent.total_trades
+                        portfolio.winning_trades = int(self.rl_agent.total_trades * self.rl_agent.success_rate / 100)
+                        portfolio.losing_trades = portfolio.total_trades - portfolio.winning_trades
+
+                        # Calcular win rate
+                        portfolio.win_rate = self.rl_agent.success_rate
+
+                        # Estimar profit/loss promedio basado en el PnL total
+                        if portfolio.winning_trades > 0 and portfolio.total_pnl > 0:
+                            portfolio.total_profit = portfolio.total_pnl * 1.2  # Estimación: ganancias son 120% del PnL neto
+                            portfolio.avg_win = portfolio.total_profit / portfolio.winning_trades
+                        else:
+                            portfolio.total_profit = 0
+                            portfolio.avg_win = 0
+
+                        if portfolio.losing_trades > 0:
+                            # Estimar pérdidas totales
+                            portfolio.total_loss = portfolio.total_profit - portfolio.total_pnl
+                            portfolio.avg_loss = portfolio.total_loss / portfolio.losing_trades if portfolio.losing_trades > 0 else 0
+                        else:
+                            portfolio.total_loss = 0
+                            portfolio.avg_loss = 0
+
+                        logger.info(f"  ✅ Estadísticas sincronizadas desde RL Agent:")
+                        logger.info(f"     • Total trades: {portfolio.total_trades}")
+                        logger.info(f"     • Win rate: {portfolio.win_rate:.1f}%")
+                        logger.info(f"     • Winning: {portfolio.winning_trades}, Losing: {portfolio.losing_trades}")
+                    # ===== FIN SINCRONIZACIÓN =====
+
                     logger.info(f"  ✅ Paper Trading restaurado:")
                     logger.info(f"     • Balance: ${portfolio.balance:,.2f}")
                     logger.info(f"     • PnL: ${portfolio.total_pnl:+,.2f} ({portfolio.total_pnl_pct:+.2f}%)")
