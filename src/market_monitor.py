@@ -788,6 +788,44 @@ class MarketMonitor:
                     # Small delay between pairs to avoid rate limits
                     await asyncio.sleep(2)
 
+                # 🔥 FIX CRÍTICO: Actualizar TODAS las posiciones abiertas cada ciclo
+                if self.enable_paper_trading and self.ml_system:
+                    paper_trader = self.ml_system.paper_trader
+                    open_positions = list(paper_trader.portfolio.positions.keys())
+
+                    if open_positions:
+                        logger.info(f"🔍 Checking {len(open_positions)} open positions...")
+
+                        for pair in open_positions:
+                            # Get current price from cache or fetch fresh
+                            current_price = self.current_prices.get(pair)
+
+                            if current_price:
+                                closed_trade = self.ml_system.update_position(pair, current_price)
+
+                                if closed_trade:
+                                    logger.info(f"✅ Position auto-closed: {pair} - {closed_trade.get('reason', 'UNKNOWN')}")
+
+                                    # Send trade outcome to autonomous controller
+                                    if self.autonomy_controller:
+                                        # Fetch latest data for closed trade learning
+                                        try:
+                                            df = await self.fetch_ohlcv(pair, '1h')
+                                            if df is not None and len(df) >= 50:
+                                                analysis = self.analyzer.analyze_multi_timeframe({'1h': df})
+                                                if analysis:
+                                                    await self._process_trade_outcome_autonomous(
+                                                        closed_trade,
+                                                        analysis.get('indicators', {}),
+                                                        None,  # sentiment_data
+                                                        None,  # orderbook_analysis
+                                                        None   # regime_data
+                                                    )
+                                        except Exception as e:
+                                            logger.error(f"Error processing trade outcome for {pair}: {e}")
+                            else:
+                                logger.warning(f"⚠️ No current price for {pair}, skipping position check")
+
                 # Update pending signals with current prices
                 if self.tracker:
                     self.tracker.check_pending_signals(self.current_prices)
