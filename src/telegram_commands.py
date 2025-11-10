@@ -31,6 +31,7 @@ class TelegramCommands:
         self.chat_id = chat_id
         self.application = None
         self.waiting_for_import_file = False  # Flag para saber si esperamos archivo
+        self.waiting_for_import_force_file = False  # Flag para import_force (ignora checksum)
 
         if telegram_token:
             logger.info("📱 Telegram Commands Handler inicializado")
@@ -50,6 +51,7 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("export", self.export_intelligence_command))  # Alias
             self.application.add_handler(CommandHandler("import_intelligence", self.import_intelligence_command))
             self.application.add_handler(CommandHandler("import", self.import_intelligence_command))  # Alias
+            self.application.add_handler(CommandHandler("import_force", self.import_force_command))  # Import sin validar checksum
             self.application.add_handler(CommandHandler("status", self.status_command))
             self.application.add_handler(CommandHandler("stats", self.stats_command))
             self.application.add_handler(CommandHandler("futures_stats", self.futures_stats_command))
@@ -254,7 +256,13 @@ class TelegramCommands:
                 "/import_intelligence (o /import)\n"
                 "  ├─ Restaura inteligencia desde archivo\n"
                 "  ├─ Envía el archivo .json después del comando\n"
+                "  ├─ Valida integridad (checksum)\n"
                 "  └─ Útil después de redeploys\n\n"
+                "/import_force\n"
+                "  ├─ Import sin validar checksum\n"
+                "  ├─ Para archivos editados manualmente\n"
+                "  ├─ ⚠️ Ignora validación de integridad\n"
+                "  └─ Usa solo si /import falla por checksum\n\n"
                 "/status\n"
                 "  ├─ Muestra estado del sistema autónomo\n"
                 "  ├─ Estadísticas de aprendizaje\n"
@@ -267,7 +275,8 @@ class TelegramCommands:
                 "/help\n"
                 "  └─ Muestra este mensaje\n\n"
                 "**Auto-Backup**: Cada 24h automático\n"
-                "**Flujo**: /export antes de redeploy → /import después"
+                "**Flujo**: /export antes de redeploy → /import después\n"
+                "**Emergencia**: Si /import falla → /import_force"
             )
 
             await update.message.reply_text(message)
@@ -530,14 +539,46 @@ class TelegramCommands:
                 f"❌ **Error en Import**\n\n{str(e)}"
             )
 
+    async def import_force_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /import_force
+        Import forzado ignorando validación de checksum (para archivos editados manualmente)
+        """
+        try:
+            logger.info("🔧 Comando /import_force recibido - IGNORANDO CHECKSUM")
+
+            self.waiting_for_import_force_file = True
+
+            await update.message.reply_text(
+                "🔧 **Import FORCE (Sin Validación)**\n\n"
+                "⚠️ Este comando importa sin validar checksum\n"
+                "Úsalo solo si editaste el archivo manualmente\n\n"
+                "Por favor, envía el archivo .json a importar\n\n"
+                "El archivo debe ser:\n"
+                "  • Formato: .json\n"
+                "  • Estructura válida (rl_agent, parameter_optimizer)\n"
+                "  • ⚠️ NO se validará integridad\n\n"
+                "⏳ Esperando archivo..."
+            )
+
+        except Exception as e:
+            logger.error(f"Error en comando import_force: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ **Error en Import Force**\n\n{str(e)}"
+            )
+
     async def handle_document(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Handler para recibir documentos (archivos)
-        Se activa cuando el usuario está esperando enviar archivo de import
+        Se activa cuando el usuario está esperando enviar archivo de import o import_force
         """
         try:
-            # Solo procesar si estamos esperando un archivo de import
-            if not self.waiting_for_import_file:
+            # Determinar si esperamos import normal o force
+            is_force = self.waiting_for_import_force_file
+            is_normal = self.waiting_for_import_file
+
+            # Solo procesar si estamos esperando un archivo
+            if not is_force and not is_normal:
                 return
 
             document = update.message.document
@@ -551,8 +592,9 @@ class TelegramCommands:
                 )
                 return
 
+            mode_str = "FORCE MODE (sin validación)" if is_force else "normal"
             await update.message.reply_text(
-                "📥 **Archivo Recibido**\n\n"
+                f"📥 **Archivo Recibido** ({mode_str})\n\n"
                 f"📄 {document.file_name}\n"
                 f"💾 {document.file_size / 1024:.1f} KB\n\n"
                 "Descargando y procesando... ⏳"
@@ -568,7 +610,7 @@ class TelegramCommands:
 
             await file.download_to_drive(temp_path)
 
-            logger.info(f"📥 Archivo descargado a: {temp_path}")
+            logger.info(f"📥 Archivo descargado a: {temp_path} (force={is_force})")
 
             # Importar inteligencia
             if not self.autonomy_controller:
@@ -577,7 +619,8 @@ class TelegramCommands:
                 )
                 return
 
-            success = await self.autonomy_controller.manual_import(str(temp_path))
+            # Llamar a manual_import con force=True si es import_force
+            success = await self.autonomy_controller.manual_import(str(temp_path), force=is_force)
 
             # Limpiar archivo temporal
             try:
@@ -585,13 +628,15 @@ class TelegramCommands:
             except:
                 pass
 
-            # Resetear flag
+            # Resetear flags
             self.waiting_for_import_file = False
+            self.waiting_for_import_force_file = False
 
             # Enviar resultado
             if success:
+                force_warning = "\n⚠️ IMPORTADO SIN VALIDACIÓN DE CHECKSUM\n" if is_force else ""
                 await update.message.reply_text(
-                    "✅ **Import Completado**\n\n"
+                    f"✅ **Import Completado**{force_warning}\n"
                     "✅ Archivo procesado correctamente\n"
                     "✅ Inteligencia restaurada:\n"
                     "   • RL Agent (Q-table y stats)\n"
@@ -601,19 +646,22 @@ class TelegramCommands:
                     "🧠 El bot continuará aprendiendo desde donde lo dejó 🎉"
                 )
             else:
+                checksum_hint = "\n\n💡 Si editaste el archivo manualmente, usa /import_force" if is_normal else ""
                 await update.message.reply_text(
-                    "❌ **Import Falló**\n\n"
-                    "El archivo no pudo ser procesado.\n"
-                    "Posibles causas:\n"
-                    "  • Archivo corrupto\n"
-                    "  • Formato inválido\n"
-                    "  • Versión incompatible\n\n"
-                    "Intenta con otro archivo o usa /export para generar uno nuevo."
+                    f"❌ **Import Falló**\n\n"
+                    f"El archivo no pudo ser procesado.\n"
+                    f"Posibles causas:\n"
+                    f"  • Archivo corrupto\n"
+                    f"  • Formato inválido\n"
+                    f"  • Checksum no coincide (archivo editado)\n"
+                    f"  • Versión incompatible{checksum_hint}\n\n"
+                    f"Intenta con otro archivo o usa /export para generar uno nuevo."
                 )
 
         except Exception as e:
             logger.error(f"Error procesando documento: {e}", exc_info=True)
             self.waiting_for_import_file = False
+            self.waiting_for_import_force_file = False
             await update.message.reply_text(
                 f"❌ **Error procesando archivo**\n\n{str(e)}"
             )

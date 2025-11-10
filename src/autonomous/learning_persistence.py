@@ -233,12 +233,13 @@ class LearningPersistence:
             logger.error(f"❌ Error exportando inteligencia: {e}", exc_info=True)
             return ""
 
-    def import_from_file(self, file_path: str) -> bool:
+    def import_from_file(self, file_path: str, force: bool = False) -> bool:
         """
         Importa inteligencia desde archivo exportado
 
         Args:
             file_path: Path al archivo de exportación
+            force: Si True, ignora validación de checksum (para archivos editados manualmente)
 
         Returns:
             True si importación fue exitosa
@@ -259,11 +260,32 @@ class LearningPersistence:
                 logger.error("❌ Archivo no tiene estructura válida")
                 return False
 
+            # Validar checksum si force=False
+            if not force and 'checksum' in full_state:
+                saved_checksum = full_state.get('checksum')
+                # Crear copia sin checksum para calcular
+                state_for_validation = {k: v for k, v in full_state.items() if k != 'checksum'}
+                state_str = json.dumps(state_for_validation, sort_keys=True)
+                calculated_checksum = hashlib.sha256(state_str.encode()).hexdigest()
+
+                if saved_checksum != calculated_checksum:
+                    logger.warning(
+                        f"⚠️ Checksum no coincide!\n"
+                        f"   Esperado: {saved_checksum}\n"
+                        f"   Calculado: {calculated_checksum}\n"
+                        f"   El archivo puede estar corrupto o editado manualmente.\n"
+                        f"   Usa /import_force si quieres importar de todos modos."
+                    )
+                    return False
+            elif force:
+                logger.warning("🔧 MODO FORCE: Ignorando validación de checksum")
+
             # Guardar como archivo principal
             with gzip.open(self.main_file, 'wt', encoding='utf-8') as f:
                 json.dump(full_state, f, indent=2)
 
-            logger.info(f"✅ Inteligencia importada exitosamente desde: {file_path}")
+            mode_str = " (FORCE MODE)" if force else ""
+            logger.info(f"✅ Inteligencia importada exitosamente{mode_str} desde: {file_path}")
             self._log_load_summary(full_state)
 
             return True

@@ -739,21 +739,22 @@ class AutonomyController:
 
         return success, export_path
 
-    async def manual_import(self, file_path: str, merge: bool = False) -> bool:
+    async def manual_import(self, file_path: str, merge: bool = False, force: bool = False) -> bool:
         """
         Import manual de inteligencia desde archivo (llamado por comando de Telegram)
 
         Args:
             file_path: Path al archivo .json con la inteligencia
             merge: Si True, combina con datos existentes. Si False, reemplaza
+            force: Si True, ignora validación de checksum (para archivos editados)
 
         Returns:
             True si import fue exitoso
         """
-        logger.info(f"📥 Import manual solicitado desde: {file_path} (merge={merge})")
+        logger.info(f"📥 Import manual solicitado desde: {file_path} (merge={merge}, force={force})")
 
-        # Importar el archivo
-        success = self.persistence.import_from_file(file_path)
+        # Importar el archivo (con force si se especifica)
+        success = self.persistence.import_from_file(file_path, force=force)
 
         if not success:
             logger.error("❌ Falló la importación del archivo")
