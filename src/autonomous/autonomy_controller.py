@@ -968,6 +968,60 @@ class AutonomyController:
             f"  • Change history: {len(self.change_history)} cambios"
         )
 
+        # ===== RESTAURAR PAPER TRADING =====
+        try:
+            logger.debug("  • Verificando Paper Trading en archivo...")
+            if 'paper_trading' in loaded:
+                paper_data = loaded['paper_trading']
+
+                # Verificar si paper_trader existe
+                if not hasattr(self, 'paper_trader') or self.paper_trader is None:
+                    logger.warning("⚠️ Paper trader no inicializado - intentando crear...")
+                    # Intentar inicializar paper trader si es posible
+                    from src.trading.paper_trader import PaperTrader
+                    self.paper_trader = PaperTrader()
+
+                if self.paper_trader and hasattr(self.paper_trader, 'portfolio'):
+                    portfolio = self.paper_trader.portfolio
+
+                    # Restaurar balances
+                    portfolio.initial_balance = paper_data.get('initial_balance', 50000)
+                    portfolio.balance = paper_data.get('current_balance', portfolio.initial_balance)
+                    portfolio.equity = portfolio.balance
+                    portfolio.peak_balance = paper_data.get('peak_balance', portfolio.balance)
+
+                    # Restaurar PnL
+                    portfolio.total_pnl = paper_data.get('total_pnl', 0)
+                    portfolio.total_pnl_pct = paper_data.get('total_pnl_pct', 0)
+
+                    # Restaurar trades cerrados
+                    if 'trades' in paper_data and isinstance(paper_data['trades'], list):
+                        portfolio.closed_trades = paper_data['trades']
+                        portfolio.total_trades = len(portfolio.closed_trades)
+
+                        # Calcular estadísticas desde trades
+                        winning_trades = [t for t in portfolio.closed_trades if t.get('pnl', 0) > 0]
+                        portfolio.winning_trades = len(winning_trades)
+                        portfolio.losing_trades = portfolio.total_trades - portfolio.winning_trades
+
+                        if portfolio.total_trades > 0:
+                            portfolio.win_rate = (portfolio.winning_trades / portfolio.total_trades) * 100
+
+                    logger.info(f"  ✅ Paper Trading restaurado:")
+                    logger.info(f"     • Balance: ${portfolio.balance:,.2f}")
+                    logger.info(f"     • PnL: ${portfolio.total_pnl:+,.2f} ({portfolio.total_pnl_pct:+.2f}%)")
+                    logger.info(f"     • Trades históricos: {portfolio.total_trades}")
+                    logger.info(f"     • Win rate: {portfolio.win_rate:.1f}%")
+                else:
+                    logger.warning("⚠️ No se pudo acceder al portfolio del paper trader")
+            else:
+                logger.warning("⚠️ No se encontró 'paper_trading' en el archivo importado")
+
+        except Exception as e:
+            logger.error(f"❌ Error restaurando Paper Trading: {e}", exc_info=True)
+            # No es crítico, continuar
+        # ===== FIN RESTAURAR PAPER TRADING =====
+
         # ===== PARCHE DIRECTO PARA total_trades_all_time =====
         # Verificar si total_trades_all_time quedó en 0
         if self.total_trades_all_time == 0:

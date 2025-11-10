@@ -301,8 +301,23 @@ class TelegramCommands:
             # Obtener estadísticas de paper trading
             paper_trader = self.autonomy_controller.paper_trader if hasattr(self.autonomy_controller, 'paper_trader') else None
 
-            if not paper_trader:
-                await update.message.reply_text("⚠️ Paper trading no disponible")
+            if not paper_trader or not hasattr(paper_trader, 'portfolio'):
+                # Mostrar información básica aunque paper trader no esté activo
+                message = "📊 **Estadísticas de Trading**\n\n"
+
+                if self.autonomy_controller:
+                    message += f"**📈 Historial:**\n"
+                    message += f"  • Total trades: {self.autonomy_controller.total_trades_all_time}\n"
+                    message += f"  • Win rate RL: {self.autonomy_controller.rl_agent.success_rate:.1f}%\n"
+                    message += f"  • Estados aprendidos: {len(self.autonomy_controller.rl_agent.q_table)}\n\n"
+                    message += f"**💰 Paper Trading:**\n"
+                    message += f"  • Estado: Inicializándose...\n"
+                    message += f"  • Balance inicial: $50,000\n"
+                    message += f"  • Se activará con el primer trade\n"
+                else:
+                    message = "⚠️ Sistema no disponible"
+
+                await update.message.reply_text(message)
                 return
 
             portfolio = paper_trader.portfolio
