@@ -239,6 +239,16 @@ class Portfolio:
             self.losing_trades += 1
             self.total_loss += abs(pnl)
 
+        # Calcular duración del trade
+        duration_minutes = 0
+        if 'entry_time' in position:
+            entry_time = position['entry_time']
+            # Si entry_time es string, parsear a datetime
+            if isinstance(entry_time, str):
+                entry_time = datetime.fromisoformat(entry_time)
+            # Calcular diferencia (ahora entry_time es datetime)
+            duration_minutes = (datetime.now() - entry_time).total_seconds() / 60
+
         # Crear registro del trade cerrado
         closed_trade = {
             **position,
@@ -249,7 +259,7 @@ class Portfolio:
             'pnl_pct': pnl_pct,
             'reason': reason,
             'status': 'CLOSED',
-            'duration': (datetime.fromisoformat(position['entry_time']) if isinstance(position.get('entry_time'), str) else datetime.now() - position.get('entry_time', datetime.now())).total_seconds() / 60 if 'entry_time' in position else 0
+            'duration': duration_minutes
         }
 
         self.closed_trades.append(closed_trade)
