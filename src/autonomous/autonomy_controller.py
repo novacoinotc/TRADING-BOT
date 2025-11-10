@@ -1028,14 +1028,19 @@ class AutonomyController:
                     portfolio.peak_equity = paper_data.get('peak_balance', portfolio.balance)  # peak_equity, no peak_balance
 
                     # Restaurar trades cerrados
+                    trades_restaurados_desde_archivo = False
                     if 'trades' in paper_data and isinstance(paper_data['trades'], list):
                         trades_to_restore = paper_data['trades']
                         logger.info(f"  📊 Restaurando {len(trades_to_restore)} trades desde archivo...")
 
-                        portfolio.closed_trades = trades_to_restore
-                        portfolio.total_trades = len(portfolio.closed_trades)
-
-                        logger.info(f"  ✅ Trades restaurados en portfolio.closed_trades: {len(portfolio.closed_trades)}")
+                        if len(trades_to_restore) > 0:
+                            portfolio.closed_trades = trades_to_restore
+                            portfolio.total_trades = len(portfolio.closed_trades)
+                            trades_restaurados_desde_archivo = True
+                            logger.info(f"  ✅ Trades restaurados en portfolio.closed_trades: {len(portfolio.closed_trades)}")
+                        else:
+                            logger.warning(f"  ⚠️ El archivo NO contiene trades en paper_trading.trades (lista vacía)")
+                            logger.warning(f"  ⚠️ Este export fue creado con una versión vieja o los trades no se guardaron")
 
                         # Calcular estadísticas desde trades SI hay trades
                         if portfolio.total_trades > 0:
@@ -1067,70 +1072,84 @@ class AutonomyController:
                         logger.warning(f"⚠️ Trades desincronizados: Portfolio={portfolio.total_trades}, RL={self.rl_agent.total_trades}")
 
                     if needs_sync:
-                        logger.info("🔄 Sincronizando estadísticas desde RL Agent...")
-
-                        # Sincronizar contadores de trades
-                        portfolio.total_trades = self.rl_agent.total_trades
-                        portfolio.winning_trades = int(self.rl_agent.total_trades * rl_success_rate / 100)
-                        portfolio.losing_trades = portfolio.total_trades - portfolio.winning_trades
-
-                        # Calcular profit/loss basado en balance actual vs inicial
-                        net_pnl = portfolio.balance - portfolio.initial_balance
-
-                        if portfolio.winning_trades > 0:
-                            # Estimar distribución de ganancias/pérdidas
-                            # Asumiendo ratio 1.5:1 entre ganancias promedio y pérdidas promedio
-                            avg_win_loss_ratio = 1.5
-
-                            if net_pnl > 0:
-                                # Calcular total_profit y total_loss que resulten en el net_pnl correcto
-                                # net_pnl = total_profit - total_loss
-                                # total_profit = avg_win * winning_trades
-                                # total_loss = avg_loss * losing_trades
-                                # avg_win / avg_loss = avg_win_loss_ratio
-
-                                # Fórmula: total_profit = (net_pnl + total_loss)
-                                # avg_win = avg_loss * avg_win_loss_ratio
-                                # total_profit / winning_trades = (total_loss / losing_trades) * avg_win_loss_ratio
-
-                                if portfolio.losing_trades > 0:
-                                    # Resolver para total_loss
-                                    total_loss = (net_pnl * portfolio.losing_trades) / (portfolio.winning_trades * avg_win_loss_ratio - portfolio.losing_trades)
-                                    total_profit = net_pnl + total_loss
-                                else:
-                                    # Solo ganancias, sin pérdidas
-                                    total_profit = net_pnl
-                                    total_loss = 0
-
-                                portfolio.total_profit = max(0, total_profit)
-                                portfolio.total_loss = max(0, total_loss)
-                            else:
-                                # PnL negativo: estimar valores conservadores
-                                portfolio.total_profit = abs(net_pnl) * 0.3  # Algunas ganancias pequeñas
-                                portfolio.total_loss = abs(net_pnl) + portfolio.total_profit  # Pérdidas mayores
+                        # SOLO sincronizar si hay trades restaurados desde archivo
+                        # Si no hay trades reales, no podemos inventar contadores sin datos
+                        if not trades_restaurados_desde_archivo:
+                            logger.error("❌ NO SE PUEDE SINCRONIZAR: El archivo NO contiene trades reales")
+                            logger.error("   Portfolio.closed_trades está vacío - no hay datos para sincronizar")
+                            logger.error("   El RL Agent tiene experiencia pero los trades NO fueron exportados")
+                            logger.error("")
+                            logger.error("   SOLUCIÓN:")
+                            logger.error("   1. Haz /export AHORA para crear export con trades reales")
+                            logger.error("   2. O espera a que el bot acumule nuevos trades (operando en vivo)")
+                            logger.error("   3. El ML NO podrá entrenar hasta tener trades reales")
+                            logger.error("")
+                            # NO sincronizar - dejar portfolio.total_trades en 0
                         else:
-                            portfolio.total_profit = 0
-                            portfolio.total_loss = abs(net_pnl) if net_pnl < 0 else 0
+                            logger.info("🔄 Sincronizando estadísticas desde RL Agent...")
 
-                        # IMPORTANTE: Calcular promedios después de establecer totales
-                        # El método get_statistics() del Portfolio necesita estos valores
-                        # pero también podemos calcularlos directamente aquí para asegurar
-                        if not hasattr(portfolio, 'avg_win'):
-                            portfolio.avg_win = 0
-                        if not hasattr(portfolio, 'avg_loss'):
-                            portfolio.avg_loss = 0
+                            # Sincronizar contadores de trades
+                            portfolio.total_trades = self.rl_agent.total_trades
+                            portfolio.winning_trades = int(self.rl_agent.total_trades * rl_success_rate / 100)
+                            portfolio.losing_trades = portfolio.total_trades - portfolio.winning_trades
 
-                        # Sobrescribir con los valores calculados correctamente
-                        portfolio.avg_win = portfolio.total_profit / portfolio.winning_trades if portfolio.winning_trades > 0 else 0
-                        portfolio.avg_loss = portfolio.total_loss / portfolio.losing_trades if portfolio.losing_trades > 0 else 0
+                            # Calcular profit/loss basado en balance actual vs inicial
+                            net_pnl = portfolio.balance - portfolio.initial_balance
 
-                        logger.info(f"  ✅ Sincronización completa:")
-                        logger.info(f"     • Total trades: {portfolio.total_trades}")
-                        logger.info(f"     • Ganadores: {portfolio.winning_trades} ({portfolio.winning_trades/portfolio.total_trades*100:.1f}%)")
-                        logger.info(f"     • Perdedores: {portfolio.losing_trades} ({portfolio.losing_trades/portfolio.total_trades*100:.1f}%)")
-                        logger.info(f"     • Win rate: {rl_success_rate:.1f}%")
-                        logger.info(f"     • Profit total: ${portfolio.total_profit:.2f}")
-                        logger.info(f"     • Loss total: ${portfolio.total_loss:.2f}")
+                            if portfolio.winning_trades > 0:
+                                # Estimar distribución de ganancias/pérdidas
+                                # Asumiendo ratio 1.5:1 entre ganancias promedio y pérdidas promedio
+                                avg_win_loss_ratio = 1.5
+
+                                if net_pnl > 0:
+                                    # Calcular total_profit y total_loss que resulten en el net_pnl correcto
+                                    # net_pnl = total_profit - total_loss
+                                    # total_profit = avg_win * winning_trades
+                                    # total_loss = avg_loss * losing_trades
+                                    # avg_win / avg_loss = avg_win_loss_ratio
+
+                                    # Fórmula: total_profit = (net_pnl + total_loss)
+                                    # avg_win = avg_loss * avg_win_loss_ratio
+                                    # total_profit / winning_trades = (total_loss / losing_trades) * avg_win_loss_ratio
+
+                                    if portfolio.losing_trades > 0:
+                                        # Resolver para total_loss
+                                        total_loss = (net_pnl * portfolio.losing_trades) / (portfolio.winning_trades * avg_win_loss_ratio - portfolio.losing_trades)
+                                        total_profit = net_pnl + total_loss
+                                    else:
+                                        # Solo ganancias, sin pérdidas
+                                        total_profit = net_pnl
+                                        total_loss = 0
+
+                                    portfolio.total_profit = max(0, total_profit)
+                                    portfolio.total_loss = max(0, total_loss)
+                                else:
+                                    # PnL negativo: estimar valores conservadores
+                                    portfolio.total_profit = abs(net_pnl) * 0.3  # Algunas ganancias pequeñas
+                                    portfolio.total_loss = abs(net_pnl) + portfolio.total_profit  # Pérdidas mayores
+                            else:
+                                portfolio.total_profit = 0
+                                portfolio.total_loss = abs(net_pnl) if net_pnl < 0 else 0
+
+                            # IMPORTANTE: Calcular promedios después de establecer totales
+                            # El método get_statistics() del Portfolio necesita estos valores
+                            # pero también podemos calcularlos directamente aquí para asegurar
+                            if not hasattr(portfolio, 'avg_win'):
+                                portfolio.avg_win = 0
+                            if not hasattr(portfolio, 'avg_loss'):
+                                portfolio.avg_loss = 0
+
+                            # Sobrescribir con los valores calculados correctamente
+                            portfolio.avg_win = portfolio.total_profit / portfolio.winning_trades if portfolio.winning_trades > 0 else 0
+                            portfolio.avg_loss = portfolio.total_loss / portfolio.losing_trades if portfolio.losing_trades > 0 else 0
+
+                            logger.info(f"  ✅ Sincronización completa:")
+                            logger.info(f"     • Total trades: {portfolio.total_trades}")
+                            logger.info(f"     • Ganadores: {portfolio.winning_trades} ({portfolio.winning_trades/portfolio.total_trades*100:.1f}%)")
+                            logger.info(f"     • Perdedores: {portfolio.losing_trades} ({portfolio.losing_trades/portfolio.total_trades*100:.1f}%)")
+                            logger.info(f"     • Win rate: {rl_success_rate:.1f}%")
+                            logger.info(f"     • Profit total: ${portfolio.total_profit:.2f}")
+                            logger.info(f"     • Loss total: ${portfolio.total_loss:.2f}")
                     # ===== FIN SINCRONIZACIÓN =====
 
                     # Obtener estadísticas calculadas del portfolio
