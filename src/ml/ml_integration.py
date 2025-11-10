@@ -54,6 +54,7 @@ class MLIntegration:
 
         # Almacenamiento de features y señales para entrenamiento
         self.training_buffer = []
+        self.imported_features = {}  # Features de trades importados (fallback)
         self.data_dir = Path('data/ml')
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.buffer_file = self.data_dir / 'training_buffer.json'
@@ -331,22 +332,79 @@ class MLIntegration:
             logger.error(f"Error guardando señal para entrenamiento: {e}")
 
     def _get_features_for_trades(self, trades: List[Dict]) -> List[Dict]:
-        """Recupera features correspondientes a trades cerrados"""
+        """
+        Recupera features correspondientes a trades cerrados
+        Con sistema de fallback robusto para máxima compatibilidad
+        """
         features_list = []
 
         for trade in trades:
             trade_id = trade.get('trade_id')
+            features = None
 
-            # Buscar features en buffer
+            # FALLBACK 1: Buscar en training_buffer
             for record in self.training_buffer:
                 if record.get('trade_id') == trade_id:
-                    features_list.append(record['features'])
+                    features = record['features']
+                    logger.debug(f"✓ Features encontradas para {trade_id} en training_buffer")
                     break
-            else:
-                # Si no se encuentra, crear features vacías (esto no debería pasar)
-                logger.warning(f"Features no encontradas para trade {trade_id}")
 
+            # FALLBACK 2: Buscar directamente en el trade (features embebidas)
+            if features is None and 'features' in trade:
+                features = trade['features']
+                logger.debug(f"✓ Features encontradas para {trade_id} embebidas en trade")
+
+            # FALLBACK 3: Buscar en imported_features (datos importados)
+            if features is None and hasattr(self, 'imported_features') and trade_id in self.imported_features:
+                features = self.imported_features[trade_id]
+                logger.debug(f"✓ Features encontradas para {trade_id} en imported_features")
+
+            # FALLBACK 4: Intentar reconstruir features básicas desde el trade
+            if features is None:
+                logger.warning(f"⚠️ Features no encontradas para trade {trade_id} - intentando reconstruir")
+                features = self._reconstruct_basic_features(trade)
+
+            if features:
+                features_list.append(features)
+            else:
+                logger.error(f"❌ No se pudieron obtener features para trade {trade_id}")
+
+        logger.info(f"📊 Features recuperadas: {len(features_list)}/{len(trades)} trades")
         return features_list
+
+    def _reconstruct_basic_features(self, trade: Dict) -> Optional[Dict]:
+        """
+        Intenta reconstruir features básicas desde la información del trade
+        Usado como último recurso cuando no hay features guardadas
+        """
+        try:
+            # Extraer información básica del trade
+            side = trade.get('side', 'BUY')
+            pnl = trade.get('pnl', 0)
+            pnl_pct = trade.get('pnl_pct', 0)
+
+            # Crear features básicas (placeholder - no son tan precisas como las originales)
+            basic_features = {
+                'price': trade.get('entry_price', 0),
+                'volume_24h': 0,  # No disponible
+                'rsi_1h': 50,  # Neutral
+                'rsi_4h': 50,
+                'macd_1h': 0,
+                'macd_4h': 0,
+                'volatility': abs(pnl_pct) if pnl_pct else 1.0,
+                'side_numeric': 1 if side == 'BUY' else -1,
+                'regime_numeric': 0,  # Neutral
+                'sentiment_score': 0,  # Neutral
+                'ml_confidence': 0.5,  # Neutral
+                # Agregar más features básicas según sea necesario
+            }
+
+            logger.debug(f"⚠️ Features básicas reconstruidas para trade (precisión limitada)")
+            return basic_features
+
+        except Exception as e:
+            logger.error(f"Error reconstruyendo features: {e}")
+            return None
 
     def _save_buffer(self):
         """Guarda buffer de entrenamiento a disco"""
