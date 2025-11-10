@@ -236,13 +236,42 @@ class MarketMonitor:
                                                 elif pressure == 'SELL_PRESSURE':
                                                     orderbook_status_news = 'SELL_PRESSURE'
 
-                                            # Construir market state básico para news trade
+                                            # Construir market state para news trade - INTEGRACIÓN COMPLETA
                                             market_state_news = {
                                                 'rsi': 50,  # No tenemos indicadores detallados aún
                                                 'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
                                                 'regime_strength': regime_data.get('regime_strength', 'HIGH') if regime_data else 'HIGH',  # News = high volatility
                                                 'orderbook': orderbook_status_news,
-                                                'volatility': 'high'  # News trades son inherentemente volátiles
+                                                'volatility': 'high',  # News trades son inherentemente volátiles
+
+                                                # Agregar sentiment data si está disponible
+                                                'cryptopanic_sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+                                                'news_volume': sentiment_data.get('news_volume', 0) if sentiment_data else 0,
+                                                'news_importance': sentiment_data.get('news_importance', 0) if sentiment_data else 0,
+                                                'pre_pump_score': sentiment_data.get('pre_pump_score', 0) if sentiment_data else 0,
+                                                'fear_greed_index': sentiment_data.get('fear_greed_index', 50) if sentiment_data else 50,
+                                                'fear_greed_label': sentiment_data.get('fear_greed_label', 'neutral') if sentiment_data else 'neutral',
+                                                'overall_sentiment': sentiment_data.get('overall_sentiment', 'neutral') if sentiment_data else 'neutral',
+                                                'sentiment_strength': sentiment_data.get('sentiment_strength', 0) if sentiment_data else 0,
+                                                'social_buzz': sentiment_data.get('social_buzz', 0) if sentiment_data else 0,
+
+                                                # News triggered = TRUE para news trades
+                                                'news_triggered': True,
+                                                'news_trigger_confidence': news_signal.get('confidence', 80),
+
+                                                # Multi-layer alignment
+                                                'multi_layer_alignment': 0,  # No disponible para news trades urgentes
+
+                                                # Orderbook data si está disponible
+                                                'orderbook_imbalance': orderbook_analysis.get('imbalance', 0) if orderbook_analysis else 0,
+                                                'bid_ask_spread': orderbook_analysis.get('spread_pct', 0) if orderbook_analysis else 0,
+                                                'orderbook_depth_score': orderbook_analysis.get('depth_score', 0) if orderbook_analysis else 0,
+                                                'market_pressure': orderbook_analysis.get('market_pressure', 'NEUTRAL') if orderbook_analysis else 'NEUTRAL',
+
+                                                # Regime data si está disponible
+                                                'regime_confidence': regime_data.get('confidence', 0) if regime_data else 0,
+                                                'trend_strength': regime_data.get('trend_strength', 0) if regime_data else 0,
+                                                'volatility_regime': 'HIGH',  # News = high volatility
                                             }
 
                                             # Obtener portfolio metrics
@@ -408,13 +437,47 @@ class MarketMonitor:
                             elif pressure == 'SELL_PRESSURE':
                                 orderbook_status = 'SELL_PRESSURE'
 
-                        # Construir market state para RL Agent
+                        # Construir market state para RL Agent - INTEGRACIÓN COMPLETA DE LOS 16 SERVICIOS
                         market_state = {
+                            # Indicadores técnicos básicos
                             'rsi': analysis['indicators'].get('rsi', 50),
                             'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
                             'regime_strength': regime_data.get('regime_strength', 'MEDIUM') if regime_data else 'MEDIUM',
                             'orderbook': orderbook_status,
-                            'volatility': 'high' if analysis['indicators'].get('atr', 0) > current_price * 0.02 else 'medium'
+                            'volatility': 'high' if analysis['indicators'].get('atr', 0) > current_price * 0.02 else 'medium',
+
+                            # 3. CryptoPanic GROWTH API (sentiment_data)
+                            'cryptopanic_sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+                            'news_volume': sentiment_data.get('news_volume', 0) if sentiment_data else 0,
+                            'news_importance': sentiment_data.get('news_importance', 0) if sentiment_data else 0,
+                            'pre_pump_score': sentiment_data.get('pre_pump_score', 0) if sentiment_data else 0,
+
+                            # 4. Fear & Greed Index (sentiment_data)
+                            'fear_greed_index': sentiment_data.get('fear_greed_index', 50) if sentiment_data else 50,
+                            'fear_greed_label': sentiment_data.get('fear_greed_label', 'neutral') if sentiment_data else 'neutral',
+
+                            # 5. Sentiment Analysis (sentiment_data)
+                            'overall_sentiment': sentiment_data.get('overall_sentiment', 'neutral') if sentiment_data else 'neutral',
+                            'sentiment_strength': sentiment_data.get('sentiment_strength', 0) if sentiment_data else 0,
+                            'social_buzz': sentiment_data.get('social_buzz', 0) if sentiment_data else 0,
+
+                            # 6. News-Triggered Trading (signals puede tener news_triggered)
+                            'news_triggered': signals.get('news_triggered', False),
+                            'news_trigger_confidence': signals.get('news_trigger_confidence', 0),
+
+                            # 7. Multi-Layer Confidence System (signals)
+                            'multi_layer_alignment': signals.get('multi_layer_alignment', 0),
+
+                            # 12. Order Book Analyzer (orderbook_analysis)
+                            'orderbook_imbalance': orderbook_analysis.get('imbalance', 0) if orderbook_analysis else 0,
+                            'bid_ask_spread': orderbook_analysis.get('spread_pct', 0) if orderbook_analysis else 0,
+                            'orderbook_depth_score': orderbook_analysis.get('depth_score', 0) if orderbook_analysis else 0,
+                            'market_pressure': orderbook_analysis.get('market_pressure', 'NEUTRAL') if orderbook_analysis else 'NEUTRAL',
+
+                            # 13. Market Regime Detector (regime_data)
+                            'regime_confidence': regime_data.get('confidence', 0) if regime_data else 0,
+                            'trend_strength': regime_data.get('trend_strength', 0) if regime_data else 0,
+                            'volatility_regime': regime_data.get('volatility', 'NORMAL') if regime_data else 'NORMAL',
                         }
 
                         # Obtener portfolio metrics

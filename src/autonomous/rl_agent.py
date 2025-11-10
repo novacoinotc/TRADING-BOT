@@ -64,16 +64,18 @@ class RLAgent:
 
     def get_state_representation(self, market_data: Dict) -> str:
         """
-        Convierte datos de mercado a representación de estado
-        Formato: "{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_{confidence_range}_{trade_count_tier}"
+        Convierte datos de mercado a representación de estado MULTIDIMENSIONAL
+        Formato: "{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_{confidence_range}_{trade_count_tier}_{fg_tier}_{ml_signal}_{news_state}_{sentiment}"
+
+        INTEGRACIÓN COMPLETA de los 16 servicios en el estado del RL Agent
 
         Args:
-            market_data: Dict con indicadores técnicos, sentiment, regime, etc.
+            market_data: Dict con TODOS los indicadores de los 16 servicios
 
         Returns:
-            Hash único del estado
+            Hash único del estado (12 dimensiones)
         """
-        # Extraer features clave
+        # Extraer features clave (originales)
         pair = market_data.get('pair', 'UNKNOWN')
         side = market_data.get('side', 'NEUTRAL')  # BUY/SELL/NEUTRAL
         rsi = market_data.get('rsi', 50)
@@ -82,6 +84,15 @@ class RLAgent:
         orderbook = market_data.get('orderbook', 'NEUTRAL')  # BUY_PRESSURE/SELL_PRESSURE/NEUTRAL
         confidence = market_data.get('confidence', 50)
         total_trades = market_data.get('total_trades', 0)
+
+        # NUEVOS FEATURES de los 16 servicios
+        fear_greed_index = market_data.get('fear_greed_index', 50)
+        ml_prediction = market_data.get('ml_prediction', 'HOLD')
+        ml_confidence = market_data.get('ml_confidence', 0)
+        news_triggered = market_data.get('news_triggered', False)
+        overall_sentiment = market_data.get('overall_sentiment', 'neutral')
+        pre_pump_score = market_data.get('pre_pump_score', 0)
+        multi_layer_alignment = market_data.get('multi_layer_alignment', 0)
 
         # Discretizar RSI
         if rsi < 30:
@@ -117,8 +128,45 @@ class RLAgent:
         else:
             trade_count_tier = 'TC_500_PLUS'
 
-        # Crear estado compuesto con formato específico
-        state = f"{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_{confidence_range}_{trade_count_tier}"
+        # NUEVA DIMENSIÓN: Fear & Greed tier
+        if fear_greed_index < 25:
+            fg_tier = 'FG_EXTREME_FEAR'  # Gran oportunidad de compra
+        elif fear_greed_index < 45:
+            fg_tier = 'FG_FEAR'
+        elif fear_greed_index < 55:
+            fg_tier = 'FG_NEUTRAL'
+        elif fear_greed_index < 75:
+            fg_tier = 'FG_GREED'
+        else:
+            fg_tier = 'FG_EXTREME_GREED'  # Cuidado con comprar
+
+        # NUEVA DIMENSIÓN: ML Signal (con confianza mínima)
+        if ml_confidence > 0.6:
+            if ml_prediction == 'BUY':
+                ml_signal = 'ML_BUY'
+            elif ml_prediction == 'SELL':
+                ml_signal = 'ML_SELL'
+            else:
+                ml_signal = 'ML_HOLD'
+        else:
+            ml_signal = 'ML_NONE'  # Confianza insuficiente
+
+        # NUEVA DIMENSIÓN: News State
+        news_state = 'NEWS_YES' if news_triggered else 'NEWS_NO'
+
+        # NUEVA DIMENSIÓN: Sentiment
+        if overall_sentiment == 'positive':
+            sentiment = 'SENT_POS'
+        elif overall_sentiment == 'negative':
+            sentiment = 'SENT_NEG'
+        else:
+            sentiment = 'SENT_NEU'
+
+        # Crear estado compuesto con 12 DIMENSIONES
+        state = (
+            f"{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_"
+            f"{confidence_range}_{trade_count_tier}_{fg_tier}_{ml_signal}_{news_state}_{sentiment}"
+        )
 
         return state
 
@@ -181,6 +229,88 @@ class RLAgent:
         # Obtener representación del estado
         state = self.get_state_representation(market_data)
 
+        # ======================================================================
+        # COMPOSITE SCORE: Calcular score de oportunidad usando LOS 16 SERVICIOS
+        # ======================================================================
+        composite_score = 0.0
+
+        # 1. CryptoPanic pre-pump score (peso alto: 2.0)
+        pre_pump_score = market_data.get('pre_pump_score', 0)
+        if pre_pump_score > 70:
+            composite_score += 2.0
+            logger.debug(f"✨ Pre-pump score alto: {pre_pump_score} (+2.0)")
+        elif pre_pump_score > 50:
+            composite_score += 1.0
+
+        # 2. Fear & Greed Index (oportunidad en miedo extremo)
+        fear_greed_index = market_data.get('fear_greed_index', 50)
+        if fear_greed_index < 20:  # Extreme fear = gran oportunidad
+            composite_score += 2.0
+            logger.debug(f"😨 Fear extremo: {fear_greed_index} (+2.0)")
+        elif fear_greed_index < 35:  # Fear = oportunidad
+            composite_score += 1.0
+        elif fear_greed_index > 80:  # Extreme greed = cuidado
+            composite_score -= 1.5
+            logger.debug(f"🤑 Greed extremo: {fear_greed_index} (-1.5)")
+        elif fear_greed_index > 70:
+            composite_score -= 0.5
+
+        # 3. ML Prediction (peso muy alto: 2.5)
+        ml_prediction = market_data.get('ml_prediction', 'HOLD')
+        ml_confidence = market_data.get('ml_confidence', 0)
+        side = market_data.get('side', 'NEUTRAL')
+        if ml_confidence > 0.7:
+            if (ml_prediction == 'BUY' and side == 'BUY') or (ml_prediction == 'SELL' and side == 'SELL'):
+                composite_score += 2.5
+                logger.debug(f"🤖 ML confirma {ml_prediction} con {ml_confidence:.2f} confianza (+2.5)")
+            elif ml_prediction != side and ml_prediction != 'HOLD':
+                composite_score -= 1.5  # ML contradice la señal
+                logger.debug(f"⚠️ ML contradice: predice {ml_prediction} pero señal es {side} (-1.5)")
+
+        # 4. Multi-layer alignment (peso muy alto: 3.0)
+        multi_layer_alignment = market_data.get('multi_layer_alignment', 0)
+        if multi_layer_alignment > 0.8:
+            composite_score += 3.0
+            logger.debug(f"📊 Multi-layer alineación alta: {multi_layer_alignment:.2f} (+3.0)")
+        elif multi_layer_alignment > 0.6:
+            composite_score += 1.5
+
+        # 5. News triggered (peso moderado: 1.0)
+        news_triggered = market_data.get('news_triggered', False)
+        news_confidence = market_data.get('news_trigger_confidence', 0)
+        if news_triggered and news_confidence > 70:
+            composite_score += 1.5
+            logger.debug(f"📰 News triggered con alta confianza (+1.5)")
+        elif news_triggered:
+            composite_score += 0.5
+
+        # 6. Order book pressure (peso: 1.0)
+        market_pressure = market_data.get('market_pressure', 'NEUTRAL')
+        if (market_pressure == 'BUY_PRESSURE' and side == 'BUY') or \
+           (market_pressure == 'SELL_PRESSURE' and side == 'SELL'):
+            composite_score += 1.0
+            logger.debug(f"📖 Orderbook pressure alineado: {market_pressure} (+1.0)")
+        elif market_pressure != 'NEUTRAL' and market_pressure != side + '_PRESSURE':
+            composite_score -= 0.5
+
+        # 7. Sentiment (peso moderado: 1.0)
+        overall_sentiment = market_data.get('overall_sentiment', 'neutral')
+        sentiment_strength = market_data.get('sentiment_strength', 0)
+        if (overall_sentiment == 'positive' and side == 'BUY') or \
+           (overall_sentiment == 'negative' and side == 'SELL'):
+            if sentiment_strength > 0.7:
+                composite_score += 1.5
+                logger.debug(f"💭 Sentiment fuerte alineado: {overall_sentiment} ({sentiment_strength:.2f}) (+1.5)")
+            else:
+                composite_score += 0.5
+
+        # 8. Regime confidence
+        regime_confidence = market_data.get('regime_confidence', 0)
+        if regime_confidence > 0.75:
+            composite_score += 0.5
+
+        logger.info(f"🎯 COMPOSITE SCORE: {composite_score:.2f} (integración de 16 servicios)")
+
         # Acciones disponibles para trading (SPOT + FUTURES)
         available_actions = [
             'SKIP',  # No abrir trade
@@ -198,8 +328,29 @@ class RLAgent:
         if max_leverage <= 1:
             available_actions = [a for a in available_actions if not a.startswith('FUTURES')]
 
-        # Elegir acción usando Q-learning
+        # USAR COMPOSITE SCORE para influenciar la decisión
+        # Si score muy alto (>6), forzar explotar (0 exploration) para aprovechar señal fuerte
+        # Si score muy bajo (<1), favorecer SKIP
+        original_exploration = self.exploration_rate
+
+        if composite_score > 6.0:
+            # Señal MUY fuerte: favorecer FUTURES si está disponible
+            self.exploration_rate = 0.0  # 100% explotación
+            logger.info(f"🚀 Señal ULTRA FUERTE (score {composite_score:.2f}): favoreciendo trades agresivos")
+        elif composite_score > 4.0:
+            # Señal fuerte: reducir exploración
+            self.exploration_rate = max(0.05, self.exploration_rate * 0.3)
+            logger.info(f"✅ Señal FUERTE (score {composite_score:.2f}): reduciendo exploración")
+        elif composite_score < 1.0:
+            # Señal débil: favorecer SKIP aumentando exploración
+            self.exploration_rate = min(0.8, self.exploration_rate * 2.0)
+            logger.info(f"⚠️ Señal DÉBIL (score {composite_score:.2f}): favoreciendo SKIP")
+
+        # Elegir acción usando Q-learning (con exploration_rate ajustado)
         chosen_action = self.choose_action(state, available_actions)
+
+        # Restaurar exploration_rate original
+        self.exploration_rate = original_exploration
 
         # Convertir acción a decisión de trading
         if chosen_action == 'SKIP':

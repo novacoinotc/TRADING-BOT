@@ -83,6 +83,7 @@ class ParameterOptimizer:
             'IMPORTANCE_WEIGHT': (5, 15, 'int'),  # importance layer weight
             'SOCIAL_BUZZ_WEIGHT': (4, 12, 'int'),  # social buzz layer weight
             'MARKET_CAP_WEIGHT': (3, 8, 'int'),  # market cap layer weight
+            'MULTI_LAYER_MIN_ALIGNMENT': (0.5, 0.9, 'float'),  # alineación mínima entre timeframes
 
             # Dynamic Take Profits (NUEVO - antes fijos)
             'TP1_BASE_PCT': (0.25, 0.5, 'float'),  # TP1 base (scalping)
@@ -90,6 +91,14 @@ class ParameterOptimizer:
             'TP3_BASE_PCT': (1.0, 2.0, 'float'),  # TP3 base (agresivo)
             'DYNAMIC_TP_MULTIPLIER': (1.0, 2.5, 'float'),  # multiplicador en oportunidades críticas
             'HIGH_CRITICALITY_THRESHOLD': (80, 95, 'int'),  # score para usar TPs altos
+
+            # Fear & Greed Index Thresholds (NUEVO)
+            'FEAR_GREED_EXTREME_THRESHOLD': (15, 30, 'int'),  # threshold para miedo/greed extremo
+            'FEAR_GREED_OPPORTUNITY_BOOST': (1.1, 2.0, 'float'),  # boost en miedo extremo
+
+            # ML Confidence Thresholds (NUEVO)
+            'ML_CONFIDENCE_THRESHOLD': (0.55, 0.85, 'float'),  # confianza mínima para usar ML predictions
+            'ML_HIGH_CONFIDENCE_THRESHOLD': (0.75, 0.95, 'float'),  # confianza para boost agresivo
         }
 
         # Historial de configuraciones probadas y sus resultados

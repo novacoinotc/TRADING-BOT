@@ -230,8 +230,9 @@ class AutonomyController:
                 elif volatility == 'low':
                     regime_strength = 'LOW'
 
-            # Construir datos de mercado para RL Agent
+            # Construir datos de mercado para RL Agent - INTEGRACIÓN COMPLETA DE LOS 16 SERVICIOS
             market_data = {
+                # Básicos
                 'pair': pair,
                 'side': side,
                 'rsi': market_state.get('rsi', 50),
@@ -239,7 +240,53 @@ class AutonomyController:
                 'regime_strength': regime_strength,
                 'orderbook': market_state.get('orderbook', 'NEUTRAL'),
                 'confidence': signal.get('confidence', 50),
-                'total_trades': self.total_trades_all_time  # Para tier de experiencia
+                'total_trades': self.total_trades_all_time,  # Para tier de experiencia
+
+                # 3. CryptoPanic GROWTH API
+                'cryptopanic_sentiment': market_state.get('cryptopanic_sentiment', 'neutral'),
+                'news_volume': market_state.get('news_volume', 0),
+                'news_importance': market_state.get('news_importance', 0),
+                'pre_pump_score': market_state.get('pre_pump_score', 0),
+
+                # 4. Fear & Greed Index
+                'fear_greed_index': market_state.get('fear_greed_index', 50),
+                'fear_greed_label': market_state.get('fear_greed_label', 'neutral'),
+
+                # 5. Sentiment Analysis
+                'overall_sentiment': market_state.get('overall_sentiment', 'neutral'),
+                'sentiment_strength': market_state.get('sentiment_strength', 0),
+                'social_buzz': market_state.get('social_buzz', 0),
+
+                # 6. News-Triggered Trading
+                'news_triggered': market_state.get('news_triggered', False),
+                'news_trigger_confidence': market_state.get('news_trigger_confidence', 0),
+
+                # 7. Multi-Layer Confidence System
+                'confidence_5m': signal.get('confidence_5m', 0),
+                'confidence_1h': signal.get('confidence_1h', 0),
+                'confidence_4h': signal.get('confidence_4h', 0),
+                'confidence_1d': signal.get('confidence_1d', 0),
+                'multi_layer_alignment': signal.get('multi_layer_alignment', 0),
+
+                # 8. ML System (Predictor)
+                'ml_prediction': signal.get('ml_prediction', 'HOLD'),
+                'ml_confidence': signal.get('ml_confidence', 0),
+                'ml_features_importance': signal.get('ml_features_importance', {}),
+
+                # 12. Order Book Analyzer
+                'orderbook_imbalance': market_state.get('orderbook_imbalance', 0),
+                'bid_ask_spread': market_state.get('bid_ask_spread', 0),
+                'orderbook_depth_score': market_state.get('orderbook_depth_score', 0),
+                'market_pressure': market_state.get('market_pressure', 'NEUTRAL'),
+
+                # 13. Market Regime Detector
+                'regime_confidence': market_state.get('regime_confidence', 0),
+                'trend_strength': market_state.get('trend_strength', 0),
+                'volatility_regime': market_state.get('volatility_regime', 'NORMAL'),
+
+                # 14. Dynamic TP Manager
+                'dynamic_tp_multiplier': signal.get('dynamic_tp_multiplier', 1.0),
+                'volatility_adjusted': signal.get('volatility_adjusted', False)
             }
 
             # Calcular max leverage permitido
