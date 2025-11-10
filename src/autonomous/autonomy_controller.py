@@ -998,4 +998,27 @@ class AutonomyController:
         logger.info(f"🎯 Max leverage desbloqueado = {self._calculate_max_leverage()}x")
         # ===== FIN DEL PARCHE =====
 
+        # ===== PARCHE DIRECTO PARA total_parameter_changes =====
+        # Verificar también total_parameter_changes
+        if self.total_parameter_changes == 0:
+            logger.warning("⚠️ CRÍTICO: total_parameter_changes está en 0, aplicando parche...")
+
+            # Buscar en metadata
+            metadata = loaded.get('metadata', {})
+            param_changes = metadata.get('total_parameter_changes', 0)
+            if param_changes > 0:
+                self.total_parameter_changes = param_changes
+                logger.warning(f"⚠️ PARCHE APLICADO: total_parameter_changes = {param_changes}")
+            else:
+                # Buscar en parameter_optimizer
+                param_opt = loaded.get('parameter_optimizer', {})
+                total_opts = param_opt.get('total_optimizations', 0)
+                if total_opts > 0:
+                    self.total_parameter_changes = total_opts
+                    logger.warning(f"⚠️ PARCHE APLICADO: total_parameter_changes = {total_opts} (desde total_optimizations)")
+
+        # Log final de verificación
+        logger.info(f"🎯 VERIFICACIÓN FINAL: total_parameter_changes = {self.total_parameter_changes}")
+        # ===== FIN DEL PARCHE =====
+
         return True
