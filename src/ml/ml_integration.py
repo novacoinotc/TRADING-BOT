@@ -227,11 +227,22 @@ class MLIntegration:
             # Usar paper_trader externo si se proporcionó, sino usar el interno
             paper_trader = external_paper_trader if external_paper_trader else self.paper_trader
 
+            # DEBUG: Verificar estado del portfolio
+            if hasattr(paper_trader, 'portfolio'):
+                portfolio_stats = paper_trader.portfolio.get_statistics()
+                logger.info(f"📊 Portfolio stats: total_trades={portfolio_stats.get('total_trades', 0)}")
+                logger.info(f"📊 Portfolio closed_trades length: {len(paper_trader.portfolio.closed_trades)}")
+
             # Obtener trades cerrados
             closed_trades = paper_trader.get_closed_trades(limit=500)
+            logger.info(f"📊 Trades obtenidos para entrenamiento: {len(closed_trades)}")
 
             if len(closed_trades) < self.trainer.min_samples:
                 logger.warning(f"Insuficientes trades para reentrenar: {len(closed_trades)}")
+                logger.warning(f"  Requerido: {self.trainer.min_samples}")
+                if hasattr(paper_trader, 'portfolio'):
+                    logger.warning(f"  Portfolio.closed_trades: {len(paper_trader.portfolio.closed_trades)}")
+                    logger.warning(f"  Portfolio.total_trades: {paper_trader.portfolio.total_trades}")
                 return
 
             # Cargar features correspondientes desde buffer

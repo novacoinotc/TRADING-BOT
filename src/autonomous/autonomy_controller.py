@@ -1029,8 +1029,13 @@ class AutonomyController:
 
                     # Restaurar trades cerrados
                     if 'trades' in paper_data and isinstance(paper_data['trades'], list):
-                        portfolio.closed_trades = paper_data['trades']
+                        trades_to_restore = paper_data['trades']
+                        logger.info(f"  📊 Restaurando {len(trades_to_restore)} trades desde archivo...")
+
+                        portfolio.closed_trades = trades_to_restore
                         portfolio.total_trades = len(portfolio.closed_trades)
+
+                        logger.info(f"  ✅ Trades restaurados en portfolio.closed_trades: {len(portfolio.closed_trades)}")
 
                         # Calcular estadísticas desde trades SI hay trades
                         if portfolio.total_trades > 0:
@@ -1130,6 +1135,10 @@ class AutonomyController:
 
                     # Obtener estadísticas calculadas del portfolio
                     portfolio_stats = portfolio.get_statistics()
+
+                    # CRÍTICO: Guardar portfolio a disco para persistir los cambios
+                    portfolio._save_portfolio()
+                    logger.debug(f"  💾 Portfolio guardado en disco")
 
                     logger.info(f"  ✅ Paper Trading restaurado:")
                     logger.info(f"     • Balance: ${portfolio.balance:,.2f}")
