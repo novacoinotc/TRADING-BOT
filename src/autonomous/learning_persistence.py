@@ -44,7 +44,8 @@ class LearningPersistence:
         optimizer_state: Dict,
         performance_history: Dict,
         change_history: Optional[list] = None,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
+        paper_trading: Optional[Dict] = None
     ) -> bool:
         """
         Guarda estado completo del sistema autónomo
@@ -53,8 +54,9 @@ class LearningPersistence:
             rl_agent_state: Estado del RL Agent (Q-table, estadísticas, etc.)
             optimizer_state: Estado del Parameter Optimizer (trials, best config, etc.)
             performance_history: Historial de performance del bot
-            change_history: Histórico de cambios con razonamiento (NUEVO)
+            change_history: Histórico de cambios con razonamiento
             metadata: Información adicional (versión, timestamp, etc.)
+            paper_trading: Estado del paper trading (balance, trades, etc.)
 
         Returns:
             True si guardado fue exitoso
@@ -74,7 +76,8 @@ class LearningPersistence:
                 'parameter_optimizer': optimizer_state,
                 'performance_history': performance_history,
                 'change_history': change_history or [],  # Histórico de cambios con razonamiento
-                'metadata': metadata or {}
+                'metadata': metadata or {},
+                'paper_trading': paper_trading or {}  # NUEVO: estado de paper trading
             }
 
             # Calcular checksum para validación

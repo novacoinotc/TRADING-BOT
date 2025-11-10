@@ -688,12 +688,35 @@ class AutonomyController:
             'decision_mode': self.decision_mode
         }
 
+        # Guardar estado de paper trading si existe
+        paper_trading_state = {}
+        if hasattr(self, 'paper_trader') and self.paper_trader and hasattr(self.paper_trader, 'portfolio'):
+            portfolio = self.paper_trader.portfolio
+            portfolio_stats = portfolio.get_statistics()
+
+            paper_trading_state = {
+                'initial_balance': portfolio.initial_balance,
+                'current_balance': portfolio.balance,
+                'total_pnl': portfolio_stats['net_pnl'],
+                'total_pnl_pct': portfolio_stats['roi'],
+                'peak_balance': portfolio.peak_equity,
+                'total_trades': portfolio.total_trades,
+                'winning_trades': portfolio.winning_trades,
+                'losing_trades': portfolio.losing_trades,
+                'win_rate': portfolio_stats['win_rate'],
+                'total_profit': portfolio.total_profit,
+                'total_loss': portfolio.total_loss,
+                'trades': portfolio.closed_trades[-100:]  # Últimos 100 trades
+            }
+            logger.debug(f"💰 Paper Trading incluido en export: {portfolio.total_trades} trades, ${portfolio.balance:,.2f} balance")
+
         success = self.persistence.save_full_state(
             rl_agent_state=rl_state,
             optimizer_state=optimizer_state,
             performance_history=performance_summary,
             change_history=self.change_history,  # Histórico de cambios con razonamiento
-            metadata=metadata
+            metadata=metadata,
+            paper_trading=paper_trading_state  # NUEVO: incluir paper trading
         )
 
         if success:
@@ -984,72 +1007,109 @@ class AutonomyController:
                 if self.paper_trader and hasattr(self.paper_trader, 'portfolio'):
                     portfolio = self.paper_trader.portfolio
 
-                    # Restaurar balances
+                    # Restaurar balances (solo atributos que existen en Portfolio)
                     portfolio.initial_balance = paper_data.get('initial_balance', 50000)
                     portfolio.balance = paper_data.get('current_balance', portfolio.initial_balance)
                     portfolio.equity = portfolio.balance
-                    portfolio.peak_balance = paper_data.get('peak_balance', portfolio.balance)
-
-                    # Restaurar PnL
-                    portfolio.total_pnl = paper_data.get('total_pnl', 0)
-                    portfolio.total_pnl_pct = paper_data.get('total_pnl_pct', 0)
+                    portfolio.peak_equity = paper_data.get('peak_balance', portfolio.balance)  # peak_equity, no peak_balance
 
                     # Restaurar trades cerrados
                     if 'trades' in paper_data and isinstance(paper_data['trades'], list):
                         portfolio.closed_trades = paper_data['trades']
                         portfolio.total_trades = len(portfolio.closed_trades)
 
-                        # Calcular estadísticas desde trades
-                        winning_trades = [t for t in portfolio.closed_trades if t.get('pnl', 0) > 0]
-                        portfolio.winning_trades = len(winning_trades)
-                        portfolio.losing_trades = portfolio.total_trades - portfolio.winning_trades
-
+                        # Calcular estadísticas desde trades SI hay trades
                         if portfolio.total_trades > 0:
-                            portfolio.win_rate = (portfolio.winning_trades / portfolio.total_trades) * 100
+                            # Recalcular profit/loss desde los trades reales
+                            portfolio.total_profit = sum(t.get('pnl', 0) for t in portfolio.closed_trades if t.get('pnl', 0) > 0)
+                            portfolio.total_loss = sum(abs(t.get('pnl', 0)) for t in portfolio.closed_trades if t.get('pnl', 0) < 0)
 
-                    # ===== SINCRONIZAR ESTADÍSTICAS DE TRADES =====
-                    # Si el portfolio no tiene trades pero el RL Agent sí tiene experiencia
+                            portfolio.winning_trades = sum(1 for t in portfolio.closed_trades if t.get('pnl', 0) > 0)
+                            portfolio.losing_trades = portfolio.total_trades - portfolio.winning_trades
+
+                    # ===== SINCRONIZACIÓN INTELIGENTE DE ESTADÍSTICAS =====
+                    # Detectar si necesitamos sincronizar (condiciones más amplias)
+                    needs_sync = False
+                    rl_success_rate = self.rl_agent.get_success_rate()  # Usar método correcto
+
+                    # Condición 1: Portfolio sin trades pero RL tiene experiencia
                     if portfolio.total_trades == 0 and self.rl_agent.total_trades > 0:
-                        logger.warning(f"⚠️ Portfolio sin trades pero RL tiene {self.rl_agent.total_trades} - sincronizando...")
+                        needs_sync = True
+                        logger.warning(f"⚠️ Portfolio sin trades pero RL tiene {self.rl_agent.total_trades} - necesita sincronización")
 
-                        # Copiar estadísticas del RL Agent al Portfolio
+                    # Condición 2: Trades existen pero winning/losing están en 0
+                    elif portfolio.total_trades > 0 and (portfolio.winning_trades + portfolio.losing_trades) == 0:
+                        needs_sync = True
+                        logger.warning(f"⚠️ Portfolio tiene {portfolio.total_trades} trades pero sin estadísticas de ganadores/perdedores")
+
+                    # Condición 3: Desincronización entre portfolio y RL Agent
+                    elif portfolio.total_trades != self.rl_agent.total_trades and self.rl_agent.total_trades > 0:
+                        needs_sync = True
+                        logger.warning(f"⚠️ Trades desincronizados: Portfolio={portfolio.total_trades}, RL={self.rl_agent.total_trades}")
+
+                    if needs_sync:
+                        logger.info("🔄 Sincronizando estadísticas desde RL Agent...")
+
+                        # Sincronizar contadores de trades
                         portfolio.total_trades = self.rl_agent.total_trades
-                        portfolio.winning_trades = int(self.rl_agent.total_trades * self.rl_agent.success_rate / 100)
+                        portfolio.winning_trades = int(self.rl_agent.total_trades * rl_success_rate / 100)
                         portfolio.losing_trades = portfolio.total_trades - portfolio.winning_trades
 
-                        # Calcular win rate
-                        portfolio.win_rate = self.rl_agent.success_rate
+                        # Calcular profit/loss basado en balance actual vs inicial
+                        net_pnl = portfolio.balance - portfolio.initial_balance
 
-                        # Estimar profit/loss promedio basado en el PnL total
-                        if portfolio.winning_trades > 0 and portfolio.total_pnl > 0:
-                            portfolio.total_profit = portfolio.total_pnl * 1.2  # Estimación: ganancias son 120% del PnL neto
-                            portfolio.avg_win = portfolio.total_profit / portfolio.winning_trades
+                        if portfolio.winning_trades > 0:
+                            # Estimar distribución de ganancias/pérdidas
+                            # Asumiendo ratio 1.5:1 entre ganancias promedio y pérdidas promedio
+                            avg_win_loss_ratio = 1.5
+
+                            if net_pnl > 0:
+                                # Calcular total_profit y total_loss que resulten en el net_pnl correcto
+                                # net_pnl = total_profit - total_loss
+                                # total_profit = avg_win * winning_trades
+                                # total_loss = avg_loss * losing_trades
+                                # avg_win / avg_loss = avg_win_loss_ratio
+
+                                # Fórmula: total_profit = (net_pnl + total_loss)
+                                # avg_win = avg_loss * avg_win_loss_ratio
+                                # total_profit / winning_trades = (total_loss / losing_trades) * avg_win_loss_ratio
+
+                                if portfolio.losing_trades > 0:
+                                    # Resolver para total_loss
+                                    total_loss = (net_pnl * portfolio.losing_trades) / (portfolio.winning_trades * avg_win_loss_ratio - portfolio.losing_trades)
+                                    total_profit = net_pnl + total_loss
+                                else:
+                                    # Solo ganancias, sin pérdidas
+                                    total_profit = net_pnl
+                                    total_loss = 0
+
+                                portfolio.total_profit = max(0, total_profit)
+                                portfolio.total_loss = max(0, total_loss)
+                            else:
+                                # PnL negativo: estimar valores conservadores
+                                portfolio.total_profit = abs(net_pnl) * 0.3  # Algunas ganancias pequeñas
+                                portfolio.total_loss = abs(net_pnl) + portfolio.total_profit  # Pérdidas mayores
                         else:
                             portfolio.total_profit = 0
-                            portfolio.avg_win = 0
+                            portfolio.total_loss = abs(net_pnl) if net_pnl < 0 else 0
 
-                        if portfolio.losing_trades > 0:
-                            # Estimar pérdidas totales
-                            portfolio.total_loss = portfolio.total_profit - portfolio.total_pnl
-                            portfolio.avg_loss = portfolio.total_loss / portfolio.losing_trades if portfolio.losing_trades > 0 else 0
-                        else:
-                            portfolio.total_loss = 0
-                            portfolio.avg_loss = 0
-
-                        logger.info(f"  ✅ Estadísticas sincronizadas desde RL Agent:")
+                        logger.info(f"  ✅ Sincronización completa:")
                         logger.info(f"     • Total trades: {portfolio.total_trades}")
-                        logger.info(f"     • Win rate: {portfolio.win_rate:.1f}%")
-                        logger.info(f"     • Winning: {portfolio.winning_trades}, Losing: {portfolio.losing_trades}")
+                        logger.info(f"     • Ganadores: {portfolio.winning_trades} ({portfolio.winning_trades/portfolio.total_trades*100:.1f}%)")
+                        logger.info(f"     • Perdedores: {portfolio.losing_trades} ({portfolio.losing_trades/portfolio.total_trades*100:.1f}%)")
+                        logger.info(f"     • Win rate: {rl_success_rate:.1f}%")
+                        logger.info(f"     • Profit total: ${portfolio.total_profit:.2f}")
+                        logger.info(f"     • Loss total: ${portfolio.total_loss:.2f}")
                     # ===== FIN SINCRONIZACIÓN =====
+
+                    # Obtener estadísticas calculadas del portfolio
+                    portfolio_stats = portfolio.get_statistics()
 
                     logger.info(f"  ✅ Paper Trading restaurado:")
                     logger.info(f"     • Balance: ${portfolio.balance:,.2f}")
-                    logger.info(f"     • PnL: ${portfolio.total_pnl:+,.2f} ({portfolio.total_pnl_pct:+.2f}%)")
+                    logger.info(f"     • PnL: ${portfolio_stats['net_pnl']:+,.2f} ({portfolio_stats['roi']:+.2f}%)")
                     logger.info(f"     • Trades históricos: {portfolio.total_trades}")
-                    # Win rate se calcula, no es un atributo directo
-                    if hasattr(portfolio, 'winning_trades') and hasattr(portfolio, 'total_trades') and portfolio.total_trades > 0:
-                        win_rate = (portfolio.winning_trades / portfolio.total_trades * 100)
-                        logger.info(f"     • Win rate: {win_rate:.1f}%")
+                    logger.info(f"     • Win rate: {portfolio_stats['win_rate']:.1f}%")
                 else:
                     logger.warning("⚠️ No se pudo acceder al portfolio del paper trader")
             else:
