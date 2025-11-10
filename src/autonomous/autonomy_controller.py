@@ -968,4 +968,34 @@ class AutonomyController:
             f"  • Change history: {len(self.change_history)} cambios"
         )
 
+        # ===== PARCHE DIRECTO PARA total_trades_all_time =====
+        # Verificar si total_trades_all_time quedó en 0
+        if self.total_trades_all_time == 0:
+            logger.warning("⚠️ CRÍTICO: total_trades_all_time está en 0, aplicando parche...")
+
+            # Intento 1: Desde RL Agent ya cargado
+            if hasattr(self.rl_agent, 'total_trades') and self.rl_agent.total_trades > 0:
+                self.total_trades_all_time = self.rl_agent.total_trades
+                logger.warning(f"⚠️ PARCHE APLICADO: total_trades_all_time = {self.total_trades_all_time} (desde RL Agent)")
+
+            # Intento 2: Desde el archivo cargado
+            elif 'rl_agent' in loaded:
+                rl_data = loaded['rl_agent']
+                experience_trades = rl_data.get('total_experience_trades', 0)
+                if experience_trades > 0:
+                    self.total_trades_all_time = experience_trades
+                    logger.warning(f"⚠️ PARCHE APLICADO: total_trades_all_time = {experience_trades} (desde total_experience_trades)")
+                else:
+                    # Intento 3: Desde statistics del RL agent
+                    stats = rl_data.get('statistics', {})
+                    total_from_stats = stats.get('total_trades', 0)
+                    if total_from_stats > 0:
+                        self.total_trades_all_time = total_from_stats
+                        logger.warning(f"⚠️ PARCHE APLICADO: total_trades_all_time = {total_from_stats} (desde statistics)")
+
+        # Log final para confirmar
+        logger.info(f"🎯 VERIFICACIÓN FINAL: total_trades_all_time = {self.total_trades_all_time}")
+        logger.info(f"🎯 Max leverage desbloqueado = {self._calculate_max_leverage()}x")
+        # ===== FIN DEL PARCHE =====
+
         return True

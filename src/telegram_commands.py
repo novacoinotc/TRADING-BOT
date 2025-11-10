@@ -215,6 +215,8 @@ class TelegramCommands:
                 f"  • Modo: {stats['decision_mode']}\n\n"
                 "**🧠 APRENDIZAJE:**\n"
                 f"  • Trades procesados: {stats['total_trades_processed']}\n"
+                f"  • Total trades experiencia: {self.autonomy_controller.total_trades_all_time}\n"
+                f"  • Max leverage desbloqueado: {self.autonomy_controller._calculate_max_leverage()}x\n"
                 f"  • Parámetros modificados: {stats['total_parameter_changes']} veces\n"
                 f"  • Estados aprendidos: {stats['rl_agent']['q_table_size']}\n"
                 f"  • Win rate RL: {stats['rl_agent']['success_rate']:.1f}%\n\n"
