@@ -411,13 +411,27 @@ class TelegramNotifier:
             entry_price = trade_data.get('entry_price', 0)
             quantity = trade_data.get('quantity', 0)
             position_value = trade_data.get('position_value', 0)
+            trade_type = trade_data.get('trade_type', 'SPOT')
+            leverage = trade_data.get('leverage', 1)
 
             emoji = "🟢" if side == 'BUY' else "🔴"
+            type_emoji = "⚡" if trade_type == 'FUTURES' else "💎"
 
             message = (
                 f"{emoji} <b>TRADE ABIERTO</b> {emoji}\n\n"
                 f"📌 <b>Par:</b> {pair}\n"
                 f"📊 <b>Dirección:</b> {side}\n"
+                f"{type_emoji} <b>Tipo:</b> {trade_type}\n"
+            )
+
+            # Add leverage info for FUTURES
+            if trade_type == 'FUTURES':
+                liquidation_price = trade_data.get('liquidation_price')
+                message += f"📈 <b>Apalancamiento:</b> {leverage}x\n"
+                if liquidation_price:
+                    message += f"⚠️ <b>Precio Liquidación:</b> ${liquidation_price:,.4f}\n"
+
+            message += (
                 f"💰 <b>Precio Entrada:</b> ${entry_price:,.4f}\n"
                 f"📦 <b>Cantidad:</b> {quantity:.6f}\n"
                 f"💵 <b>Valor Posición:</b> ${position_value:,.2f}\n"

@@ -447,8 +447,8 @@ class AdvancedTechnicalAnalyzer:
             if levels['nearest_resistance'] and levels['nearest_resistance'] > entry_price:
                 if tp3 > levels['nearest_resistance']:
                     adjusted_tp3 = levels['nearest_resistance'] * 0.99
-                    # Ensure TP3 never goes below entry price on BUY
-                    tp3 = max(adjusted_tp3, entry_price * 1.002)  # Min 0.2% profit
+                    # Ensure TP3 always > TP2 (maintain proper order: TP1 < TP2 < TP3)
+                    tp3 = max(adjusted_tp3, tp2 * 1.001)  # TP3 at least 0.1% above TP2
         else:  # SELL
             stop_loss = entry_price + (atr * atr_multiplier_sl)
             # Adjust stop loss if above resistance
@@ -464,8 +464,8 @@ class AdvancedTechnicalAnalyzer:
             if levels['nearest_support'] and levels['nearest_support'] < entry_price:
                 if tp3 < levels['nearest_support']:
                     adjusted_tp3 = levels['nearest_support'] * 1.01
-                    # Ensure TP3 never goes above entry price on SELL
-                    tp3 = min(adjusted_tp3, entry_price * 0.998)  # Min 0.2% profit
+                    # Ensure TP3 always < TP2 (maintain proper order: TP1 > TP2 > TP3 for SELL)
+                    tp3 = min(adjusted_tp3, tp2 * 0.999)  # TP3 at least 0.1% below TP2
 
         risk = abs(entry_price - stop_loss)
         reward = abs(tp2 - entry_price)  # Use TP2 for R:R calculation
