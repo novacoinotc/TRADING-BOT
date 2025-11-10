@@ -222,22 +222,69 @@ class MarketMonitor:
                                     news_price = ticker['last'] if ticker and 'last' in ticker else 0
 
                                     if news_price > 0:
-                                        logger.info(f"⚡ Ejecutando trade por NEWS-TRIGGER en {pair} @ ${news_price}")
+                                        # CONSULTAR AL RL AGENT ANTES DE EJECUTAR NEWS TRADE
+                                        should_execute_news = True
+                                        rl_news_decision = None
 
-                                        # Process news signal as a trade
-                                        news_trade_result = self.ml_system.process_signal(
-                                            pair=pair,
-                                            signal=news_signal,
-                                            indicators={'current_price': news_price},
-                                            current_price=news_price,
-                                            mtf_indicators=None,
-                                            sentiment_features=sentiment_features,
-                                            orderbook_features=None,
-                                            regime_features=None
-                                        )
+                                        if self.autonomy_controller:
+                                            # Construir market state básico para news trade
+                                            market_state_news = {
+                                                'rsi': 50,  # No tenemos indicadores detallados aún
+                                                'macd_signal': 'bullish' if news_signal.get('action') == 'BUY' else 'bearish',
+                                                'trend': 'up' if news_signal.get('action') == 'BUY' else 'down',
+                                                'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
+                                                'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+                                                'volatility': 'high'  # News trades son inherentemente volátiles
+                                            }
 
-                                        if news_trade_result:
-                                            logger.info(f"✅ News-triggered trade ejecutado: {news_trade_result}")
+                                            # Obtener portfolio metrics
+                                            portfolio_metrics_news = {}
+                                            if hasattr(self.ml_system, 'paper_trader'):
+                                                stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                                                portfolio_metrics_news = {
+                                                    'win_rate': stats['win_rate'],
+                                                    'roi': stats['roi'],
+                                                    'max_drawdown': stats['max_drawdown'],
+                                                    'sharpe_ratio': stats.get('sharpe_ratio', 0),
+                                                    'total_trades': stats['total_trades']
+                                                }
+
+                                            # RL Agent evalúa si ejecutar news trade
+                                            rl_news_decision = await self.autonomy_controller.evaluate_trade_opportunity(
+                                                pair=pair,
+                                                signal=news_signal,
+                                                market_state=market_state_news,
+                                                portfolio_metrics=portfolio_metrics_news
+                                            )
+
+                                            should_execute_news = rl_news_decision.get('should_trade', True)
+
+                                            # Aplicar modificador de tamaño de posición
+                                            if should_execute_news and 'position_size_multiplier' in rl_news_decision:
+                                                news_signal['rl_position_multiplier'] = rl_news_decision['position_size_multiplier']
+                                                news_signal['rl_action'] = rl_news_decision.get('chosen_action', 'UNKNOWN')
+
+                                        # Ejecutar news trade solo si RL Agent lo aprueba
+                                        if should_execute_news:
+                                            logger.info(f"⚡ Ejecutando trade por NEWS-TRIGGER en {pair} @ ${news_price}")
+
+                                            # Process news signal as a trade
+                                            news_trade_result = self.ml_system.process_signal(
+                                                pair=pair,
+                                                signal=news_signal,
+                                                indicators={'current_price': news_price},
+                                                current_price=news_price,
+                                                mtf_indicators=None,
+                                                sentiment_features=sentiment_features,
+                                                orderbook_features=None,
+                                                regime_features=None
+                                            )
+
+                                            if news_trade_result:
+                                                logger.info(f"✅ News-triggered trade ejecutado: {news_trade_result}")
+                                        else:
+                                            logger.info(f"🤖 RL Agent bloqueó news trade en {pair}: {rl_news_decision.get('chosen_action', 'SKIP')}")
+
                                 except Exception as e:
                                     logger.error(f"Error ejecutando news-triggered trade: {e}")
 
@@ -339,23 +386,74 @@ class MarketMonitor:
 
                 # Execute paper trade if enabled
                 if self.enable_paper_trading and self.ml_system and signals['action'] != 'HOLD':
-                    trade_result = self.ml_system.process_signal(
-                        pair=pair,
-                        signal=signals,
-                        indicators=analysis['indicators'],
-                        current_price=current_price,
-                        mtf_indicators=analysis.get('mtf_indicators'),
-                        sentiment_features=sentiment_features,  # Pass all features to ML
-                        orderbook_features=orderbook_features,
-                        regime_features=regime_features
-                    )
+                    # CONSULTAR AL RL AGENT ANTES DE ABRIR TRADE
+                    should_execute_trade = True
+                    rl_decision = None
 
-                    # Enhance analysis with trade result if trade was processed
-                    if trade_result:
-                        analysis['trade_result'] = trade_result
-                        # Add ML data if available
-                        if 'ml' in signals:
-                            analysis['ml_data'] = signals['ml']
+                    if self.autonomy_controller:
+                        # Construir market state para RL Agent
+                        market_state = {
+                            'rsi': analysis['indicators'].get('rsi', 50),
+                            'macd_signal': 'bullish' if analysis['indicators'].get('macd_diff', 0) > 0 else 'bearish',
+                            'trend': 'up' if analysis['indicators'].get('ema_short', 0) > analysis['indicators'].get('ema_long', 0) else 'down',
+                            'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
+                            'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+                            'volatility': 'high' if analysis['indicators'].get('atr', 0) > current_price * 0.02 else 'medium'
+                        }
+
+                        # Obtener portfolio metrics
+                        portfolio_metrics = {}
+                        if hasattr(self.ml_system, 'paper_trader'):
+                            stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                            portfolio_metrics = {
+                                'win_rate': stats['win_rate'],
+                                'roi': stats['roi'],
+                                'max_drawdown': stats['max_drawdown'],
+                                'sharpe_ratio': stats.get('sharpe_ratio', 0),
+                                'total_trades': stats['total_trades']
+                            }
+
+                        # RL Agent evalúa si abrir el trade
+                        rl_decision = await self.autonomy_controller.evaluate_trade_opportunity(
+                            pair=pair,
+                            signal=signals,
+                            market_state=market_state,
+                            portfolio_metrics=portfolio_metrics
+                        )
+
+                        # Decidir si ejecutar trade basado en RL Agent
+                        should_execute_trade = rl_decision.get('should_trade', True)
+
+                        # Aplicar modificador de tamaño de posición
+                        if should_execute_trade and 'position_size_multiplier' in rl_decision:
+                            # Pasar el multiplicador a la señal para que ml_system lo use
+                            signals['rl_position_multiplier'] = rl_decision['position_size_multiplier']
+                            signals['rl_action'] = rl_decision.get('chosen_action', 'UNKNOWN')
+
+                    # Ejecutar trade solo si RL Agent lo aprueba
+                    if should_execute_trade:
+                        trade_result = self.ml_system.process_signal(
+                            pair=pair,
+                            signal=signals,
+                            indicators=analysis['indicators'],
+                            current_price=current_price,
+                            mtf_indicators=analysis.get('mtf_indicators'),
+                            sentiment_features=sentiment_features,  # Pass all features to ML
+                            orderbook_features=orderbook_features,
+                            regime_features=regime_features
+                        )
+
+                        # Enhance analysis with trade result if trade was processed
+                        if trade_result:
+                            analysis['trade_result'] = trade_result
+                            # Add ML data if available
+                            if 'ml' in signals:
+                                analysis['ml_data'] = signals['ml']
+                            # Add RL decision data
+                            if rl_decision:
+                                analysis['rl_decision'] = rl_decision
+                    else:
+                        logger.info(f"🤖 RL Agent bloqueó trade en {pair}: {rl_decision.get('chosen_action', 'SKIP')}")
 
                 # Update existing positions
                 if self.enable_paper_trading and self.ml_system:
@@ -417,23 +515,72 @@ class MarketMonitor:
 
                         # Execute paper trade for flash signal if enabled
                         if self.enable_paper_trading and self.ml_system and flash_signals['action'] != 'HOLD':
-                            flash_trade_result = self.ml_system.process_signal(
-                                pair=pair,
-                                signal=flash_signals,
-                                indicators=flash_analysis['indicators'],
-                                current_price=flash_price,
-                                mtf_indicators=None,  # Flash signals don't use MTF
-                                sentiment_features=sentiment_features,  # Pass all features to ML
-                                orderbook_features=orderbook_features,
-                                regime_features=regime_features
-                            )
+                            # CONSULTAR AL RL AGENT ANTES DE ABRIR FLASH TRADE
+                            should_execute_flash = True
+                            rl_flash_decision = None
 
-                            # Enhance analysis with trade result
-                            if flash_trade_result:
-                                flash_analysis['trade_result'] = flash_trade_result
-                                # Add ML data if available
-                                if 'ml' in flash_signals:
-                                    flash_analysis['ml_data'] = flash_signals['ml']
+                            if self.autonomy_controller:
+                                # Construir market state para RL Agent
+                                market_state_flash = {
+                                    'rsi': flash_analysis['indicators'].get('rsi', 50),
+                                    'macd_signal': 'bullish' if flash_analysis['indicators'].get('macd_diff', 0) > 0 else 'bearish',
+                                    'trend': 'up' if flash_analysis['indicators'].get('ema_short', 0) > flash_analysis['indicators'].get('ema_long', 0) else 'down',
+                                    'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
+                                    'sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
+                                    'volatility': 'high' if flash_analysis['indicators'].get('atr', 0) > flash_price * 0.02 else 'medium'
+                                }
+
+                                # Obtener portfolio metrics
+                                portfolio_metrics_flash = {}
+                                if hasattr(self.ml_system, 'paper_trader'):
+                                    stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                                    portfolio_metrics_flash = {
+                                        'win_rate': stats['win_rate'],
+                                        'roi': stats['roi'],
+                                        'max_drawdown': stats['max_drawdown'],
+                                        'sharpe_ratio': stats.get('sharpe_ratio', 0),
+                                        'total_trades': stats['total_trades']
+                                    }
+
+                                # RL Agent evalúa si abrir el flash trade
+                                rl_flash_decision = await self.autonomy_controller.evaluate_trade_opportunity(
+                                    pair=pair,
+                                    signal=flash_signals,
+                                    market_state=market_state_flash,
+                                    portfolio_metrics=portfolio_metrics_flash
+                                )
+
+                                should_execute_flash = rl_flash_decision.get('should_trade', True)
+
+                                # Aplicar modificador de tamaño de posición
+                                if should_execute_flash and 'position_size_multiplier' in rl_flash_decision:
+                                    flash_signals['rl_position_multiplier'] = rl_flash_decision['position_size_multiplier']
+                                    flash_signals['rl_action'] = rl_flash_decision.get('chosen_action', 'UNKNOWN')
+
+                            # Ejecutar flash trade solo si RL Agent lo aprueba
+                            if should_execute_flash:
+                                flash_trade_result = self.ml_system.process_signal(
+                                    pair=pair,
+                                    signal=flash_signals,
+                                    indicators=flash_analysis['indicators'],
+                                    current_price=flash_price,
+                                    mtf_indicators=None,  # Flash signals don't use MTF
+                                    sentiment_features=sentiment_features,  # Pass all features to ML
+                                    orderbook_features=orderbook_features,
+                                    regime_features=regime_features
+                                )
+
+                                # Enhance analysis with trade result
+                                if flash_trade_result:
+                                    flash_analysis['trade_result'] = flash_trade_result
+                                    # Add ML data if available
+                                    if 'ml' in flash_signals:
+                                        flash_analysis['ml_data'] = flash_signals['ml']
+                                    # Add RL decision data
+                                    if rl_flash_decision:
+                                        flash_analysis['rl_decision'] = rl_flash_decision
+                            else:
+                                logger.info(f"🤖 RL Agent bloqueó flash trade en {pair}: {rl_flash_decision.get('chosen_action', 'SKIP')}")
 
                         # Send flash signal notification if threshold met (5+ points)
                         if flash_signals['action'] != 'HOLD':

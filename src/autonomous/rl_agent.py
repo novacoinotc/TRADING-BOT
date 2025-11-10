@@ -130,6 +130,100 @@ class RLAgent:
 
         return action
 
+    def decide_trade_action(self, market_data: Dict) -> Dict:
+        """
+        Decide si abrir un trade y con qué parámetros basado en el estado del mercado
+
+        Args:
+            market_data: Datos del mercado (indicadores, sentiment, etc.)
+
+        Returns:
+            Dict con decisión: {
+                'should_trade': bool,
+                'action': str,  # 'OPEN', 'SKIP'
+                'position_size_multiplier': float,  # 1.0 = normal, 0.5 = conservador, 1.5 = agresivo
+                'confidence': float  # 0-1
+            }
+        """
+        # Obtener representación del estado
+        state = self.get_state_representation(market_data)
+
+        # Acciones disponibles para trading
+        available_actions = [
+            'SKIP',  # No abrir trade
+            'OPEN_CONSERVATIVE',  # Abrir con tamaño conservador (50% del normal)
+            'OPEN_NORMAL',  # Abrir con tamaño normal (100%)
+            'OPEN_AGGRESSIVE'  # Abrir con tamaño agresivo (150% del normal)
+        ]
+
+        # Elegir acción usando Q-learning
+        chosen_action = self.choose_action(state, available_actions)
+
+        # Convertir acción a decisión de trading
+        if chosen_action == 'SKIP':
+            decision = {
+                'should_trade': False,
+                'action': 'SKIP',
+                'position_size_multiplier': 0.0,
+                'confidence': self._get_action_confidence(state, chosen_action),
+                'chosen_action': chosen_action
+            }
+        else:
+            # Determinar multiplicador basado en acción
+            if chosen_action == 'OPEN_CONSERVATIVE':
+                multiplier = 0.5
+            elif chosen_action == 'OPEN_AGGRESSIVE':
+                multiplier = 1.5
+            else:  # OPEN_NORMAL
+                multiplier = 1.0
+
+            decision = {
+                'should_trade': True,
+                'action': 'OPEN',
+                'position_size_multiplier': multiplier,
+                'confidence': self._get_action_confidence(state, chosen_action),
+                'chosen_action': chosen_action
+            }
+
+        logger.info(
+            f"🤖 RL Decision: {chosen_action} | "
+            f"Trade: {decision['should_trade']} | "
+            f"Size: {decision['position_size_multiplier']:.1f}x | "
+            f"Confidence: {decision['confidence']:.2f}"
+        )
+
+        return decision
+
+    def _get_action_confidence(self, state: str, action: str) -> float:
+        """
+        Calcula confianza en una acción basado en Q-values
+
+        Returns:
+            Confianza entre 0 y 1
+        """
+        if state not in self.q_table or action not in self.q_table[state]:
+            return 0.3  # Baja confianza para estados/acciones nuevos
+
+        q_value = self.q_table[state][action]
+        all_q_values = list(self.q_table[state].values())
+
+        if not all_q_values:
+            return 0.3
+
+        # Normalizar Q-value a rango 0-1
+        min_q = min(all_q_values)
+        max_q = max(all_q_values)
+
+        if max_q == min_q:
+            return 0.5
+
+        normalized = (q_value - min_q) / (max_q - min_q)
+
+        # Ajustar confianza basado en experiencia
+        experience_factor = min(1.0, self.total_trades / 100)  # Más confianza con más trades
+
+        return 0.3 + (normalized * 0.7 * experience_factor)
+
     def learn_from_trade(self, reward: float, next_state: str = None, done: bool = False):
         """
         Aprende de un trade completado
@@ -275,23 +369,72 @@ class RLAgent:
             'timestamp': datetime.now().isoformat()
         }
 
-    def load_from_dict(self, data: Dict):
-        """Carga agente desde diccionario"""
+    def load_from_dict(self, data: Dict, merge: bool = False):
+        """
+        Carga agente desde diccionario
+
+        Args:
+            data: Diccionario con estado del agente
+            merge: Si True, combina con datos existentes (acumula estadísticas y Q-table)
+                   Si False, reemplaza completamente (comportamiento por defecto)
+        """
         self.learning_rate = data.get('learning_rate', self.learning_rate)
         self.discount_factor = data.get('discount_factor', self.discount_factor)
         self.exploration_rate = data.get('exploration_rate', self.exploration_rate)
         self.min_exploration = data.get('min_exploration', self.min_exploration)
-        self.q_table = data.get('q_table', {})
 
-        stats = data.get('statistics', {})
-        self.total_trades = stats.get('total_trades', 0)
-        self.successful_trades = stats.get('successful_trades', 0)
-        self.total_reward = stats.get('total_reward', 0.0)
+        if merge:
+            # MODO MERGE: Combinar Q-table y acumular estadísticas
+            loaded_q_table = data.get('q_table', {})
 
-        self.episode_rewards = data.get('episode_rewards', [])
+            # Merge Q-table: promediar Q-values si el estado ya existe
+            for state, actions in loaded_q_table.items():
+                if state in self.q_table:
+                    # Promediar Q-values para acciones existentes
+                    for action, q_value in actions.items():
+                        if action in self.q_table[state]:
+                            # Promediar: dar más peso a valores con más trades
+                            current_weight = min(1.0, self.total_trades / 100)
+                            loaded_weight = 1.0 - current_weight
+                            self.q_table[state][action] = (
+                                self.q_table[state][action] * current_weight +
+                                q_value * loaded_weight
+                            )
+                        else:
+                            self.q_table[state][action] = q_value
+                else:
+                    # Nuevo estado, agregar completamente
+                    self.q_table[state] = actions
 
-        logger.info(
-            f"✅ RL Agent cargado: {self.total_trades} trades, "
-            f"{self.get_success_rate():.1f}% win rate, "
-            f"{len(self.q_table)} estados aprendidos"
-        )
+            # Acumular estadísticas
+            stats = data.get('statistics', {})
+            self.total_trades += stats.get('total_trades', 0)
+            self.successful_trades += stats.get('successful_trades', 0)
+            self.total_reward += stats.get('total_reward', 0.0)
+
+            # Agregar episode rewards
+            imported_rewards = data.get('episode_rewards', [])
+            self.episode_rewards.extend(imported_rewards)
+
+            logger.info(
+                f"🔄 RL Agent MERGED: {stats.get('total_trades', 0)} trades importados, "
+                f"Total acumulado: {self.total_trades} trades, "
+                f"{self.get_success_rate():.1f}% win rate, "
+                f"{len(self.q_table)} estados aprendidos"
+            )
+        else:
+            # MODO REPLACE: Reemplazar completamente (comportamiento original)
+            self.q_table = data.get('q_table', {})
+
+            stats = data.get('statistics', {})
+            self.total_trades = stats.get('total_trades', 0)
+            self.successful_trades = stats.get('successful_trades', 0)
+            self.total_reward = stats.get('total_reward', 0.0)
+
+            self.episode_rewards = data.get('episode_rewards', [])
+
+            logger.info(
+                f"✅ RL Agent cargado: {self.total_trades} trades, "
+                f"{self.get_success_rate():.1f}% win rate, "
+                f"{len(self.q_table)} estados aprendidos"
+            )

@@ -35,7 +35,7 @@ class MLIntegration:
         """
         # Componentes ML
         self.predictor = MLPredictor()
-        self.trainer = ModelTrainer(min_samples_for_training=50)
+        self.trainer = ModelTrainer(min_samples_for_training=30)  # Reducido de 50 a 30
         self.feature_engineer = FeatureEngineer()
         self.optimizer = AutoOptimizer()
 

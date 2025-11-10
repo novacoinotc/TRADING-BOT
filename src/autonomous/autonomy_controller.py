@@ -156,6 +156,71 @@ class AutonomyController:
         except Exception as e:
             logger.error(f"❌ Error restaurando estado: {e}", exc_info=True)
 
+    async def evaluate_trade_opportunity(
+        self,
+        pair: str,
+        signal: Dict,
+        market_state: Dict,
+        portfolio_metrics: Dict
+    ) -> Dict:
+        """
+        Evalúa si abrir un trade usando RL Agent ANTES de ejecutarlo
+
+        Args:
+            pair: Par de trading
+            signal: Señal generada (BUY/SELL/HOLD)
+            market_state: Estado del mercado actual
+            portfolio_metrics: Métricas del portfolio
+
+        Returns:
+            Dict con decisión del RL Agent
+        """
+        if not self.active:
+            # Si autonomy no está activo, permitir el trade
+            return {
+                'should_trade': True,
+                'action': 'OPEN',
+                'position_size_multiplier': 1.0,
+                'confidence': 1.0,
+                'chosen_action': 'AUTONOMOUS_DISABLED'
+            }
+
+        try:
+            # Construir datos de mercado para RL Agent
+            market_data = {
+                'rsi': market_state.get('rsi', 50),
+                'macd_signal': market_state.get('macd_signal', 'neutral'),
+                'trend': market_state.get('trend', 'sideways'),
+                'regime': market_state.get('regime', 'SIDEWAYS'),
+                'sentiment': market_state.get('sentiment', 'neutral'),
+                'volatility': market_state.get('volatility', 'medium'),
+                'win_rate': portfolio_metrics.get('win_rate', 50),
+                'drawdown': abs(portfolio_metrics.get('max_drawdown', 0))
+            }
+
+            # RL Agent decide si abrir trade
+            decision = self.rl_agent.decide_trade_action(market_data)
+
+            logger.info(
+                f"🤖 RL Evaluation para {pair}: "
+                f"{decision['chosen_action']} | "
+                f"Trade: {'✅' if decision['should_trade'] else '❌'} | "
+                f"Size: {decision['position_size_multiplier']:.1f}x"
+            )
+
+            return decision
+
+        except Exception as e:
+            logger.error(f"❌ Error en evaluate_trade_opportunity: {e}", exc_info=True)
+            # En caso de error, permitir el trade
+            return {
+                'should_trade': True,
+                'action': 'OPEN',
+                'position_size_multiplier': 1.0,
+                'confidence': 1.0,
+                'chosen_action': 'ERROR_FALLBACK'
+            }
+
     async def process_trade_outcome(
         self,
         trade_data: Dict,
@@ -551,17 +616,18 @@ class AutonomyController:
 
         return success, export_path
 
-    async def manual_import(self, file_path: str) -> bool:
+    async def manual_import(self, file_path: str, merge: bool = False) -> bool:
         """
         Import manual de inteligencia desde archivo (llamado por comando de Telegram)
 
         Args:
             file_path: Path al archivo .json con la inteligencia
+            merge: Si True, combina con datos existentes. Si False, reemplaza
 
         Returns:
             True si import fue exitoso
         """
-        logger.info(f"📥 Import manual solicitado desde: {file_path}")
+        logger.info(f"📥 Import manual solicitado desde: {file_path} (merge={merge})")
 
         # Importar el archivo
         success = self.persistence.import_from_file(file_path)
@@ -579,32 +645,59 @@ class AutonomyController:
 
         # Restaurar todo el estado
         try:
-            # Restaurar RL Agent
-            self.rl_agent.load_from_dict(loaded['rl_agent'])
+            # Restaurar RL Agent (con o sin merge)
+            self.rl_agent.load_from_dict(loaded['rl_agent'], merge=merge)
             logger.info("✅ RL Agent restaurado")
 
-            # Restaurar Parameter Optimizer
-            self.parameter_optimizer.load_from_dict(loaded['parameter_optimizer'])
+            # Restaurar Parameter Optimizer (con o sin merge)
+            self.parameter_optimizer.load_from_dict(loaded['parameter_optimizer'], merge=merge)
             logger.info("✅ Parameter Optimizer restaurado")
 
             # Restaurar historial de cambios
-            self.change_history = loaded.get('change_history', [])
-            logger.info(f"✅ Histórico de cambios restaurado: {len(self.change_history)} cambios")
+            if merge:
+                # En merge, agregar cambios históricos a los existentes
+                imported_changes = loaded.get('change_history', [])
+                self.change_history.extend(imported_changes)
+                # Mantener solo últimos 100
+                if len(self.change_history) > 100:
+                    self.change_history = self.change_history[-100:]
+                logger.info(f"✅ {len(imported_changes)} cambios históricos agregados (total: {len(self.change_history)})")
+            else:
+                # En replace, reemplazar completamente
+                self.change_history = loaded.get('change_history', [])
+                logger.info(f"✅ Histórico de cambios restaurado: {len(self.change_history)} cambios")
 
             # Restaurar metadata
             metadata = loaded.get('metadata', {})
             if metadata:
-                self.current_parameters = metadata.get('current_parameters', {})
-                self.total_trades_processed = metadata.get('total_trades_processed', 0)
-                self.total_parameter_changes = metadata.get('total_parameter_changes', 0)
-                self.decision_mode = metadata.get('decision_mode', 'BALANCED')
+                if merge:
+                    # En merge, solo actualizar si no existen
+                    if not self.current_parameters:
+                        self.current_parameters = metadata.get('current_parameters', {})
+                    self.total_trades_processed += metadata.get('total_trades_processed', 0)
+                    self.total_parameter_changes += metadata.get('total_parameter_changes', 0)
+                    logger.info(f"✅ Metadata acumulada (trades: {self.total_trades_processed})")
+                else:
+                    # En replace, reemplazar completamente
+                    self.current_parameters = metadata.get('current_parameters', {})
+                    self.total_trades_processed = metadata.get('total_trades_processed', 0)
+                    self.total_parameter_changes = metadata.get('total_parameter_changes', 0)
+                    self.decision_mode = metadata.get('decision_mode', 'BALANCED')
 
             # Restaurar performance history
             perf_history = loaded.get('performance_history', {})
             if perf_history.get('recent_performance'):
-                self.performance_history = perf_history['recent_performance']
+                if merge:
+                    # En merge, agregar a la historia existente
+                    self.performance_history.extend(perf_history['recent_performance'])
+                    # Mantener solo últimos 100
+                    if len(self.performance_history) > 100:
+                        self.performance_history = self.performance_history[-100:]
+                else:
+                    # En replace, reemplazar
+                    self.performance_history = perf_history['recent_performance']
 
-            logger.info("✅ Inteligencia importada y restaurada completamente")
+            logger.info(f"✅ Inteligencia importada y {'combinada' if merge else 'restaurada'} completamente")
             return True
 
         except Exception as e:

@@ -543,16 +543,64 @@ class ParameterOptimizer:
             'timestamp': datetime.now().isoformat()
         }
 
-    def load_from_dict(self, data: Dict):
-        """Carga optimizador desde persistencia"""
-        self.trial_history = data.get('trial_history', [])
-        self.best_config = data.get('best_config', {})
-        self.best_performance = data.get('best_performance', -float('inf'))
-        self.current_config = data.get('current_config', {})
-        self.total_trials = data.get('total_trials', 0)
-        self.parameter_importance = data.get('parameter_importance', {})
+    def load_from_dict(self, data: Dict, merge: bool = False):
+        """
+        Carga optimizador desde persistencia
 
-        logger.info(
-            f"✅ Parameter Optimizer cargado: {self.total_trials} trials, "
-            f"mejor score: {self.best_performance:.3f}"
-        )
+        Args:
+            data: Diccionario con estado del optimizador
+            merge: Si True, combina con datos existentes (acumula trials y actualiza bests)
+                   Si False, reemplaza completamente (comportamiento por defecto)
+        """
+        if merge:
+            # MODO MERGE: Combinar trials y actualizar mejores configuraciones
+            loaded_trials = data.get('trial_history', [])
+            loaded_best_config = data.get('best_config', {})
+            loaded_best_performance = data.get('best_performance', -float('inf'))
+            loaded_total_trials = data.get('total_trials', 0)
+            loaded_param_importance = data.get('parameter_importance', {})
+
+            # Agregar trials históricos
+            self.trial_history.extend(loaded_trials)
+
+            # Mantener solo últimos 1000 trials
+            if len(self.trial_history) > 1000:
+                self.trial_history = self.trial_history[-1000:]
+
+            # Actualizar mejor configuración si la importada es mejor
+            if loaded_best_performance > self.best_performance:
+                self.best_config = loaded_best_config
+                self.best_performance = loaded_best_performance
+                logger.info(f"🏆 Nueva mejor configuración importada: score {loaded_best_performance:.3f}")
+
+            # Acumular total de trials
+            self.total_trials += loaded_total_trials
+
+            # Merge parameter importance (promediar)
+            for param, importance in loaded_param_importance.items():
+                if param in self.parameter_importance:
+                    # Promediar importancia
+                    self.parameter_importance[param] = (
+                        self.parameter_importance[param] * 0.5 + importance * 0.5
+                    )
+                else:
+                    self.parameter_importance[param] = importance
+
+            logger.info(
+                f"🔄 Parameter Optimizer MERGED: {loaded_total_trials} trials importados, "
+                f"Total acumulado: {self.total_trials} trials, "
+                f"mejor score: {self.best_performance:.3f}"
+            )
+        else:
+            # MODO REPLACE: Reemplazar completamente (comportamiento original)
+            self.trial_history = data.get('trial_history', [])
+            self.best_config = data.get('best_config', {})
+            self.best_performance = data.get('best_performance', -float('inf'))
+            self.current_config = data.get('current_config', {})
+            self.total_trials = data.get('total_trials', 0)
+            self.parameter_importance = data.get('parameter_importance', {})
+
+            logger.info(
+                f"✅ Parameter Optimizer cargado: {self.total_trials} trials, "
+                f"mejor score: {self.best_performance:.3f}"
+            )
