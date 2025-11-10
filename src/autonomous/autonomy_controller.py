@@ -1093,6 +1093,18 @@ class AutonomyController:
                             portfolio.total_profit = 0
                             portfolio.total_loss = abs(net_pnl) if net_pnl < 0 else 0
 
+                        # IMPORTANTE: Calcular promedios después de establecer totales
+                        # El método get_statistics() del Portfolio necesita estos valores
+                        # pero también podemos calcularlos directamente aquí para asegurar
+                        if not hasattr(portfolio, 'avg_win'):
+                            portfolio.avg_win = 0
+                        if not hasattr(portfolio, 'avg_loss'):
+                            portfolio.avg_loss = 0
+
+                        # Sobrescribir con los valores calculados correctamente
+                        portfolio.avg_win = portfolio.total_profit / portfolio.winning_trades if portfolio.winning_trades > 0 else 0
+                        portfolio.avg_loss = portfolio.total_loss / portfolio.losing_trades if portfolio.losing_trades > 0 else 0
+
                         logger.info(f"  ✅ Sincronización completa:")
                         logger.info(f"     • Total trades: {portfolio.total_trades}")
                         logger.info(f"     • Ganadores: {portfolio.winning_trades} ({portfolio.winning_trades/portfolio.total_trades*100:.1f}%)")
