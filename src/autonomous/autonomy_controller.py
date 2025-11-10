@@ -1011,7 +1011,10 @@ class AutonomyController:
                     logger.info(f"     • Balance: ${portfolio.balance:,.2f}")
                     logger.info(f"     • PnL: ${portfolio.total_pnl:+,.2f} ({portfolio.total_pnl_pct:+.2f}%)")
                     logger.info(f"     • Trades históricos: {portfolio.total_trades}")
-                    logger.info(f"     • Win rate: {portfolio.win_rate:.1f}%")
+                    # Win rate se calcula, no es un atributo directo
+                    if hasattr(portfolio, 'winning_trades') and hasattr(portfolio, 'total_trades') and portfolio.total_trades > 0:
+                        win_rate = (portfolio.winning_trades / portfolio.total_trades * 100)
+                        logger.info(f"     • Win rate: {win_rate:.1f}%")
                 else:
                     logger.warning("⚠️ No se pudo acceder al portfolio del paper trader")
             else:

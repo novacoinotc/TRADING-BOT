@@ -346,8 +346,8 @@ class TelegramCommands:
                 f"  • Profit promedio: ${stats.get('avg_profit', 0):,.2f}\n"
                 f"  • Loss promedio: ${stats.get('avg_loss', 0):,.2f}\n\n"
                 "**📍 Posiciones:**\n"
-                f"  • Abiertas: {len(portfolio.open_positions)}\n"
-                f"  • Cerradas: {len(portfolio.closed_positions)}\n\n"
+                f"  • Abiertas: {len(portfolio.positions) if hasattr(portfolio, 'positions') else 0}\n"
+                f"  • Cerradas: {len(portfolio.closed_trades) if hasattr(portfolio, 'closed_trades') else 0}\n\n"
                 "Usa /status para ver estado del sistema autónomo"
             )
 
