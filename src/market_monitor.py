@@ -53,6 +53,10 @@ class MarketMonitor:
             telegram_notifier=self.notifier  # Para notificaciones de trades
         ) if config.ENABLE_PAPER_TRADING else None
 
+        # Auto-entrenar ML si hay suficientes trades históricos (40+)
+        if self.ml_system:
+            self._auto_train_ml_if_ready()
+
         # Initialize Sentiment Analysis system
         self.sentiment_system = SentimentIntegration(
             cryptopanic_api_key=config.CRYPTOPANIC_API_KEY,
@@ -119,6 +123,37 @@ class MarketMonitor:
         except Exception as e:
             logger.error(f"Failed to initialize exchange: {e}")
             raise
+
+    def _auto_train_ml_if_ready(self):
+        """
+        Auto-entrena el ML System si hay suficientes trades históricos (40+)
+        Se ejecuta automáticamente al inicializar MarketMonitor
+        """
+        try:
+            if not self.ml_system or not hasattr(self.ml_system, 'paper_trader'):
+                return
+
+            # Obtener estadísticas del paper trader
+            stats = self.ml_system.paper_trader.portfolio.get_statistics()
+            total_trades = stats.get('total_trades', 0)
+
+            # Verificar si hay suficientes trades para entrenar (40+)
+            if total_trades >= 40:
+                logger.info(f"🤖 Detectados {total_trades} trades históricos - Iniciando auto-entrenamiento ML...")
+
+                # Forzar entrenamiento con threshold reducido (25 samples mínimo)
+                # Esto permite entrenar con menos datos de lo normal
+                self.ml_system.force_retrain(min_samples_override=25)
+
+                logger.info("✅ ML System entrenado automáticamente con datos históricos")
+            elif total_trades > 0:
+                logger.info(f"📊 ML System esperando más trades para entrenar: {total_trades}/40")
+            else:
+                logger.info("📊 ML System iniciado - entrenará automáticamente después de 40 trades")
+
+        except Exception as e:
+            logger.error(f"Error en auto-entrenamiento ML: {e}")
+            # No es crítico, el sistema puede funcionar sin ML entrenado
 
     async def fetch_ohlcv(self, pair: str, timeframe: str = None) -> Optional[pd.DataFrame]:
         """

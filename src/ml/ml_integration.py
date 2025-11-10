@@ -444,10 +444,33 @@ Señales en buffer: {stats['training_buffer_size']}
         self.predictor.disable()
         logger.info("❌ Predicciones ML deshabilitadas")
 
-    def force_retrain(self):
-        """Fuerza reentrenamiento inmediato"""
+    def force_retrain(self, min_samples_override: int = None):
+        """
+        Fuerza reentrenamiento inmediato, opcionalmente con threshold reducido
+
+        Args:
+            min_samples_override: Si se proporciona, usa este threshold temporalmente
+                                 Útil para entrenar con menos datos (ej: 25 en lugar de 30)
+        """
         logger.info("🔄 Forzando reentrenamiento de modelo...")
-        self._retrain_model()
+
+        # Guardar threshold original
+        original_min_samples = self.trainer.min_samples
+
+        try:
+            # Aplicar override temporal si se proporcionó
+            if min_samples_override is not None:
+                logger.info(f"   Reduciendo threshold temporalmente: {original_min_samples} → {min_samples_override}")
+                self.trainer.min_samples = min_samples_override
+
+            # Ejecutar reentrenamiento
+            self._retrain_model()
+
+        finally:
+            # Restaurar threshold original SIEMPRE
+            self.trainer.min_samples = original_min_samples
+            if min_samples_override is not None:
+                logger.info(f"   Threshold restaurado a {original_min_samples}")
 
     def force_optimize(self):
         """Fuerza optimización inmediata"""
