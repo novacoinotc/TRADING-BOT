@@ -282,8 +282,9 @@ async def main():
                 min_trades_before_optimization=config.AUTONOMOUS_MIN_TRADES_BEFORE_OPT
             )
             await autonomy_controller.initialize()
-            # Pass autonomous controller to monitor
+            # Pass autonomous controller to monitor (bidirectional reference)
             monitor.autonomy_controller = autonomy_controller
+            autonomy_controller.market_monitor = monitor  # Para acceso a ml_system
             logger.info("✅ Sistema Autónomo activo - IA tiene control total")
 
             # Initialize Telegram Commands Handler

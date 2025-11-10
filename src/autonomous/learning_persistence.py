@@ -45,7 +45,8 @@ class LearningPersistence:
         performance_history: Dict,
         change_history: Optional[list] = None,
         metadata: Optional[Dict] = None,
-        paper_trading: Optional[Dict] = None
+        paper_trading: Optional[Dict] = None,
+        ml_training_buffer: Optional[list] = None
     ) -> bool:
         """
         Guarda estado completo del sistema autónomo
@@ -57,6 +58,7 @@ class LearningPersistence:
             change_history: Histórico de cambios con razonamiento
             metadata: Información adicional (versión, timestamp, etc.)
             paper_trading: Estado del paper trading (balance, trades, etc.)
+            ml_training_buffer: Training buffer del ML System (features para entrenamiento)
 
         Returns:
             True si guardado fue exitoso
@@ -77,7 +79,8 @@ class LearningPersistence:
                 'performance_history': performance_history,
                 'change_history': change_history or [],  # Histórico de cambios con razonamiento
                 'metadata': metadata or {},
-                'paper_trading': paper_trading or {}  # NUEVO: estado de paper trading
+                'paper_trading': paper_trading or {},  # NUEVO: estado de paper trading
+                'ml_training_buffer': ml_training_buffer or []  # NUEVO: training buffer del ML System
             }
 
             # Calcular checksum para validación

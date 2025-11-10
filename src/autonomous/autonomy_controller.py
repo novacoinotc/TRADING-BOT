@@ -87,6 +87,10 @@ class AutonomyController:
         # Contador global de trades (nunca se resetea)
         self.total_trades_all_time = 0
 
+        # Referencia a market_monitor (se asigna desde main.py)
+        # Necesaria para acceder a ml_system para export/import de training_buffer
+        self.market_monitor = None
+
         logger.info("🤖 AUTONOMY CONTROLLER INICIALIZADO - MODO: CONTROL ABSOLUTO")
         logger.info(f"   Auto-save: cada {self.auto_save_interval} min")
         logger.info(f"   Optimization check: cada {self.optimization_interval} horas")
@@ -710,13 +714,23 @@ class AutonomyController:
             }
             logger.debug(f"💰 Paper Trading incluido en export: {portfolio.total_trades} trades, ${portfolio.balance:,.2f} balance")
 
+        # Guardar training_buffer del ML System si existe
+        ml_training_buffer = []
+        if hasattr(self, 'market_monitor') and self.market_monitor:
+            if hasattr(self.market_monitor, 'ml_system') and self.market_monitor.ml_system:
+                ml_system = self.market_monitor.ml_system
+                if hasattr(ml_system, 'training_buffer'):
+                    ml_training_buffer = ml_system.training_buffer
+                    logger.debug(f"🧠 ML Training Buffer incluido en export: {len(ml_training_buffer)} features")
+
         success = self.persistence.save_full_state(
             rl_agent_state=rl_state,
             optimizer_state=optimizer_state,
             performance_history=performance_summary,
             change_history=self.change_history,  # Histórico de cambios con razonamiento
             metadata=metadata,
-            paper_trading=paper_trading_state  # NUEVO: incluir paper trading
+            paper_trading=paper_trading_state,  # NUEVO: incluir paper trading
+            ml_training_buffer=ml_training_buffer  # NUEVO: incluir training buffer
         )
 
         if success:
@@ -1131,6 +1145,38 @@ class AutonomyController:
             logger.error(f"❌ Error restaurando Paper Trading: {e}", exc_info=True)
             # No es crítico, continuar
         # ===== FIN RESTAURAR PAPER TRADING =====
+
+        # ===== RESTAURAR ML TRAINING BUFFER =====
+        # El training_buffer contiene las features necesarias para entrenar el ML
+        # Sin estas features, el ML no puede reentrenarse con los trades importados
+        try:
+            if 'ml_training_buffer' in loaded and loaded['ml_training_buffer']:
+                logger.info("🧠 Restaurando ML Training Buffer...")
+
+                # Verificar que tengamos acceso al ml_system
+                if hasattr(self, 'market_monitor') and self.market_monitor:
+                    if hasattr(self.market_monitor, 'ml_system') and self.market_monitor.ml_system:
+                        ml_system = self.market_monitor.ml_system
+                        buffer_data = loaded['ml_training_buffer']
+
+                        # Restaurar training_buffer
+                        ml_system.training_buffer = buffer_data
+                        logger.info(f"  ✅ Training buffer restaurado: {len(buffer_data)} features")
+
+                        # Guardar a disco
+                        ml_system._save_buffer()
+                        logger.debug(f"  💾 Training buffer guardado en disco")
+                    else:
+                        logger.warning("⚠️ ML System no disponible, no se puede restaurar training_buffer")
+                else:
+                    logger.warning("⚠️ Market Monitor no disponible, no se puede restaurar training_buffer")
+            else:
+                logger.debug("ℹ️  No se encontró 'ml_training_buffer' en el archivo importado (puede ser un export antiguo)")
+
+        except Exception as e:
+            logger.error(f"❌ Error restaurando ML Training Buffer: {e}", exc_info=True)
+            # No es crítico, continuar
+        # ===== FIN RESTAURAR ML TRAINING BUFFER =====
 
         # ===== PARCHE DIRECTO PARA total_trades_all_time =====
         # Verificar si total_trades_all_time quedó en 0
