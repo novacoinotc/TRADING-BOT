@@ -65,7 +65,7 @@ class RLAgent:
     def get_state_representation(self, market_data: Dict) -> str:
         """
         Convierte datos de mercado a representación de estado
-        Formato: "{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_{confidence_range}"
+        Formato: "{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_{confidence_range}_{trade_count_tier}"
 
         Args:
             market_data: Dict con indicadores técnicos, sentiment, regime, etc.
@@ -81,6 +81,7 @@ class RLAgent:
         regime_strength = market_data.get('regime_strength', 'MEDIUM')  # LOW/MEDIUM/HIGH
         orderbook = market_data.get('orderbook', 'NEUTRAL')  # BUY_PRESSURE/SELL_PRESSURE/NEUTRAL
         confidence = market_data.get('confidence', 50)
+        total_trades = market_data.get('total_trades', 0)
 
         # Discretizar RSI
         if rsi < 30:
@@ -104,8 +105,20 @@ class RLAgent:
         else:
             confidence_range = 'VERY_HIGH'
 
+        # Determinar tier de experiencia (para leverage de futuros)
+        if total_trades < 50:
+            trade_count_tier = 'TC_0_50'
+        elif total_trades < 100:
+            trade_count_tier = 'TC_50_100'
+        elif total_trades < 150:
+            trade_count_tier = 'TC_100_150'
+        elif total_trades < 500:
+            trade_count_tier = 'TC_150_500'
+        else:
+            trade_count_tier = 'TC_500_PLUS'
+
         # Crear estado compuesto con formato específico
-        state = f"{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_{confidence_range}"
+        state = f"{pair}_{side}_{rsi_range}_{regime}_{regime_strength}_{orderbook}_{confidence_range}_{trade_count_tier}"
 
         return state
 
@@ -147,31 +160,43 @@ class RLAgent:
 
         return action
 
-    def decide_trade_action(self, market_data: Dict) -> Dict:
+    def decide_trade_action(self, market_data: Dict, max_leverage: int = 1) -> Dict:
         """
         Decide si abrir un trade y con qué parámetros basado en el estado del mercado
 
         Args:
             market_data: Datos del mercado (indicadores, sentiment, etc.)
+            max_leverage: Máximo leverage permitido basado en experiencia (1-20x)
 
         Returns:
             Dict con decisión: {
                 'should_trade': bool,
                 'action': str,  # 'OPEN', 'SKIP'
+                'trade_type': str,  # 'SPOT' o 'FUTURES'
                 'position_size_multiplier': float,  # 1.0 = normal, 0.5 = conservador, 1.5 = agresivo
+                'leverage': int,  # 1-20x (solo para FUTURES)
                 'confidence': float  # 0-1
             }
         """
         # Obtener representación del estado
         state = self.get_state_representation(market_data)
 
-        # Acciones disponibles para trading
+        # Acciones disponibles para trading (SPOT + FUTURES)
         available_actions = [
             'SKIP',  # No abrir trade
-            'OPEN_CONSERVATIVE',  # Abrir con tamaño conservador (50% del normal)
-            'OPEN_NORMAL',  # Abrir con tamaño normal (100%)
-            'OPEN_AGGRESSIVE'  # Abrir con tamaño agresivo (150% del normal)
+            # SPOT (4 acciones)
+            'OPEN_CONSERVATIVE',  # Abrir spot con tamaño conservador (50% del normal)
+            'OPEN_NORMAL',  # Abrir spot con tamaño normal (100%)
+            'OPEN_AGGRESSIVE',  # Abrir spot con tamaño agresivo (150% del normal)
+            # FUTURES (3 acciones - solo si max_leverage > 1)
+            'FUTURES_LOW',  # Futuros con 20-40% del max leverage
+            'FUTURES_MEDIUM',  # Futuros con 40-70% del max leverage
+            'FUTURES_HIGH'  # Futuros con 70-100% del max leverage
         ]
+
+        # Si no tiene leverage desbloqueado, remover acciones de futuros
+        if max_leverage <= 1:
+            available_actions = [a for a in available_actions if not a.startswith('FUTURES')]
 
         # Elegir acción usando Q-learning
         chosen_action = self.choose_action(state, available_actions)
@@ -181,12 +206,38 @@ class RLAgent:
             decision = {
                 'should_trade': False,
                 'action': 'SKIP',
+                'trade_type': 'SPOT',
                 'position_size_multiplier': 0.0,
+                'leverage': 1,
+                'confidence': self._get_action_confidence(state, chosen_action),
+                'chosen_action': chosen_action
+            }
+        elif chosen_action.startswith('FUTURES'):
+            # Acciones de FUTURES
+            if chosen_action == 'FUTURES_LOW':
+                # 20-40% del max leverage
+                leverage = max(2, int(max_leverage * 0.3))
+                multiplier = 0.5  # Tamaño conservador
+            elif chosen_action == 'FUTURES_MEDIUM':
+                # 40-70% del max leverage
+                leverage = max(2, int(max_leverage * 0.55))
+                multiplier = 1.0  # Tamaño normal
+            else:  # FUTURES_HIGH
+                # 70-100% del max leverage
+                leverage = max(2, int(max_leverage * 0.85))
+                multiplier = 1.5  # Tamaño agresivo
+
+            decision = {
+                'should_trade': True,
+                'action': 'OPEN',
+                'trade_type': 'FUTURES',
+                'position_size_multiplier': multiplier,
+                'leverage': leverage,
                 'confidence': self._get_action_confidence(state, chosen_action),
                 'chosen_action': chosen_action
             }
         else:
-            # Determinar multiplicador basado en acción
+            # Acciones SPOT (OPEN_CONSERVATIVE, OPEN_NORMAL, OPEN_AGGRESSIVE)
             if chosen_action == 'OPEN_CONSERVATIVE':
                 multiplier = 0.5
             elif chosen_action == 'OPEN_AGGRESSIVE':
@@ -197,7 +248,9 @@ class RLAgent:
             decision = {
                 'should_trade': True,
                 'action': 'OPEN',
+                'trade_type': 'SPOT',
                 'position_size_multiplier': multiplier,
+                'leverage': 1,
                 'confidence': self._get_action_confidence(state, chosen_action),
                 'chosen_action': chosen_action
             }
@@ -205,7 +258,9 @@ class RLAgent:
         logger.info(
             f"🤖 RL Decision: {chosen_action} | "
             f"Trade: {decision['should_trade']} | "
+            f"Type: {decision['trade_type']} | "
             f"Size: {decision['position_size_multiplier']:.1f}x | "
+            f"Leverage: {decision['leverage']}x | "
             f"Confidence: {decision['confidence']:.2f}"
         )
 

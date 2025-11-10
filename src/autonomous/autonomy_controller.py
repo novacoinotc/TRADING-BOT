@@ -84,6 +84,9 @@ class AutonomyController:
             backup_dir="data/autonomous"
         )
 
+        # Contador global de trades (nunca se resetea)
+        self.total_trades_all_time = 0
+
         logger.info("🤖 AUTONOMY CONTROLLER INICIALIZADO - MODO: CONTROL ABSOLUTO")
         logger.info(f"   Auto-save: cada {self.auto_save_interval} min")
         logger.info(f"   Optimization check: cada {self.optimization_interval} horas")
@@ -126,6 +129,31 @@ class AutonomyController:
         await self.git_backup.start_auto_backup()
 
         logger.info("✅ Sistema Autónomo ACTIVO - Control total habilitado")
+
+    def _calculate_max_leverage(self) -> int:
+        """
+        Calcula el máximo leverage permitido basado en experiencia
+
+        Límites escalonados:
+        - 0-50 trades: máximo 5x
+        - 50-100 trades: máximo 8x
+        - 100-150 trades: máximo 10x
+        - 150-500 trades: máximo 15x
+        - 500+ trades: máximo 20x
+
+        Returns:
+            Leverage máximo permitido (1-20x)
+        """
+        if self.total_trades_all_time < 50:
+            return 5
+        elif self.total_trades_all_time < 100:
+            return 8
+        elif self.total_trades_all_time < 150:
+            return 10
+        elif self.total_trades_all_time < 500:
+            return 15
+        else:
+            return 20
 
     async def _restore_from_state(self, state: Dict):
         """Restaura estado completo desde persistencia"""
@@ -210,11 +238,15 @@ class AutonomyController:
                 'regime': regime,
                 'regime_strength': regime_strength,
                 'orderbook': market_state.get('orderbook', 'NEUTRAL'),
-                'confidence': signal.get('confidence', 50)
+                'confidence': signal.get('confidence', 50),
+                'total_trades': self.total_trades_all_time  # Para tier de experiencia
             }
 
-            # RL Agent decide si abrir trade
-            decision = self.rl_agent.decide_trade_action(market_data)
+            # Calcular max leverage permitido
+            max_leverage = self._calculate_max_leverage()
+
+            # RL Agent decide si abrir trade (pasando max_leverage)
+            decision = self.rl_agent.decide_trade_action(market_data, max_leverage=max_leverage)
 
             logger.info(
                 f"🤖 RL Evaluation para {pair}: "
@@ -253,6 +285,9 @@ class AutonomyController:
         if not self.active:
             return
 
+        # Incrementar contador global de trades (nunca se resetea)
+        self.total_trades_all_time += 1
+
         # Calcular reward basado en resultado del trade
         reward = self._calculate_reward(trade_data, portfolio_metrics)
 
@@ -276,6 +311,16 @@ class AutonomyController:
         })
 
         self.total_trades_processed += 1
+
+        # Log de desbloqueo de leverage
+        max_leverage = self._calculate_max_leverage()
+        if self.total_trades_all_time in [50, 100, 150, 500]:
+            await self._notify_telegram(
+                f"🎉 **Nuevo Leverage Desbloqueado**\n\n"
+                f"Total trades: {self.total_trades_all_time}\n"
+                f"Max leverage: {max_leverage}x\n"
+                f"¡El RL Agent ahora puede usar futuros con mayor leverage!"
+            )
 
         # Notificar aprendizaje importante
         if reward > 2.0:  # Gran ganancia
@@ -305,32 +350,46 @@ class AutonomyController:
         """
         Calcula reward para el RL Agent
 
-        Combina:
-        - Profit/loss del trade
-        - Impacto en métricas del portfolio
-        - Risk-adjusted return
+        Para SPOT:
+        - Profit/loss del trade con ajustes por métricas del portfolio
+
+        Para FUTURES:
+        - Profit/loss * leverage (simple, sin penalizaciones artificiales)
+        - El RL debe aprender por sí mismo que liquidarse es malo
         """
         profit_pct = trade_data.get('profit_pct', 0)
+        trade_type = trade_data.get('trade_type', 'SPOT')
+        leverage = trade_data.get('leverage', 1)
+        liquidated = trade_data.get('liquidated', False)
 
-        # Base reward: profit/loss
-        reward = profit_pct
+        # FUTUROS: reward simple = profit_pct * leverage
+        if trade_type == 'FUTURES':
+            # Para liquidaciones, el profit_pct ya es -100%, así que el reward es muy negativo
+            reward = profit_pct * leverage
 
-        # Bonus/penalty por métricas de portfolio
-        win_rate = portfolio_metrics.get('win_rate', 50)
-        if win_rate > 55:
-            reward *= 1.2  # Bonus si win rate es bueno
-        elif win_rate < 45:
-            reward *= 0.8  # Penalty si win rate es malo
+            # NO agregamos penalizaciones artificiales - que aprenda de la experiencia real
+            logger.debug(f"Futures reward: {profit_pct:.2f}% * {leverage}x = {reward:.2f}")
 
-        # Penalty por drawdown alto
-        drawdown = abs(portfolio_metrics.get('max_drawdown', 0))
-        if drawdown > 15:
-            reward -= 0.5  # Penalty adicional
+        else:
+            # SPOT: Base reward con ajustes
+            reward = profit_pct
 
-        # Bonus por Sharpe ratio alto
-        sharpe = portfolio_metrics.get('sharpe_ratio', 0)
-        if sharpe > 1.5:
-            reward += 0.3
+            # Bonus/penalty por métricas de portfolio
+            win_rate = portfolio_metrics.get('win_rate', 50)
+            if win_rate > 55:
+                reward *= 1.2  # Bonus si win rate es bueno
+            elif win_rate < 45:
+                reward *= 0.8  # Penalty si win rate es malo
+
+            # Penalty por drawdown alto
+            drawdown = abs(portfolio_metrics.get('max_drawdown', 0))
+            if drawdown > 15:
+                reward -= 0.5  # Penalty adicional
+
+            # Bonus por Sharpe ratio alto
+            sharpe = portfolio_metrics.get('sharpe_ratio', 0)
+            if sharpe > 1.5:
+                reward += 0.3
 
         return reward
 
@@ -533,6 +592,8 @@ class AutonomyController:
         metadata = {
             'current_parameters': self.current_parameters,
             'total_trades_processed': self.total_trades_processed,
+            'total_trades_all_time': self.total_trades_all_time,  # Contador global nunca se resetea
+            'current_max_leverage': self._calculate_max_leverage(),
             'total_parameter_changes': self.total_parameter_changes,
             'last_optimization': self.last_optimization_time.isoformat(),
             'decision_mode': self.decision_mode
@@ -690,14 +751,20 @@ class AutonomyController:
                     if not self.current_parameters:
                         self.current_parameters = metadata.get('current_parameters', {})
                     self.total_trades_processed += metadata.get('total_trades_processed', 0)
+                    # total_trades_all_time SIEMPRE se acumula (nunca se resetea)
+                    imported_all_time = metadata.get('total_trades_all_time', metadata.get('total_trades_processed', 0))
+                    self.total_trades_all_time += imported_all_time
                     self.total_parameter_changes += metadata.get('total_parameter_changes', 0)
-                    logger.info(f"✅ Metadata acumulada (trades: {self.total_trades_processed})")
+                    logger.info(f"✅ Metadata acumulada (trades totales: {self.total_trades_all_time}, max leverage: {self._calculate_max_leverage()}x)")
                 else:
                     # En replace, reemplazar completamente
                     self.current_parameters = metadata.get('current_parameters', {})
                     self.total_trades_processed = metadata.get('total_trades_processed', 0)
+                    # Cargar total_trades_all_time, o usar total_trades_processed como fallback
+                    self.total_trades_all_time = metadata.get('total_trades_all_time', metadata.get('total_trades_processed', 0))
                     self.total_parameter_changes = metadata.get('total_parameter_changes', 0)
                     self.decision_mode = metadata.get('decision_mode', 'BALANCED')
+                    logger.info(f"✅ Metadata restaurada (trades totales: {self.total_trades_all_time}, max leverage: {self._calculate_max_leverage()}x)")
 
             # Restaurar performance history
             perf_history = loaded.get('performance_history', {})
