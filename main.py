@@ -290,11 +290,12 @@ async def main():
             telegram_commands = TelegramCommands(
                 autonomy_controller=autonomy_controller,
                 telegram_token=config.TELEGRAM_BOT_TOKEN,
-                chat_id=config.TELEGRAM_CHAT_ID
+                chat_id=config.TELEGRAM_CHAT_ID,
+                market_monitor=monitor  # Para acceso al ML System
             )
             monitor.telegram_commands = telegram_commands
             await telegram_commands.start_command_listener()
-            logger.info("📱 Telegram Commands activos: /export_intelligence, /status, /stats, /params")
+            logger.info("📱 Telegram Commands activos: /export, /import, /status, /stats, /params, /train_ml")
 
         # Run historical training if enabled (pre-train ML model)
         if config.ENABLE_PAPER_TRADING:

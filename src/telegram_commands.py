@@ -19,14 +19,16 @@ class TelegramCommands:
     - /status: Status del sistema autónomo
     """
 
-    def __init__(self, autonomy_controller=None, telegram_token: str = None, chat_id: str = None):
+    def __init__(self, autonomy_controller=None, telegram_token: str = None, chat_id: str = None, market_monitor=None):
         """
         Args:
             autonomy_controller: Instancia del AutonomyController
             telegram_token: Token del bot de Telegram
             chat_id: Chat ID para enviar mensajes proactivos
+            market_monitor: Instancia del MarketMonitor (para ML System)
         """
         self.autonomy_controller = autonomy_controller
+        self.market_monitor = market_monitor
         self.telegram_token = telegram_token
         self.chat_id = chat_id
         self.application = None
@@ -56,6 +58,7 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("stats", self.stats_command))
             self.application.add_handler(CommandHandler("futures_stats", self.futures_stats_command))
             self.application.add_handler(CommandHandler("params", self.params_command))
+            self.application.add_handler(CommandHandler("train_ml", self.train_ml_command))  # Entrenar ML System
             self.application.add_handler(CommandHandler("help", self.help_command))
 
             # Handler para recibir archivos (documentos)
@@ -274,10 +277,15 @@ class TelegramCommands:
                 "  ├─ Max leverage desbloqueado\n"
                 "  ├─ Liquidaciones totales\n"
                 "  └─ PnL SPOT vs FUTURES\n\n"
+                "/train_ml\n"
+                "  ├─ Entrena el ML System con trades históricos\n"
+                "  ├─ Usa después de /import para cargar datos\n"
+                "  ├─ Requiere mínimo 25 trades\n"
+                "  └─ Habilita predicciones ML automáticas\n\n"
                 "/help\n"
                 "  └─ Muestra este mensaje\n\n"
                 "**Auto-Backup**: Cada 24h automático\n"
-                "**Flujo**: /export antes de redeploy → /import después\n"
+                "**Flujo**: /export antes de redeploy → /import después → /train_ml\n"
                 "**Emergencia**: Si /import falla → /import_force"
             )
 
@@ -529,6 +537,98 @@ class TelegramCommands:
         except Exception as e:
             logger.error(f"Error en comando params: {e}", exc_info=True)
             await update.message.reply_text(f"❌ Error obteniendo params:\n{str(e)}")
+
+    async def train_ml_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /train_ml
+        Entrena el ML System con los datos disponibles del Paper Trading
+        """
+        try:
+            logger.info("🤖 Comando /train_ml recibido")
+
+            await update.message.reply_text(
+                "🤖 **Entrenando ML System**\n\n"
+                "Iniciando entrenamiento con trades históricos...\n"
+                "Esto puede tomar unos segundos ⏳"
+            )
+
+            # Verificar que market_monitor esté disponible
+            if not hasattr(self, 'market_monitor') or not self.market_monitor:
+                await update.message.reply_text(
+                    "⚠️ **Market Monitor no disponible**\n\n"
+                    "El ML System está en el Market Monitor.\n"
+                    "Asegúrate de que el bot esté corriendo."
+                )
+                return
+
+            # Verificar que ml_system esté disponible
+            if not hasattr(self.market_monitor, 'ml_system') or not self.market_monitor.ml_system:
+                await update.message.reply_text(
+                    "⚠️ **ML System no disponible**\n\n"
+                    "Verifica que ENABLE_PAPER_TRADING esté en True en config.py"
+                )
+                return
+
+            ml_system = self.market_monitor.ml_system
+
+            # Obtener estadísticas del paper trader
+            if not hasattr(ml_system, 'paper_trader') or not ml_system.paper_trader:
+                await update.message.reply_text(
+                    "⚠️ **Paper Trader no disponible**\n\n"
+                    "No hay datos para entrenar."
+                )
+                return
+
+            stats = ml_system.paper_trader.portfolio.get_statistics()
+            total_trades = stats.get('total_trades', 0)
+
+            if total_trades < 25:
+                await update.message.reply_text(
+                    f"⚠️ **Insuficientes trades para entrenar**\n\n"
+                    f"Trades actuales: {total_trades}\n"
+                    f"Mínimo requerido: 25\n\n"
+                    f"Espera a tener más trades históricos o después de /import"
+                )
+                return
+
+            # Forzar entrenamiento con threshold reducido
+            logger.info(f"Forzando entrenamiento ML con {total_trades} trades")
+            ml_system.force_retrain(min_samples_override=25)
+
+            # Obtener info del modelo entrenado
+            model_info = ml_system.trainer.get_model_info()
+
+            if model_info.get('available'):
+                metrics = model_info.get('metrics', {})
+                message = (
+                    "✅ **ML System Entrenado Exitosamente**\n\n"
+                    f"📊 **Datos de Entrenamiento:**\n"
+                    f"  • Total trades: {total_trades}\n"
+                    f"  • Samples usados: {metrics.get('samples_total', 0)}\n\n"
+                    f"📈 **Métricas del Modelo:**\n"
+                    f"  • Accuracy: {metrics.get('test_accuracy', 0):.1%}\n"
+                    f"  • Precision: {metrics.get('test_precision', 0):.1%}\n"
+                    f"  • F1 Score: {metrics.get('test_f1', 0):.3f}\n\n"
+                    f"🎯 **Estado:**\n"
+                    f"  • Modelo: Activo ✅\n"
+                    f"  • Predicciones ML: Habilitadas\n\n"
+                    f"El ML ahora hará predicciones en cada señal 🚀"
+                )
+            else:
+                message = (
+                    "⚠️ **Entrenamiento Completado con Advertencias**\n\n"
+                    f"Se procesaron {total_trades} trades pero el modelo\n"
+                    f"puede necesitar más datos para predicciones confiables.\n\n"
+                    f"Continúa trading para mejorar el modelo 📈"
+                )
+
+            await update.message.reply_text(message)
+
+        except Exception as e:
+            logger.error(f"Error en comando train_ml: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ **Error en Entrenamiento ML**\n\n{str(e)}"
+            )
 
     async def import_intelligence_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
