@@ -52,6 +52,7 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("import", self.import_intelligence_command))  # Alias
             self.application.add_handler(CommandHandler("status", self.status_command))
             self.application.add_handler(CommandHandler("stats", self.stats_command))
+            self.application.add_handler(CommandHandler("futures_stats", self.futures_stats_command))
             self.application.add_handler(CommandHandler("params", self.params_command))
             self.application.add_handler(CommandHandler("help", self.help_command))
 
@@ -258,6 +259,11 @@ class TelegramCommands:
                 "  ├─ Muestra estado del sistema autónomo\n"
                 "  ├─ Estadísticas de aprendizaje\n"
                 "  └─ Info de backups\n\n"
+                "/futures_stats\n"
+                "  ├─ Estadísticas de trading de futuros\n"
+                "  ├─ Max leverage desbloqueado\n"
+                "  ├─ Liquidaciones totales\n"
+                "  └─ PnL SPOT vs FUTURES\n\n"
                 "/help\n"
                 "  └─ Muestra este mensaje\n\n"
                 "**Auto-Backup**: Cada 24h automático\n"
@@ -324,6 +330,111 @@ class TelegramCommands:
         except Exception as e:
             logger.error(f"Error en comando stats: {e}", exc_info=True)
             await update.message.reply_text(f"❌ Error obteniendo stats:\n{str(e)}")
+
+    async def futures_stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /futures_stats
+        Muestra estadísticas específicas de trading de futuros
+        """
+        try:
+            logger.info("🎯 Comando /futures_stats recibido")
+
+            if not self.autonomy_controller:
+                await update.message.reply_text("⚠️ Sistema autónomo no disponible")
+                return
+
+            # Obtener total_trades_all_time y max_leverage
+            total_trades = self.autonomy_controller.total_trades_all_time
+            max_leverage = self.autonomy_controller._calculate_max_leverage()
+
+            # Calcular próximo desbloqueo
+            next_unlock = None
+            next_leverage = None
+            if total_trades < 50:
+                next_unlock = 50 - total_trades
+                next_leverage = 8
+            elif total_trades < 100:
+                next_unlock = 100 - total_trades
+                next_leverage = 10
+            elif total_trades < 150:
+                next_unlock = 150 - total_trades
+                next_leverage = 15
+            elif total_trades < 500:
+                next_unlock = 500 - total_trades
+                next_leverage = 20
+            else:
+                next_unlock = 0
+                next_leverage = 20
+
+            # Obtener estadísticas del portfolio
+            paper_trader = self.autonomy_controller.paper_trader if hasattr(self.autonomy_controller, 'paper_trader') else None
+
+            if paper_trader:
+                portfolio = paper_trader.portfolio
+                closed_trades = portfolio.closed_trades
+
+                # Separar trades SPOT vs FUTURES
+                spot_trades = [t for t in closed_trades if t.get('trade_type', 'SPOT') == 'SPOT']
+                futures_trades = [t for t in closed_trades if t.get('trade_type', 'SPOT') == 'FUTURES']
+
+                # Calcular liquidaciones
+                liquidations = [t for t in futures_trades if t.get('liquidated', False)]
+                liquidation_count = len(liquidations)
+
+                # PnL spot vs futures
+                spot_pnl = sum(t.get('pnl', 0) for t in spot_trades)
+                futures_pnl = sum(t.get('pnl', 0) for t in futures_trades)
+
+                # Leverage promedio en futures
+                if futures_trades:
+                    avg_leverage = sum(t.get('leverage', 1) for t in futures_trades) / len(futures_trades)
+                else:
+                    avg_leverage = 0
+
+                futures_stats_text = (
+                    f"**📊 Trades:**\n"
+                    f"  • SPOT: {len(spot_trades)} trades\n"
+                    f"  • FUTURES: {len(futures_trades)} trades\n\n"
+                    f"**💥 Liquidaciones:**\n"
+                    f"  • Total: {liquidation_count}\n"
+                    f"  • Tasa: {(liquidation_count / len(futures_trades) * 100) if futures_trades else 0:.1f}%\n\n"
+                    f"**💰 PnL Comparativo:**\n"
+                    f"  • SPOT: ${spot_pnl:+,.2f}\n"
+                    f"  • FUTURES: ${futures_pnl:+,.2f}\n\n"
+                    f"**📈 Leverage:**\n"
+                    f"  • Promedio usado: {avg_leverage:.1f}x\n"
+                )
+            else:
+                futures_stats_text = "⚠️ Paper trading no disponible"
+
+            message = (
+                "🎯 **Estadísticas de Futuros**\n\n"
+                f"**🏆 Experiencia:**\n"
+                f"  • Total trades: {total_trades}\n"
+                f"  • Max leverage desbloqueado: {max_leverage}x\n"
+            )
+
+            if next_unlock > 0:
+                message += f"  • Próximo desbloqueo: {next_leverage}x en {next_unlock} trades\n\n"
+            else:
+                message += f"  • ✅ Max leverage alcanzado (20x)\n\n"
+
+            message += futures_stats_text
+
+            message += (
+                "\n**📍 Límites de Leverage:**\n"
+                "  • 0-50 trades: 5x\n"
+                "  • 50-100 trades: 8x\n"
+                "  • 100-150 trades: 10x\n"
+                "  • 150-500 trades: 15x\n"
+                "  • 500+ trades: 20x"
+            )
+
+            await update.message.reply_text(message)
+
+        except Exception as e:
+            logger.error(f"Error en comando futures_stats: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error obteniendo futures stats:\n{str(e)}")
 
     async def params_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
