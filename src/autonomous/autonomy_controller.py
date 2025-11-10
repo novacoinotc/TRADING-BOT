@@ -195,9 +195,23 @@ class AutonomyController:
                 metadata = state['metadata']
                 if 'current_parameters' in metadata:
                     self.current_parameters = metadata['current_parameters']
+
+                # Restaurar total_trades_all_time con múltiples fallbacks
                 if 'total_trades_all_time' in metadata:
                     self.total_trades_all_time = metadata['total_trades_all_time']
                     logger.debug(f"  ✅ Total trades all time: {self.total_trades_all_time}")
+                else:
+                    # Fallback 1: usar total_experience_trades del RL agent
+                    rl_data = state.get('rl_agent', {})
+                    self.total_trades_all_time = rl_data.get('total_experience_trades')
+                    if self.total_trades_all_time is not None:
+                        logger.debug(f"  ⚠️ total_trades_all_time no en metadata, usando RL agent: {self.total_trades_all_time}")
+                    else:
+                        # Fallback 2: usar total_trades del RL agent cargado
+                        if hasattr(self, 'rl_agent'):
+                            self.total_trades_all_time = self.rl_agent.total_trades
+                            logger.debug(f"  ⚠️ Usando total_trades del RL agent cargado: {self.total_trades_all_time}")
+
                 logger.debug("  ✅ Metadata restaurada")
         except Exception as e:
             logger.warning(f"⚠️ Error restaurando metadata: {e}")
@@ -862,8 +876,16 @@ class AutonomyController:
                     if not self.current_parameters:
                         self.current_parameters = metadata.get('current_parameters', {})
                     self.total_trades_processed += metadata.get('total_trades_processed', 0)
+
                     # total_trades_all_time SIEMPRE se acumula (nunca se resetea)
-                    imported_all_time = metadata.get('total_trades_all_time', metadata.get('total_trades_processed', 0))
+                    # Buscar en metadata primero, luego en rl_agent como fallback
+                    imported_all_time = metadata.get('total_trades_all_time')
+                    if imported_all_time is None:
+                        # Fallback: usar total_experience_trades del RL agent si existe
+                        rl_data = loaded.get('rl_agent', {})
+                        imported_all_time = rl_data.get('total_experience_trades', metadata.get('total_trades_processed', 0))
+                        logger.debug(f"  ⚠️ total_trades_all_time no encontrado en metadata, usando RL agent: {imported_all_time}")
+
                     self.total_trades_all_time += imported_all_time
                     self.total_parameter_changes += metadata.get('total_parameter_changes', 0)
                     logger.info(f"  ✅ Metadata acumulada (trades totales: {self.total_trades_all_time}, max leverage: {self._calculate_max_leverage()}x)")
@@ -871,17 +893,42 @@ class AutonomyController:
                     # En replace, reemplazar completamente
                     self.current_parameters = metadata.get('current_parameters', {})
                     self.total_trades_processed = metadata.get('total_trades_processed', 0)
-                    # Cargar total_trades_all_time, o usar total_trades_processed como fallback
-                    self.total_trades_all_time = metadata.get('total_trades_all_time', metadata.get('total_trades_processed', 0))
+
+                    # Cargar total_trades_all_time con múltiples fallbacks
+                    self.total_trades_all_time = metadata.get('total_trades_all_time')
+                    if self.total_trades_all_time is None:
+                        # Fallback 1: usar total_experience_trades del RL agent
+                        rl_data = loaded.get('rl_agent', {})
+                        self.total_trades_all_time = rl_data.get('total_experience_trades')
+                        if self.total_trades_all_time is not None:
+                            logger.debug(f"  ⚠️ total_trades_all_time no en metadata, usando RL agent total_experience_trades: {self.total_trades_all_time}")
+                        else:
+                            # Fallback 2: usar total_trades_processed
+                            self.total_trades_all_time = metadata.get('total_trades_processed', 0)
+                            logger.debug(f"  ⚠️ total_trades_all_time no encontrado, usando total_trades_processed: {self.total_trades_all_time}")
+
+                    # Si aún es None o 0, usar el total_trades del RL agent que ya fue cargado
+                    if self.total_trades_all_time == 0 and hasattr(self, 'rl_agent'):
+                        self.total_trades_all_time = self.rl_agent.total_trades
+                        logger.debug(f"  ⚠️ Usando total_trades del RL agent cargado: {self.total_trades_all_time}")
+
                     self.total_parameter_changes = metadata.get('total_parameter_changes', 0)
                     self.decision_mode = metadata.get('decision_mode', 'BALANCED')
                     logger.info(f"  ✅ Metadata restaurada (trades totales: {self.total_trades_all_time}, max leverage: {self._calculate_max_leverage()}x)")
             else:
                 logger.warning("⚠️ No se encontró metadata en el archivo - usando valores por defecto")
+                # Usar total_trades del RL agent como fallback si no hay metadata
+                if hasattr(self, 'rl_agent'):
+                    self.total_trades_all_time = self.rl_agent.total_trades
+                    logger.debug(f"  ⚠️ Sin metadata, usando total_trades del RL agent: {self.total_trades_all_time}")
 
         except Exception as e:
             logger.warning(f"⚠️ Error restaurando metadata (continuando): {e}")
             # No es crítico, continuar
+            # Intentar recuperar de RL agent como último recurso
+            if hasattr(self, 'rl_agent'):
+                self.total_trades_all_time = self.rl_agent.total_trades
+                logger.debug(f"  ⚠️ Excepción en metadata, usando RL agent total_trades: {self.total_trades_all_time}")
 
         try:
             # Restaurar performance history
