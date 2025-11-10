@@ -156,33 +156,61 @@ class AutonomyController:
             return 20
 
     async def _restore_from_state(self, state: Dict):
-        """Restaura estado completo desde persistencia"""
+        """Restaura estado completo desde persistencia (robusto con errores)"""
+        logger.debug("📥 Restaurando estado desde persistencia...")
+
+        # Restaurar RL Agent
         try:
-            # Restaurar RL Agent
             if 'rl_agent' in state:
                 self.rl_agent.load_from_dict(state['rl_agent'])
+                logger.debug("  ✅ RL Agent restaurado")
+            else:
+                logger.warning("⚠️ No se encontró 'rl_agent' en el estado guardado")
+        except Exception as e:
+            logger.error(f"❌ Error restaurando RL Agent: {e}", exc_info=True)
 
-            # Restaurar Parameter Optimizer
+        # Restaurar Parameter Optimizer
+        try:
             if 'parameter_optimizer' in state:
                 self.parameter_optimizer.load_from_dict(state['parameter_optimizer'])
+                logger.debug("  ✅ Parameter Optimizer restaurado")
+        except Exception as e:
+            logger.warning(f"⚠️ Error restaurando Parameter Optimizer: {e}")
 
-            # Restaurar historial de performance
+        # Restaurar historial de performance
+        try:
             if 'performance_history' in state:
-                self.performance_history = state['performance_history']
+                perf = state['performance_history']
+                if isinstance(perf, dict) and 'recent_performance' in perf:
+                    self.performance_history = perf['recent_performance']
+                elif isinstance(perf, list):
+                    self.performance_history = perf
+                logger.debug("  ✅ Performance history restaurado")
+        except Exception as e:
+            logger.warning(f"⚠️ Error restaurando performance history: {e}")
 
-            # Restaurar parámetros actuales
-            if 'metadata' in state and 'current_parameters' in state['metadata']:
-                self.current_parameters = state['metadata']['current_parameters']
+        # Restaurar parámetros actuales y metadata
+        try:
+            if 'metadata' in state:
+                metadata = state['metadata']
+                if 'current_parameters' in metadata:
+                    self.current_parameters = metadata['current_parameters']
+                if 'total_trades_all_time' in metadata:
+                    self.total_trades_all_time = metadata['total_trades_all_time']
+                    logger.debug(f"  ✅ Total trades all time: {self.total_trades_all_time}")
+                logger.debug("  ✅ Metadata restaurada")
+        except Exception as e:
+            logger.warning(f"⚠️ Error restaurando metadata: {e}")
 
-            # Restaurar histórico de cambios
+        # Restaurar histórico de cambios
+        try:
             if 'change_history' in state:
                 self.change_history = state['change_history']
-                logger.info(f"📚 {len(self.change_history)} cambios históricos restaurados")
-
-            logger.info("✅ Estado completo restaurado exitosamente")
-
+                logger.info(f"  ✅ {len(self.change_history)} cambios históricos restaurados")
         except Exception as e:
-            logger.error(f"❌ Error restaurando estado: {e}", exc_info=True)
+            logger.warning(f"⚠️ Error restaurando change history: {e}")
+
+        logger.info("✅ Estado completo restaurado exitosamente")
 
     async def evaluate_trade_opportunity(
         self,
@@ -754,30 +782,59 @@ class AutonomyController:
         logger.info(f"📥 Import manual solicitado desde: {file_path} (merge={merge}, force={force})")
 
         # Importar el archivo (con force si se especifica)
+        logger.debug(f"📥 Paso 1/3: Importando archivo con force={force}")
         success = self.persistence.import_from_file(file_path, force=force)
 
         if not success:
             logger.error("❌ Falló la importación del archivo")
             return False
 
-        # Recargar la inteligencia importada
-        loaded = self.persistence.load_full_state()
+        logger.info("✅ Paso 1/3 completado: Archivo importado exitosamente")
+
+        # Recargar la inteligencia importada (con force para ignorar checksum)
+        logger.debug(f"📥 Paso 2/3: Cargando estado con force={force}")
+        loaded = self.persistence.load_full_state(force=force)
 
         if not loaded:
             logger.error("❌ No se pudo cargar la inteligencia importada")
             return False
 
+        logger.info("✅ Paso 2/3 completado: Estado cargado exitosamente")
+
         # Restaurar todo el estado
+        logger.debug("📥 Paso 3/3: Restaurando componentes del sistema")
+
         try:
             # Restaurar RL Agent (con o sin merge)
+            logger.debug("  • Restaurando RL Agent...")
+            if 'rl_agent' not in loaded:
+                logger.error("❌ No se encontró 'rl_agent' en el archivo importado")
+                return False
+
             self.rl_agent.load_from_dict(loaded['rl_agent'], merge=merge)
-            logger.info("✅ RL Agent restaurado")
+            logger.info("  ✅ RL Agent restaurado")
 
+        except Exception as e:
+            logger.error(f"❌ Error restaurando RL Agent: {e}", exc_info=True)
+            return False
+
+        try:
             # Restaurar Parameter Optimizer (con o sin merge)
-            self.parameter_optimizer.load_from_dict(loaded['parameter_optimizer'], merge=merge)
-            logger.info("✅ Parameter Optimizer restaurado")
+            logger.debug("  • Restaurando Parameter Optimizer...")
+            if 'parameter_optimizer' not in loaded:
+                logger.warning("⚠️ No se encontró 'parameter_optimizer' en el archivo - usando estado vacío")
+                # Continuar con optimizer vacío
+            else:
+                self.parameter_optimizer.load_from_dict(loaded['parameter_optimizer'], merge=merge)
+            logger.info("  ✅ Parameter Optimizer restaurado")
 
+        except Exception as e:
+            logger.warning(f"⚠️ Error restaurando Parameter Optimizer (continuando): {e}")
+            # No es crítico, continuar
+
+        try:
             # Restaurar historial de cambios
+            logger.debug("  • Restaurando historial de cambios...")
             if merge:
                 # En merge, agregar cambios históricos a los existentes
                 imported_changes = loaded.get('change_history', [])
@@ -785,13 +842,19 @@ class AutonomyController:
                 # Mantener solo últimos 100
                 if len(self.change_history) > 100:
                     self.change_history = self.change_history[-100:]
-                logger.info(f"✅ {len(imported_changes)} cambios históricos agregados (total: {len(self.change_history)})")
+                logger.info(f"  ✅ {len(imported_changes)} cambios históricos agregados (total: {len(self.change_history)})")
             else:
                 # En replace, reemplazar completamente
                 self.change_history = loaded.get('change_history', [])
-                logger.info(f"✅ Histórico de cambios restaurado: {len(self.change_history)} cambios")
+                logger.info(f"  ✅ Histórico de cambios restaurado: {len(self.change_history)} cambios")
 
+        except Exception as e:
+            logger.warning(f"⚠️ Error restaurando historial de cambios (continuando): {e}")
+            # No es crítico, continuar
+
+        try:
             # Restaurar metadata
+            logger.debug("  • Restaurando metadata...")
             metadata = loaded.get('metadata', {})
             if metadata:
                 if merge:
@@ -803,7 +866,7 @@ class AutonomyController:
                     imported_all_time = metadata.get('total_trades_all_time', metadata.get('total_trades_processed', 0))
                     self.total_trades_all_time += imported_all_time
                     self.total_parameter_changes += metadata.get('total_parameter_changes', 0)
-                    logger.info(f"✅ Metadata acumulada (trades totales: {self.total_trades_all_time}, max leverage: {self._calculate_max_leverage()}x)")
+                    logger.info(f"  ✅ Metadata acumulada (trades totales: {self.total_trades_all_time}, max leverage: {self._calculate_max_leverage()}x)")
                 else:
                     # En replace, reemplazar completamente
                     self.current_parameters = metadata.get('current_parameters', {})
@@ -812,9 +875,17 @@ class AutonomyController:
                     self.total_trades_all_time = metadata.get('total_trades_all_time', metadata.get('total_trades_processed', 0))
                     self.total_parameter_changes = metadata.get('total_parameter_changes', 0)
                     self.decision_mode = metadata.get('decision_mode', 'BALANCED')
-                    logger.info(f"✅ Metadata restaurada (trades totales: {self.total_trades_all_time}, max leverage: {self._calculate_max_leverage()}x)")
+                    logger.info(f"  ✅ Metadata restaurada (trades totales: {self.total_trades_all_time}, max leverage: {self._calculate_max_leverage()}x)")
+            else:
+                logger.warning("⚠️ No se encontró metadata en el archivo - usando valores por defecto")
 
+        except Exception as e:
+            logger.warning(f"⚠️ Error restaurando metadata (continuando): {e}")
+            # No es crítico, continuar
+
+        try:
             # Restaurar performance history
+            logger.debug("  • Restaurando performance history...")
             perf_history = loaded.get('performance_history', {})
             if perf_history.get('recent_performance'):
                 if merge:
@@ -826,10 +897,28 @@ class AutonomyController:
                 else:
                     # En replace, reemplazar
                     self.performance_history = perf_history['recent_performance']
-
-            logger.info(f"✅ Inteligencia importada y {'combinada' if merge else 'restaurada'} completamente")
-            return True
+                logger.info(f"  ✅ Performance history restaurada ({len(self.performance_history)} entradas)")
+            else:
+                logger.warning("⚠️ No se encontró performance history en el archivo")
 
         except Exception as e:
-            logger.error(f"❌ Error restaurando estado importado: {e}", exc_info=True)
-            return False
+            logger.warning(f"⚠️ Error restaurando performance history (continuando): {e}")
+            # No es crítico, continuar
+
+        # Éxito completo
+        mode_str = "combinada" if merge else "restaurada"
+        force_str = " (FORCE MODE)" if force else ""
+        logger.info(f"✅ Paso 3/3 completado: Componentes restaurados")
+        logger.info(f"🎉 Inteligencia importada y {mode_str} completamente{force_str}")
+
+        # Resumen final
+        logger.info(
+            f"📊 Resumen de importación:\n"
+            f"  • RL Agent: {self.rl_agent.total_trades} trades, {len(self.rl_agent.q_table)} estados\n"
+            f"  • Total trades all time: {self.total_trades_all_time}\n"
+            f"  • Max leverage: {self._calculate_max_leverage()}x\n"
+            f"  • Parameter changes: {self.total_parameter_changes}\n"
+            f"  • Change history: {len(self.change_history)} cambios"
+        )
+
+        return True

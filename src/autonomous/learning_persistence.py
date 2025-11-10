@@ -106,9 +106,12 @@ class LearningPersistence:
             logger.error(f"❌ Error guardando inteligencia: {e}", exc_info=True)
             return False
 
-    def load_full_state(self) -> Optional[Dict]:
+    def load_full_state(self, force: bool = False) -> Optional[Dict]:
         """
         Carga estado completo del sistema autónomo
+
+        Args:
+            force: Si True, ignora errores de checksum y carga de todos modos
 
         Returns:
             Dict con todo el estado guardado, o None si no existe
@@ -123,15 +126,23 @@ class LearningPersistence:
             with gzip.open(self.main_file, 'rt', encoding='utf-8') as f:
                 full_state = json.load(f)
 
-            # Validar checksum
+            # Validar checksum (solo si force=False)
             saved_checksum = full_state.pop('checksum', None)
-            state_str = json.dumps(full_state, sort_keys=True)
-            calculated_checksum = hashlib.sha256(state_str.encode()).hexdigest()
 
-            if saved_checksum != calculated_checksum:
-                logger.warning("⚠️ Checksum no coincide - archivo puede estar corrupto")
-                # Intentar cargar backup
-                return self._load_backup()
+            if not force and saved_checksum:
+                state_str = json.dumps(full_state, sort_keys=True)
+                calculated_checksum = hashlib.sha256(state_str.encode()).hexdigest()
+
+                if saved_checksum != calculated_checksum:
+                    logger.warning(
+                        f"⚠️ Checksum no coincide - archivo puede estar corrupto\n"
+                        f"   Esperado: {saved_checksum}\n"
+                        f"   Calculado: {calculated_checksum}\n"
+                        f"   Intentando cargar de todos modos..."
+                    )
+                    # NO fallar, solo advertir - continuar cargando
+            elif force:
+                logger.warning("🔧 MODO FORCE: Ignorando validación de checksum en load_full_state")
 
             # Log resumen de lo cargado
             self._log_load_summary(full_state)
@@ -142,8 +153,12 @@ class LearningPersistence:
 
         except Exception as e:
             logger.error(f"❌ Error cargando inteligencia: {e}", exc_info=True)
-            # Intentar cargar backup
-            return self._load_backup()
+            # Intentar cargar backup solo si no es force mode
+            if not force:
+                return self._load_backup()
+            else:
+                logger.error("🔧 FORCE MODE: No se intentará cargar backup")
+                return None
 
     def _load_backup(self) -> Optional[Dict]:
         """Intenta cargar desde archivo de backup"""
