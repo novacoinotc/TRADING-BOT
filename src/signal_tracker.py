@@ -13,6 +13,27 @@ from config import config
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_for_json(obj):
+    """
+    Convierte objetos no serializables (pandas Series, numpy, etc.) a tipos JSON válidos
+    """
+    import pandas as pd
+    import numpy as np
+
+    if isinstance(obj, (pd.Series, pd.DataFrame)):
+        return obj.to_dict()
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.integer, np.floating)):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(item) for item in obj]
+    else:
+        return obj
+
+
 class SignalTracker:
     """
     Tracks trading signals and their outcomes for accuracy calculation
@@ -48,8 +69,11 @@ class SignalTracker:
             # Ensure directory exists
             self.tracking_file.parent.mkdir(parents=True, exist_ok=True)
 
+            # Sanitizar datos antes de guardar (convierte pandas Series, numpy, etc. a JSON)
+            sanitized_signals = _sanitize_for_json(self.signals)
+
             with open(self.tracking_file, 'w', encoding='utf-8') as f:
-                json.dump(self.signals, f, indent=2, ensure_ascii=False)
+                json.dump(sanitized_signals, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Error saving signals: {e}")
 
@@ -64,14 +88,18 @@ class SignalTracker:
             indicators: Technical indicators
             reasons: Reasons for the signal
         """
+        # Sanitizar indicators para evitar pandas Series u objetos no serializables
+        sanitized_indicators = _sanitize_for_json(indicators)
+        sanitized_reasons = _sanitize_for_json(reasons)
+
         signal = {
             'id': len(self.signals) + 1,
             'pair': pair,
             'action': action,
             'signal_price': price,
             'signal_time': datetime.now().isoformat(),
-            'indicators': indicators,
-            'reasons': reasons,
+            'indicators': sanitized_indicators,
+            'reasons': sanitized_reasons,
             'status': 'pending',  # pending, success, failed
             'outcome_price': None,
             'outcome_time': None,
