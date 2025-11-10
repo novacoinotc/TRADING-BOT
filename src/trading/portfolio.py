@@ -57,9 +57,10 @@ class Portfolio:
         return pair in self.positions
 
     def open_position(self, pair: str, side: str, entry_price: float,
-                     quantity: float, stop_loss: float, take_profit: Dict) -> Dict:
+                     quantity: float, stop_loss: float, take_profit: Dict,
+                     trade_type: str = 'SPOT', leverage: int = 1) -> Dict:
         """
-        Abre nueva posición
+        Abre nueva posición (SPOT o FUTURES)
 
         Args:
             pair: Par de trading (ej. BTC/USDT)
@@ -68,22 +69,45 @@ class Portfolio:
             quantity: Cantidad en cripto
             stop_loss: Precio de stop loss
             take_profit: Dict con tp1, tp2, tp3
+            trade_type: 'SPOT' o 'FUTURES'
+            leverage: 1-20x (solo para FUTURES)
 
         Returns:
             Posición creada
         """
         position_value = entry_price * quantity
 
-        # Reducir balance disponible
-        self.balance -= position_value
+        # Para SPOT: usa el valor completo
+        # Para FUTURES: solo usa colateral (valor / leverage)
+        if trade_type == 'FUTURES':
+            collateral = position_value / leverage
+            self.balance -= collateral
+        else:
+            self.balance -= position_value
+
+        # Calcular liquidation price para futures
+        liquidation_price = None
+        if trade_type == 'FUTURES':
+            # Fórmula simplificada de liquidación
+            # Para LONG: liquidation = entry * (1 - 1/leverage * 0.9)
+            # Para SHORT: liquidation = entry * (1 + 1/leverage * 0.9)
+            if side == 'BUY':
+                liquidation_price = entry_price * (1 - (1 / leverage) * 0.9)
+            else:  # SELL
+                liquidation_price = entry_price * (1 + (1 / leverage) * 0.9)
 
         position = {
             'pair': pair,
             'side': side,
+            'trade_type': trade_type,
+            'leverage': leverage,
             'entry_price': entry_price,
             'entry_time': datetime.now().isoformat(),
             'quantity': quantity,
             'position_value': position_value,
+            'collateral': position_value / leverage if trade_type == 'FUTURES' else position_value,
+            'liquidation_price': liquidation_price,
+            'liquidated': False,
             'stop_loss': stop_loss,
             'take_profit': take_profit,
             'current_price': entry_price,
@@ -94,14 +118,17 @@ class Portfolio:
         self.positions[pair] = position
         self.total_trades += 1
 
-        logger.info(f"📈 Posición abierta: {pair} {side} @ ${entry_price:.2f} | Qty: {quantity:.6f}")
+        log_msg = f"📈 Posición abierta: {pair} {side} {trade_type} @ ${entry_price:.2f}"
+        if trade_type == 'FUTURES':
+            log_msg += f" | Leverage: {leverage}x | Liquidación: ${liquidation_price:.2f}"
+        logger.info(log_msg)
 
         self._save_portfolio()
         return position
 
     def update_position(self, pair: str, current_price: float) -> Optional[Dict]:
         """
-        Actualiza posición con precio actual
+        Actualiza posición con precio actual y verifica liquidación para futures
 
         Args:
             pair: Par de trading
@@ -122,7 +149,29 @@ class Portfolio:
         else:  # SELL
             pnl = (position['entry_price'] - current_price) * position['quantity']
 
+        # Para FUTURES: multiplicar PnL por leverage
+        if position.get('trade_type') == 'FUTURES':
+            leverage = position.get('leverage', 1)
+            pnl = pnl * leverage
+
         position['unrealized_pnl'] = pnl
+
+        # Verificar liquidación para FUTURES
+        if position.get('trade_type') == 'FUTURES' and not position.get('liquidated'):
+            liquidation_price = position.get('liquidation_price')
+            if liquidation_price:
+                is_liquidated = False
+                if position['side'] == 'BUY' and current_price <= liquidation_price:
+                    is_liquidated = True
+                elif position['side'] == 'SELL' and current_price >= liquidation_price:
+                    is_liquidated = True
+
+                if is_liquidated:
+                    logger.warning(f"💥 LIQUIDACIÓN en {pair}! Precio: ${current_price:.2f} | Liquidación: ${liquidation_price:.2f}")
+                    position['liquidated'] = True
+                    # Cerrar posición inmediatamente por liquidación
+                    self.close_position(pair, current_price, reason='LIQUIDATION')
+                    return None  # Posición ya no existe
 
         # Actualizar equity
         self._update_equity()
@@ -146,6 +195,9 @@ class Portfolio:
             return None
 
         position = self.positions[pair]
+        trade_type = position.get('trade_type', 'SPOT')
+        leverage = position.get('leverage', 1)
+        liquidated = position.get('liquidated', False)
 
         # Calcular P&L realizado
         if position['side'] == 'BUY':
@@ -155,9 +207,29 @@ class Portfolio:
             pnl = (position['entry_price'] - exit_price) * position['quantity']
             pnl_pct = ((position['entry_price'] / exit_price) - 1) * 100
 
-        # Devolver capital + ganancia/pérdida
-        exit_value = exit_price * position['quantity']
-        self.balance += exit_value
+        # Para FUTURES: aplicar leverage al PnL
+        exit_value = 0
+        if trade_type == 'FUTURES':
+            pnl = pnl * leverage
+            pnl_pct = pnl_pct * leverage
+
+            # Para LIQUIDACIÓN: PnL es -100% del colateral
+            if reason == 'LIQUIDATION':
+                collateral = position.get('collateral', position['position_value'] / leverage)
+                pnl = -collateral
+                pnl_pct = -100.0
+                exit_value = 0  # Se pierde todo
+                # Devolver 0 (se pierde todo el colateral)
+                self.balance += 0
+            else:
+                # Devolver colateral + PnL
+                collateral = position.get('collateral', position['position_value'] / leverage)
+                exit_value = collateral + pnl
+                self.balance += exit_value
+        else:
+            # SPOT: devolver capital + ganancia/pérdida
+            exit_value = exit_price * position['quantity']
+            self.balance += exit_value
 
         # Actualizar estadísticas
         if pnl > 0:
@@ -176,7 +248,8 @@ class Portfolio:
             'pnl': pnl,
             'pnl_pct': pnl_pct,
             'reason': reason,
-            'status': 'CLOSED'
+            'status': 'CLOSED',
+            'duration': (datetime.fromisoformat(position['entry_time']) if isinstance(position.get('entry_time'), str) else datetime.now() - position.get('entry_time', datetime.now())).total_seconds() / 60 if 'entry_time' in position else 0
         }
 
         self.closed_trades.append(closed_trade)

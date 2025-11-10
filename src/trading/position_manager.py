@@ -68,7 +68,7 @@ class PositionManager:
 
     def _open_new_position(self, pair: str, signal: Dict, current_price: float) -> Optional[Dict]:
         """
-        Abre nueva posición basada en la señal
+        Abre nueva posición basada en la señal (SPOT o FUTURES)
 
         Args:
             pair: Par de trading
@@ -82,6 +82,10 @@ class PositionManager:
         stop_loss = signal.get('stop_loss', 0)
         take_profit = signal.get('take_profit', {})
 
+        # Obtener parámetros de futuros de la señal (si vienen del RL Agent)
+        trade_type = signal.get('trade_type', 'SPOT')
+        leverage = signal.get('leverage', 1)
+
         # Calcular tamaño de posición
         available_balance = self.portfolio.get_available_balance()
         max_position_value = (self.portfolio.get_equity() * self.max_position_size_pct) / 100
@@ -89,9 +93,16 @@ class PositionManager:
         # Usar el menor entre balance disponible y máximo por posición
         position_value = min(available_balance, max_position_value)
 
-        if position_value < 10:  # Mínimo $10 por trade
-            logger.warning(f"Balance insuficiente para abrir posición en {pair}: ${position_value:.2f}")
-            return None
+        # Para FUTURES, el colateral requerido es menor (position_value / leverage)
+        if trade_type == 'FUTURES':
+            collateral_required = position_value / leverage
+            if collateral_required < 10:
+                logger.warning(f"Colateral insuficiente para futuros en {pair}: ${collateral_required:.2f}")
+                return None
+        else:
+            if position_value < 10:  # Mínimo $10 por trade
+                logger.warning(f"Balance insuficiente para abrir posición en {pair}: ${position_value:.2f}")
+                return None
 
         # Calcular cantidad de cripto a comprar/vender
         quantity = position_value / current_price
@@ -103,7 +114,9 @@ class PositionManager:
             entry_price=current_price,
             quantity=quantity,
             stop_loss=stop_loss,
-            take_profit=take_profit
+            take_profit=take_profit,
+            trade_type=trade_type,
+            leverage=leverage
         )
 
         return position

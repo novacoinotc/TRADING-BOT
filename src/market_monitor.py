@@ -440,11 +440,14 @@ class MarketMonitor:
                         # Decidir si ejecutar trade basado en RL Agent
                         should_execute_trade = rl_decision.get('should_trade', True)
 
-                        # Aplicar modificador de tamaño de posición
+                        # Aplicar parámetros del RL Agent (tamaño, trade_type, leverage)
                         if should_execute_trade and 'position_size_multiplier' in rl_decision:
                             # Pasar el multiplicador a la señal para que ml_system lo use
                             signals['rl_position_multiplier'] = rl_decision['position_size_multiplier']
                             signals['rl_action'] = rl_decision.get('chosen_action', 'UNKNOWN')
+                            # Pasar trade_type y leverage para futuros
+                            signals['trade_type'] = rl_decision.get('trade_type', 'SPOT')
+                            signals['leverage'] = rl_decision.get('leverage', 1)
 
                     # Ejecutar trade solo si RL Agent lo aprueba
                     if should_execute_trade:
@@ -754,10 +757,13 @@ class MarketMonitor:
                     'total_trades': stats['total_trades']
                 }
 
-            # Preparar datos del trade
+            # Preparar datos del trade (incluir campos de futuros)
             trade_data = {
                 'pair': closed_trade.get('pair', 'UNKNOWN'),
                 'action': closed_trade.get('action', 'UNKNOWN'),
+                'trade_type': closed_trade.get('trade_type', 'SPOT'),
+                'leverage': closed_trade.get('leverage', 1),
+                'liquidated': closed_trade.get('liquidated', False),
                 'entry_price': closed_trade.get('entry_price', 0),
                 'exit_price': closed_trade.get('exit_price', 0),
                 'profit_pct': closed_trade.get('profit_pct', 0),
