@@ -215,11 +215,20 @@ class MLIntegration:
 
         return result
 
-    def _retrain_model(self):
-        """Reentrena modelo ML con trades cerrados"""
+    def _retrain_model(self, external_paper_trader=None):
+        """
+        Reentrena modelo ML con trades cerrados
+
+        Args:
+            external_paper_trader: Paper trader externo para usar sus trades
+                                  Si es None, usa self.paper_trader
+        """
         try:
+            # Usar paper_trader externo si se proporcionó, sino usar el interno
+            paper_trader = external_paper_trader if external_paper_trader else self.paper_trader
+
             # Obtener trades cerrados
-            closed_trades = self.paper_trader.get_closed_trades(limit=500)
+            closed_trades = paper_trader.get_closed_trades(limit=500)
 
             if len(closed_trades) < self.trainer.min_samples:
                 logger.warning(f"Insuficientes trades para reentrenar: {len(closed_trades)}")
@@ -444,13 +453,16 @@ Señales en buffer: {stats['training_buffer_size']}
         self.predictor.disable()
         logger.info("❌ Predicciones ML deshabilitadas")
 
-    def force_retrain(self, min_samples_override: int = None):
+    def force_retrain(self, min_samples_override: int = None, external_paper_trader=None):
         """
         Fuerza reentrenamiento inmediato, opcionalmente con threshold reducido
 
         Args:
             min_samples_override: Si se proporciona, usa este threshold temporalmente
                                  Útil para entrenar con menos datos (ej: 25 en lugar de 30)
+            external_paper_trader: Paper trader externo para usar sus trades
+                                  (útil cuando el ML System tiene portfolio vacío pero
+                                   autonomy_controller tiene portfolio restaurado)
         """
         logger.info("🔄 Forzando reentrenamiento de modelo...")
 
@@ -464,7 +476,7 @@ Señales en buffer: {stats['training_buffer_size']}
                 self.trainer.min_samples = min_samples_override
 
             # Ejecutar reentrenamiento
-            self._retrain_model()
+            self._retrain_model(external_paper_trader=external_paper_trader)
 
         finally:
             # Restaurar threshold original SIEMPRE

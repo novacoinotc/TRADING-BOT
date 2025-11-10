@@ -571,15 +571,24 @@ class TelegramCommands:
 
             ml_system = self.market_monitor.ml_system
 
-            # Obtener estadísticas del paper trader
-            if not hasattr(ml_system, 'paper_trader') or not ml_system.paper_trader:
+            # USAR EL PORTFOLIO DEL AUTONOMY CONTROLLER (que SÍ se restaura en /import)
+            # en lugar del portfolio interno del ML System
+            if not hasattr(self, 'autonomy_controller') or not self.autonomy_controller:
+                await update.message.reply_text(
+                    "⚠️ **Autonomy Controller no disponible**\n\n"
+                    "No se puede acceder al portfolio."
+                )
+                return
+
+            paper_trader = self.autonomy_controller.paper_trader
+            if not paper_trader or not hasattr(paper_trader, 'portfolio'):
                 await update.message.reply_text(
                     "⚠️ **Paper Trader no disponible**\n\n"
                     "No hay datos para entrenar."
                 )
                 return
 
-            stats = ml_system.paper_trader.portfolio.get_statistics()
+            stats = paper_trader.portfolio.get_statistics()
             total_trades = stats.get('total_trades', 0)
 
             if total_trades < 25:
@@ -592,8 +601,12 @@ class TelegramCommands:
                 return
 
             # Forzar entrenamiento con threshold reducido
+            # Pasar el paper_trader del autonomy_controller (que tiene los datos restaurados)
             logger.info(f"Forzando entrenamiento ML con {total_trades} trades")
-            ml_system.force_retrain(min_samples_override=25)
+            ml_system.force_retrain(
+                min_samples_override=25,
+                external_paper_trader=paper_trader
+            )
 
             # Obtener info del modelo entrenado
             model_info = ml_system.trainer.get_model_info()

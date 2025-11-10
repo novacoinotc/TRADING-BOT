@@ -128,22 +128,48 @@ class MarketMonitor:
         """
         Auto-entrena el ML System si hay suficientes trades históricos (40+)
         Se ejecuta automáticamente al inicializar MarketMonitor
+
+        IMPORTANTE: Usa el paper_trader del autonomy_controller si está disponible
+        (porque ese SÍ se restaura con /import), en lugar del paper_trader interno
+        del ML System que puede estar vacío después de un import.
         """
         try:
-            if not self.ml_system or not hasattr(self.ml_system, 'paper_trader'):
+            if not self.ml_system:
                 return
 
-            # Obtener estadísticas del paper trader
-            stats = self.ml_system.paper_trader.portfolio.get_statistics()
-            total_trades = stats.get('total_trades', 0)
+            # Intentar usar el paper_trader del autonomy_controller primero
+            # (porque ese SÍ se restaura en /import)
+            paper_trader = None
+            total_trades = 0
+
+            if hasattr(self, 'autonomy_controller') and self.autonomy_controller:
+                if hasattr(self.autonomy_controller, 'paper_trader') and self.autonomy_controller.paper_trader:
+                    paper_trader = self.autonomy_controller.paper_trader
+                    stats = paper_trader.portfolio.get_statistics()
+                    total_trades = stats.get('total_trades', 0)
+                    logger.debug(f"📊 Usando paper_trader del autonomy_controller: {total_trades} trades")
+
+            # Fallback: usar el paper_trader interno del ML System
+            if not paper_trader and hasattr(self.ml_system, 'paper_trader') and self.ml_system.paper_trader:
+                paper_trader = self.ml_system.paper_trader
+                stats = paper_trader.portfolio.get_statistics()
+                total_trades = stats.get('total_trades', 0)
+                logger.debug(f"📊 Usando paper_trader interno del ML System: {total_trades} trades")
+
+            if not paper_trader:
+                logger.debug("📊 No hay paper_trader disponible para auto-entrenamiento")
+                return
 
             # Verificar si hay suficientes trades para entrenar (40+)
             if total_trades >= 40:
                 logger.info(f"🤖 Detectados {total_trades} trades históricos - Iniciando auto-entrenamiento ML...")
 
                 # Forzar entrenamiento con threshold reducido (25 samples mínimo)
-                # Esto permite entrenar con menos datos de lo normal
-                self.ml_system.force_retrain(min_samples_override=25)
+                # Pasar el paper_trader que tiene los datos
+                self.ml_system.force_retrain(
+                    min_samples_override=25,
+                    external_paper_trader=paper_trader
+                )
 
                 logger.info("✅ ML System entrenado automáticamente con datos históricos")
             elif total_trades > 0:
