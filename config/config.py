@@ -154,3 +154,70 @@ ENABLE_AUTONOMOUS_MODE = os.getenv('ENABLE_AUTONOMOUS_MODE', 'true').lower() == 
 AUTONOMOUS_AUTO_SAVE_INTERVAL = int(os.getenv('AUTONOMOUS_AUTO_SAVE_INTERVAL', '30'))  # Minutos entre auto-saves
 AUTONOMOUS_OPTIMIZATION_INTERVAL = float(os.getenv('AUTONOMOUS_OPTIMIZATION_INTERVAL', '2.0'))  # Horas entre optimizaciones
 AUTONOMOUS_MIN_TRADES_BEFORE_OPT = int(os.getenv('AUTONOMOUS_MIN_TRADES_BEFORE_OPT', '20'))  # Mínimo trades antes de optimizar
+
+# ============================================================================
+# NUEVOS PARÁMETROS DE AUTONOMÍA 100% - CONTROL TOTAL DE LA IA
+# ============================================================================
+
+# Smart Order Routing (Spot vs Futures dinámico)
+# La IA decide automáticamente si usar SPOT o FUTURES según condiciones de mercado
+SMART_ROUTING_ENABLED = os.getenv('SMART_ROUTING_ENABLED', 'true').lower() == 'true'
+MIN_CONFIDENCE_FOR_FUTURES = float(os.getenv('MIN_CONFIDENCE_FOR_FUTURES', '70.0'))  # 60-85% (optimizable)
+MIN_WINRATE_FOR_FUTURES = float(os.getenv('MIN_WINRATE_FOR_FUTURES', '55.0'))  # 45-65% (optimizable)
+MAX_DRAWDOWN_FOR_FUTURES = float(os.getenv('MAX_DRAWDOWN_FOR_FUTURES', '10.0'))  # 5-15% (optimizable)
+VOLATILITY_THRESHOLD_FUTURES = float(os.getenv('VOLATILITY_THRESHOLD_FUTURES', '0.02'))  # 0.015-0.03 (optimizable)
+CONSERVATIVE_LEVERAGE = int(os.getenv('CONSERVATIVE_LEVERAGE', '3'))  # 2-5x (optimizable)
+BALANCED_LEVERAGE = int(os.getenv('BALANCED_LEVERAGE', '8'))  # 5-10x (optimizable)
+AGGRESSIVE_LEVERAGE = int(os.getenv('AGGRESSIVE_LEVERAGE', '15'))  # 10-20x (optimizable)
+
+# Trailing Stops Automáticos
+# Stop loss dinámico que sigue el precio y protege ganancias automáticamente
+TRAILING_STOP_ENABLED = os.getenv('TRAILING_STOP_ENABLED', 'true').lower() == 'true'
+TRAILING_DISTANCE_PCT = float(os.getenv('TRAILING_DISTANCE_PCT', '0.4'))  # 0.3-0.7% (optimizable)
+BREAKEVEN_AFTER_PCT = float(os.getenv('BREAKEVEN_AFTER_PCT', '0.5'))  # 0.3-1.0% (optimizable)
+LOCK_PROFIT_STEP_PCT = float(os.getenv('LOCK_PROFIT_STEP_PCT', '0.5'))  # 0.3-0.8% (optimizable)
+MIN_PROFIT_TO_LOCK_PCT = float(os.getenv('MIN_PROFIT_TO_LOCK_PCT', '0.3'))  # 0.2-0.5% (optimizable)
+
+# Position Sizing Agresivo
+# Ampliado de 8% a 12% para permitir mayor agresividad en señales excelentes
+MAX_POSITION_SIZE_PCT = float(os.getenv('MAX_POSITION_SIZE_PCT', '12.0'))  # Máximo 12% (antes 8%)
+BASE_POSITION_SIZE_PCT = float(os.getenv('BASE_POSITION_SIZE_PCT', '4.0'))  # 2-12% (optimizable)
+
+# Anomaly Detection System
+# Detecta comportamiento anómalo y revierte parámetros automáticamente
+ANOMALY_DETECTION_ENABLED = os.getenv('ANOMALY_DETECTION_ENABLED', 'true').lower() == 'true'
+PERFORMANCE_DEGRADATION_THRESHOLD = float(os.getenv('PERFORMANCE_DEGRADATION_THRESHOLD', '10.0'))  # 5-20% (optimizable)
+OUTLIER_STD_THRESHOLD = float(os.getenv('OUTLIER_STD_THRESHOLD', '3.0'))  # 2.0-4.0 (optimizable)
+MIN_TRADES_FOR_DETECTION = int(os.getenv('MIN_TRADES_FOR_DETECTION', '20'))  # 10-50 (optimizable)
+ANOMALY_LOOKBACK_WINDOW = int(os.getenv('ANOMALY_LOOKBACK_WINDOW', '50'))  # 30-100 (optimizable)
+AUTO_REVERT_ENABLED = os.getenv('AUTO_REVERT_ENABLED', 'true').lower() == 'true'
+
+# A/B Testing de Estrategias
+# Prueba dos estrategias en paralelo y switch automático a la ganadora (EXPERIMENTAL)
+AB_TESTING_ENABLED = os.getenv('AB_TESTING_ENABLED', 'false').lower() == 'true'  # Deshabilitado por defecto
+AB_TEST_DURATION_TRADES = int(os.getenv('AB_TEST_DURATION_TRADES', '50'))  # 30-100 (optimizable)
+AB_TEST_DURATION_DAYS = int(os.getenv('AB_TEST_DURATION_DAYS', '7'))  # 3-14 (optimizable)
+AB_TEST_CAPITAL_SPLIT = float(os.getenv('AB_TEST_CAPITAL_SPLIT', '0.5'))  # 0.3-0.7 (optimizable)
+AB_TEST_MIN_CONFIDENCE = float(os.getenv('AB_TEST_MIN_CONFIDENCE', '0.8'))  # 0.7-0.95 (optimizable)
+AB_TEST_METRIC = os.getenv('AB_TEST_METRIC', 'win_rate')  # 'win_rate', 'profit_factor', 'sharpe_ratio'
+
+# ============================================================================
+# RESUMEN DE PARÁMETROS OPTIMIZABLES POR LA IA
+# ============================================================================
+# TOTAL: 62 parámetros optimizables (antes 41, +21 nuevos)
+#
+# Categorías:
+# 1. Trading Thresholds (5): CONSERVATIVE_THRESHOLD, FLASH_THRESHOLD, etc.
+# 2. Technical Indicators (11): RSI_PERIOD, MACD_FAST, EMA_SHORT, etc.
+# 3. Risk Management (4): BASE_POSITION_SIZE_PCT, MAX_DRAWDOWN_LIMIT, etc.
+# 4. ML Hyperparameters (9): N_ESTIMATORS, MAX_DEPTH, LEARNING_RATE, etc.
+# 5. Sentiment Analysis (8): NEWS_IMPORTANCE_THRESHOLD, etc.
+# 6. Dynamic Take Profits (5): TP1_BASE_PCT, TP2_BASE_PCT, etc.
+# 7. Smart Routing (7): MIN_CONFIDENCE_FOR_FUTURES, CONSERVATIVE_LEVERAGE, etc.
+# 8. Trailing Stops (4): TRAILING_DISTANCE_PCT, BREAKEVEN_AFTER_PCT, etc.
+# 9. Anomaly Detection (4): PERFORMANCE_DEGRADATION_THRESHOLD, etc.
+# 10. A/B Testing (5): AB_TEST_DURATION_TRADES, AB_TEST_CAPITAL_SPLIT, etc.
+#
+# La IA puede modificar CUALQUIERA de estos parámetros sin intervención humana
+# basándose en performance histórica y aprendizaje continuo
+# ============================================================================

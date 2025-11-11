@@ -98,6 +98,40 @@ class ParameterOptimizer:
 
             # ML Confidence Thresholds (NUEVO)
             'ML_CONFIDENCE_THRESHOLD': (0.55, 0.85, 'float'),  # confianza mínima para usar ML predictions
+
+            # ===== NUEVOS PARÁMETROS - AUTONOMÍA 100% =====
+
+            # Smart Order Routing (Spot vs Futures dinámico) - 7 parámetros
+            'MIN_CONFIDENCE_FOR_FUTURES': (60.0, 85.0, 'float'),  # % confianza mínima para usar futures
+            'MIN_WINRATE_FOR_FUTURES': (45.0, 65.0, 'float'),  # % win rate mínimo para usar futures
+            'MAX_DRAWDOWN_FOR_FUTURES': (5.0, 15.0, 'float'),  # % drawdown máximo para permitir futures
+            'VOLATILITY_THRESHOLD_FUTURES': (0.015, 0.03, 'float'),  # volatilidad mínima para futures
+            'CONSERVATIVE_LEVERAGE': (2, 5, 'int'),  # leverage conservador
+            'BALANCED_LEVERAGE': (5, 10, 'int'),  # leverage balanceado
+            'AGGRESSIVE_LEVERAGE': (10, 20, 'int'),  # leverage agresivo
+
+            # Trailing Stops Automáticos - 4 parámetros
+            'TRAILING_DISTANCE_PCT': (0.3, 0.7, 'float'),  # distancia del trailing stop
+            'BREAKEVEN_AFTER_PCT': (0.3, 1.0, 'float'),  # profit para activar breakeven
+            'LOCK_PROFIT_STEP_PCT': (0.3, 0.8, 'float'),  # step de lock de profits
+            'MIN_PROFIT_TO_LOCK_PCT': (0.2, 0.5, 'float'),  # mínimo profit para empezar trailing
+
+            # Position Sizing Agresivo - 1 parámetro (ya existe BASE_POSITION_SIZE_PCT pero ampliar max)
+            'MAX_POSITION_SIZE_PCT': (8.0, 12.0, 'float'),  # máximo position size (antes 8%, ahora hasta 12%)
+
+            # Anomaly Detection System - 4 parámetros
+            'PERFORMANCE_DEGRADATION_THRESHOLD': (5.0, 20.0, 'float'),  # % degradación para alertar
+            'OUTLIER_STD_THRESHOLD': (2.0, 4.0, 'float'),  # desviaciones estándar para outliers
+            'MIN_TRADES_FOR_DETECTION': (10, 50, 'int'),  # mínimo trades para detectar anomalías
+            'ANOMALY_LOOKBACK_WINDOW': (30, 100, 'int'),  # ventana de trades a considerar
+
+            # A/B Testing de Estrategias - 5 parámetros
+            'AB_TEST_DURATION_TRADES': (30, 100, 'int'),  # duración del A/B test en trades
+            'AB_TEST_DURATION_DAYS': (3, 14, 'int'),  # duración del A/B test en días
+            'AB_TEST_CAPITAL_SPLIT': (0.3, 0.7, 'float'),  # split de capital entre estrategias
+            'AB_TEST_MIN_CONFIDENCE': (0.7, 0.95, 'float'),  # confianza mínima para switch
+
+            # TOTAL: 62 parámetros optimizables (+21 nuevos)
             'ML_HIGH_CONFIDENCE_THRESHOLD': (0.75, 0.95, 'float'),  # confianza para boost agresivo
         }
 
