@@ -228,6 +228,33 @@ class AutonomyController:
         except Exception as e:
             logger.warning(f"⚠️ Error restaurando change history: {e}")
 
+        # Restaurar paper trading si viene en el export
+        try:
+            if 'paper_trading' in state and state['paper_trading']:
+                paper_state = state['paper_trading']
+
+                # Verificar que tenga datos
+                if paper_state.get('counters', {}).get('total_trades', 0) > 0:
+                    logger.info(
+                        f"📥 Restaurando paper trading desde export: "
+                        f"{paper_state.get('counters', {}).get('total_trades', 0)} trades"
+                    )
+
+                    # Restaurar estado completo del portfolio
+                    if hasattr(self, 'paper_trader') and self.paper_trader:
+                        success = self.paper_trader.portfolio.restore_from_state(paper_state)
+
+                        if success:
+                            logger.info("  ✅ Paper trading restaurado correctamente")
+                        else:
+                            logger.warning("  ⚠️ Fallo al restaurar paper trading, continuando sin historial")
+                    else:
+                        logger.warning("  ⚠️ Paper trader no disponible para restaurar")
+                else:
+                    logger.debug("  ⚠️ Paper trading en export pero sin trades, omitiendo")
+        except Exception as e:
+            logger.warning(f"⚠️ Error restaurando paper trading: {e}")
+
         logger.info("✅ Estado completo restaurado exitosamente")
 
     async def evaluate_trade_opportunity(
@@ -692,27 +719,15 @@ class AutonomyController:
             'decision_mode': self.decision_mode
         }
 
-        # Guardar estado de paper trading si existe
-        paper_trading_state = {}
-        if hasattr(self, 'paper_trader') and self.paper_trader and hasattr(self.paper_trader, 'portfolio'):
-            portfolio = self.paper_trader.portfolio
-            portfolio_stats = portfolio.get_statistics()
-
-            paper_trading_state = {
-                'initial_balance': portfolio.initial_balance,
-                'current_balance': portfolio.balance,
-                'total_pnl': portfolio_stats['net_pnl'],
-                'total_pnl_pct': portfolio_stats['roi'],
-                'peak_balance': portfolio.peak_equity,
-                'total_trades': portfolio.total_trades,
-                'winning_trades': portfolio.winning_trades,
-                'losing_trades': portfolio.losing_trades,
-                'win_rate': portfolio_stats['win_rate'],
-                'total_profit': portfolio.total_profit,
-                'total_loss': portfolio.total_loss,
-                'trades': portfolio.closed_trades[-100:]  # Últimos 100 trades
-            }
-            logger.debug(f"💰 Paper Trading incluido en export: {portfolio.total_trades} trades, ${portfolio.balance:,.2f} balance")
+        # Guardar estado de paper trading si existe (TODO EL HISTORIAL)
+        paper_trading_state = None
+        if hasattr(self, 'paper_trader') and self.paper_trader:
+            paper_trading_state = self.paper_trader.portfolio.get_full_state_for_export()
+            logger.debug(
+                f"📤 Exportando paper trading: "
+                f"{len(paper_trading_state.get('closed_trades', []))} trades, "
+                f"{paper_trading_state['counters']['total_trades']} total histórico"
+            )
 
         # Guardar training_buffer del ML System si existe
         ml_training_buffer = []
@@ -750,10 +765,53 @@ class AutonomyController:
         """Retorna parámetros actuales (para aplicar en el bot)"""
         return self.current_parameters.copy()
 
+    def validate_sync(self) -> Dict:
+        """
+        Valida sincronización entre Paper Trading y RL Agent
+        """
+        paper_trades = 0
+        rl_trades = 0
+
+        # Obtener conteos de cada sistema
+        if hasattr(self, 'paper_trader') and self.paper_trader:
+            paper_trades = self.paper_trader.portfolio.total_trades
+
+        if hasattr(self, 'rl_agent') and self.rl_agent:
+            rl_stats = self.rl_agent.get_statistics()
+            rl_trades = rl_stats.get('total_trades', 0)
+
+        in_sync = paper_trades == rl_trades
+
+        if not in_sync:
+            logger.error(
+                f"🚨 DESINCRONIZACIÓN DETECTADA:\n"
+                f"   Paper Trading: {paper_trades} trades\n"
+                f"   RL Agent: {rl_trades} trades\n"
+                f"   Diferencia: {abs(paper_trades - rl_trades)}"
+            )
+        else:
+            logger.debug(f"✅ Sincronización OK: {paper_trades} trades en ambos sistemas")
+
+        return {
+            'in_sync': in_sync,
+            'paper_trades': paper_trades,
+            'rl_trades': rl_trades,
+            'difference': abs(paper_trades - rl_trades)
+        }
+
     def get_statistics(self) -> Dict:
         """Retorna estadísticas completas del sistema autónomo"""
         rl_stats = self.rl_agent.get_statistics()
         opt_stats = self.parameter_optimizer.get_optimization_statistics()
+
+        # Validar sincronización
+        sync_status = self.validate_sync()
+
+        # Log warning si no están sincronizados
+        if not sync_status['in_sync']:
+            logger.warning(
+                f"⚠️ Paper Trading y RL Agent desincronizados por {sync_status['difference']} trades"
+            )
 
         return {
             'active': self.active,
@@ -762,6 +820,7 @@ class AutonomyController:
             'total_parameter_changes': self.total_parameter_changes,
             'rl_agent': rl_stats,
             'parameter_optimizer': opt_stats,
+            'sync_status': sync_status,  # ✅ NUEVO: validación de sincronización
             'last_optimization': self.last_optimization_time.isoformat(),
             'last_save': self.last_save_time.isoformat(),
             'current_parameters_count': len(self.current_parameters)

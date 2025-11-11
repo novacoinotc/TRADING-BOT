@@ -331,6 +331,13 @@ class TelegramCommands:
             portfolio = paper_trader.portfolio
             stats = paper_trader.get_statistics()
 
+            # Validar sincronización
+            sync = {'in_sync': True}
+            if self.autonomy_controller:
+                sync = self.autonomy_controller.validate_sync()
+
+            sync_emoji = "✅" if sync['in_sync'] else "⚠️"
+
             # Calcular métricas
             equity = portfolio.get_equity()
             initial_balance = 50000  # Balance inicial
@@ -356,8 +363,19 @@ class TelegramCommands:
                 "**📍 Posiciones:**\n"
                 f"  • Abiertas: {len(portfolio.positions) if hasattr(portfolio, 'positions') else 0}\n"
                 f"  • Cerradas: {len(portfolio.closed_trades) if hasattr(portfolio, 'closed_trades') else 0}\n\n"
-                "Usa /status para ver estado del sistema autónomo"
+                "**🔄 Sincronización:**\n"
+                f"  • Paper Trading ↔️ RL Agent: {sync_emoji}\n"
             )
+
+            if not sync['in_sync']:
+                message += (
+                    f"\n⚠️ **Desincronización detectada:**\n"
+                    f"  • Paper: {sync['paper_trades']} trades\n"
+                    f"  • RL Agent: {sync['rl_trades']} trades\n"
+                    f"  • Diferencia: {sync['difference']} trades\n"
+                )
+
+            message += "\nUsa /status para ver estado del sistema autónomo"
 
             await update.message.reply_text(message)
 

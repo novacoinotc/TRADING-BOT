@@ -360,10 +360,19 @@ class Portfolio:
             'balance': self.balance,
             'equity': self.equity,
             'positions': self.positions,
-            'closed_trades': self.closed_trades[-100:],  # Últimos 100 trades
+            'closed_trades': self.closed_trades,  # ✅ TODO EL HISTORIAL (sin límites)
+            'total_trades': self.total_trades,  # ✅ GUARDAR total histórico
+            'winning_trades': self.winning_trades,  # ✅ GUARDAR contadores
+            'losing_trades': self.losing_trades,
+            'total_profit': self.total_profit,
+            'total_loss': self.total_loss,
+            'max_drawdown': self.max_drawdown,
+            'peak_equity': self.peak_equity,
             'statistics': self.get_statistics(),
             'last_updated': datetime.now().isoformat()
         }
+
+        logger.debug(f"💾 Guardando portfolio: {len(self.closed_trades)} trades cerrados, {self.total_trades} total histórico")
 
         with open(self.portfolio_file, 'w') as f:
             json.dump(data, f, indent=2)
@@ -383,19 +392,99 @@ class Portfolio:
             self.positions = data.get('positions', {})
             self.closed_trades = data.get('closed_trades', [])
 
-            # Recalcular estadísticas desde closed_trades
-            for trade in self.closed_trades:
-                if trade['pnl'] > 0:
-                    self.winning_trades += 1
-                    self.total_profit += trade['pnl']
-                else:
-                    self.losing_trades += 1
-                    self.total_loss += abs(trade['pnl'])
+            # Cargar total_trades desde el archivo guardado, NO recalcular
+            saved_total = data.get('total_trades', len(self.closed_trades))
+            self.total_trades = saved_total
 
-            self.total_trades = len(self.closed_trades) + len(self.positions)
+            # Restaurar contadores guardados
+            self.winning_trades = data.get('winning_trades', 0)
+            self.losing_trades = data.get('losing_trades', 0)
+            self.total_profit = data.get('total_profit', 0.0)
+            self.total_loss = data.get('total_loss', 0.0)
+            self.max_drawdown = data.get('max_drawdown', 0.0)
+            self.peak_equity = data.get('peak_equity', self.initial_balance)
+
+            logger.info(f"📊 Total trades histórico: {self.total_trades}")
+
+            # SOLO recalcular si no hay contadores guardados (primera vez)
+            if not data.get('total_trades'):
+                # Recalcular estadísticas desde closed_trades
+                self.winning_trades = 0
+                self.losing_trades = 0
+                self.total_profit = 0.0
+                self.total_loss = 0.0
+
+                for trade in self.closed_trades:
+                    if trade['pnl'] > 0:
+                        self.winning_trades += 1
+                        self.total_profit += trade['pnl']
+                    else:
+                        self.losing_trades += 1
+                        self.total_loss += abs(trade['pnl'])
 
             logger.info(f"💰 Portfolio cargado: ${self.equity:,.2f} USDT | {len(self.positions)} posiciones abiertas")
 
         except Exception as e:
             logger.error(f"Error cargando portfolio: {e}")
             logger.info(f"💰 Nuevo portfolio creado: ${self.initial_balance:,.2f} USDT")
+
+    def get_full_state_for_export(self) -> Dict:
+        """
+        Retorna estado completo del portfolio para exportar con RL Agent
+        INCLUYE TODO EL HISTORIAL SIN LÍMITES
+        """
+        return {
+            'balance': self.balance,
+            'equity': self.equity,
+            'initial_balance': self.initial_balance,
+            'positions': self.positions,
+            'closed_trades': self.closed_trades,  # ✅ TODO EL HISTORIAL
+            'statistics': self.get_statistics(),
+            'counters': {
+                'total_trades': self.total_trades,
+                'winning_trades': self.winning_trades,
+                'losing_trades': self.losing_trades,
+                'total_profit': self.total_profit,
+                'total_loss': self.total_loss,
+                'max_drawdown': self.max_drawdown,
+                'peak_equity': self.peak_equity
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+
+    def restore_from_state(self, state: Dict) -> bool:
+        """
+        Restaura el portfolio completo desde un estado exportado
+        Usado para importar inteligencia con paper trading incluido
+        """
+        try:
+            self.balance = state.get('balance', self.initial_balance)
+            self.equity = state.get('equity', self.initial_balance)
+            self.positions = state.get('positions', {})
+            self.closed_trades = state.get('closed_trades', [])
+
+            # Restaurar contadores guardados (NO recalcular)
+            counters = state.get('counters', {})
+            self.total_trades = counters.get('total_trades', len(self.closed_trades))
+            self.winning_trades = counters.get('winning_trades', 0)
+            self.losing_trades = counters.get('losing_trades', 0)
+            self.total_profit = counters.get('total_profit', 0.0)
+            self.total_loss = counters.get('total_loss', 0.0)
+            self.max_drawdown = counters.get('max_drawdown', 0.0)
+            self.peak_equity = counters.get('peak_equity', self.initial_balance)
+
+            logger.info(
+                f"✅ Portfolio restaurado desde export:\n"
+                f"   Balance: ${self.balance:,.2f}\n"
+                f"   Total trades: {self.total_trades}\n"
+                f"   Closed trades cargados: {len(self.closed_trades)}\n"
+                f"   Win rate: {(self.winning_trades/self.total_trades*100) if self.total_trades > 0 else 0:.1f}%"
+            )
+
+            # Guardar estado restaurado
+            self._save_portfolio()
+
+            return True
+        except Exception as e:
+            logger.error(f"❌ Error restaurando portfolio: {e}", exc_info=True)
+            return False

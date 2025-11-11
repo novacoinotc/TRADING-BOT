@@ -94,11 +94,22 @@ class PaperTrader:
             elif 'status' in result and result['status'] == 'CLOSED':
                 pnl = result.get('pnl', 0)
                 emoji = "✅" if pnl > 0 else "❌"
+
+                # Verificar que el trade se guardó
+                total_closed = len(self.portfolio.closed_trades)
+                total_historic = self.portfolio.total_trades
+
                 logger.info(
                     f"{emoji} Trade cerrado: {pair} | "
                     f"P&L: ${pnl:.2f} | "
                     f"Razón: {result.get('reason', 'UNKNOWN')}"
                 )
+                logger.info(
+                    f"✅ Trade cerrado y guardado | "
+                    f"Closed trades: {total_closed} | "
+                    f"Total histórico: {total_historic}"
+                )
+                logger.debug(f"📊 Portfolio: {len(self.portfolio.positions)} posiciones abiertas")
 
         return result
 
