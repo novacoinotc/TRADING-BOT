@@ -65,9 +65,15 @@ class FundingRateAnalyzer:
                 return self.current_funding.get(pair)
 
         try:
+            # Convertir SPOT pair a PERPETUAL FUTURES (BTC/USDT → BTC/USDT:USDT)
+            # Funding rate solo existe para perpetual futures
+            perpetual_pair = pair
+            if ':' not in pair and pair.endswith('/USDT'):
+                perpetual_pair = f"{pair}:USDT"
+
             # Obtener funding rate del exchange
             # CCXT método: fetchFundingRate(symbol)
-            funding_info = self.exchange.fetch_funding_rate(pair)
+            funding_info = self.exchange.fetch_funding_rate(perpetual_pair)
 
             if funding_info and 'fundingRate' in funding_info:
                 # Funding rate típicamente en formato decimal (0.0001 = 0.01%)
@@ -87,7 +93,9 @@ class FundingRateAnalyzer:
                 return funding_rate
 
         except Exception as e:
-            logger.warning(f"⚠️ Error fetching funding rate para {pair}: {e}")
+            # Silenciar error si el exchange no soporta funding rate para este par
+            # Es comportamiento esperado para pares sin perpetual futures
+            logger.debug(f"Funding rate no disponible para {pair}: {e}")
 
         return None
 

@@ -125,30 +125,33 @@ class FeatureAggregator:
         }
 
         # === 4. VOLUME PROFILE ANALYSIS ===
-        if ohlc_data:
+        if ohlc_data is not None:
             # Calcular volume profile
-            self.volume_profile.calculate_volume_profile(
-                pair,
-                ohlc_data.get('close', []),
-                ohlc_data.get('volume', [])
-            )
+            # ohlc_data puede ser pandas DataFrame, necesitamos los arrays
+            try:
+                closes = ohlc_data['close'].values if hasattr(ohlc_data, 'values') else ohlc_data.get('close', [])
+                volumes = ohlc_data['volume'].values if hasattr(ohlc_data, 'values') else ohlc_data.get('volume', [])
 
-            vp_confidence = self.volume_profile.adjust_signal_confidence(
-                pair, signal_side, current_price, base_confidence
-            )
-            if vp_confidence != base_confidence:
-                enriched_signal['volume_profile_boost'] = vp_confidence / base_confidence
-                base_confidence = vp_confidence
+                self.volume_profile.calculate_volume_profile(pair, closes, volumes)
 
-            is_near_poc, poc_distance = self.volume_profile.is_near_poc(pair, current_price)
-            enriched_signal['volume_profile'] = {
-                'is_near_poc': is_near_poc,
-                'poc_distance_pct': poc_distance,
-                'in_value_area': self.volume_profile.is_in_value_area(pair, current_price)
-            }
+                vp_confidence = self.volume_profile.adjust_signal_confidence(
+                    pair, signal_side, current_price, base_confidence
+                )
+                if vp_confidence != base_confidence:
+                    enriched_signal['volume_profile_boost'] = vp_confidence / base_confidence
+                    base_confidence = vp_confidence
+
+                is_near_poc, poc_distance = self.volume_profile.is_near_poc(pair, current_price)
+                enriched_signal['volume_profile'] = {
+                    'is_near_poc': is_near_poc,
+                    'poc_distance_pct': poc_distance,
+                    'in_value_area': self.volume_profile.is_in_value_area(pair, current_price)
+                }
+            except Exception as e:
+                logger.debug(f"Error en volume profile analysis: {e}")
 
         # === 5. PATTERN RECOGNITION ===
-        if ohlc_data:
+        if ohlc_data is not None:
             detected_patterns = self.pattern_recognition.detect_all_patterns(ohlc_data)
 
             if detected_patterns:
@@ -250,13 +253,13 @@ class FeatureAggregator:
             ml_features['liquidation_direction'] = 1.0 if liq_details['direction'] == 'above' else 0.0
 
         # Volume profile features
-        if ohlc_data and pair in self.volume_profile.volume_profiles:
+        if ohlc_data is not None and pair in self.volume_profile.volume_profiles:
             is_near_poc, poc_distance = self.volume_profile.is_near_poc(pair, current_price)
             ml_features['near_poc'] = 1.0 if is_near_poc else 0.0
             ml_features['in_value_area'] = 1.0 if self.volume_profile.is_in_value_area(pair, current_price) else 0.0
 
         # Pattern recognition features
-        if ohlc_data:
+        if ohlc_data is not None:
             patterns = self.pattern_recognition.detect_all_patterns(ohlc_data)
             ml_features['has_pattern'] = 1.0 if patterns else 0.0
             ml_features['pattern_confidence'] = max([p['confidence'] for p in patterns], default=0.0)
