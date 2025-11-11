@@ -281,10 +281,21 @@ async def main():
                 optimization_check_interval_hours=config.AUTONOMOUS_OPTIMIZATION_INTERVAL,
                 min_trades_before_optimization=config.AUTONOMOUS_MIN_TRADES_BEFORE_OPT
             )
-            await autonomy_controller.initialize()
-            # Pass autonomous controller to monitor (bidirectional reference)
+
+            # CRÍTICO: Asignar paper_trader ANTES de initialize()
+            # Esto permite que _restore_from_state() pueda restaurar paper trading correctamente
+            if monitor.ml_system and hasattr(monitor.ml_system, 'paper_trader'):
+                autonomy_controller.paper_trader = monitor.ml_system.paper_trader
+                logger.info("✅ paper_trader asignado al autonomy_controller")
+            else:
+                logger.warning("⚠️ ml_system.paper_trader no disponible - paper trading no se restaurará")
+
+            # Pass references ANTES de initialize (para que _restore_from_state tenga acceso)
             monitor.autonomy_controller = autonomy_controller
             autonomy_controller.market_monitor = monitor  # Para acceso a ml_system
+
+            # Ahora sí, inicializar (esto cargará la inteligencia guardada)
+            await autonomy_controller.initialize()
             logger.info("✅ Sistema Autónomo activo - IA tiene control total")
 
             # Initialize Telegram Commands Handler

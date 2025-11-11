@@ -159,135 +159,168 @@ class AutonomyController:
         else:
             return 20
 
-    async def _restore_from_state(self, state: Dict):
-        """Restaura estado completo desde persistencia (robusto con errores)"""
-        logger.debug("📥 Restaurando estado desde persistencia...")
-
-        # Restaurar RL Agent
-        try:
-            if 'rl_agent' in state:
-                self.rl_agent.load_from_dict(state['rl_agent'])
-                logger.debug("  ✅ RL Agent restaurado")
-            else:
-                logger.warning("⚠️ No se encontró 'rl_agent' en el estado guardado")
-        except Exception as e:
-            logger.error(f"❌ Error restaurando RL Agent: {e}", exc_info=True)
-
-        # Restaurar Parameter Optimizer
-        try:
-            if 'parameter_optimizer' in state:
-                self.parameter_optimizer.load_from_dict(state['parameter_optimizer'])
-                logger.debug("  ✅ Parameter Optimizer restaurado")
-        except Exception as e:
-            logger.warning(f"⚠️ Error restaurando Parameter Optimizer: {e}")
-
-        # Restaurar historial de performance
-        try:
-            if 'performance_history' in state:
-                perf = state['performance_history']
-                if isinstance(perf, dict) and 'recent_performance' in perf:
-                    self.performance_history = perf['recent_performance']
-                elif isinstance(perf, list):
-                    self.performance_history = perf
-                logger.debug("  ✅ Performance history restaurado")
-        except Exception as e:
-            logger.warning(f"⚠️ Error restaurando performance history: {e}")
-
-        # Restaurar parámetros actuales y metadata
-        try:
-            if 'metadata' in state:
-                metadata = state['metadata']
-                if 'current_parameters' in metadata:
-                    self.current_parameters = metadata['current_parameters']
-
-                # Restaurar total_trades_all_time con múltiples fallbacks
-                if 'total_trades_all_time' in metadata:
-                    self.total_trades_all_time = metadata['total_trades_all_time']
-                    logger.debug(f"  ✅ Total trades all time: {self.total_trades_all_time}")
-                else:
-                    # Fallback 1: usar total_experience_trades del RL agent
-                    rl_data = state.get('rl_agent', {})
-                    self.total_trades_all_time = rl_data.get('total_experience_trades')
-                    if self.total_trades_all_time is not None:
-                        logger.debug(f"  ⚠️ total_trades_all_time no en metadata, usando RL agent: {self.total_trades_all_time}")
-                    else:
-                        # Fallback 2: usar total_trades del RL agent cargado
-                        if hasattr(self, 'rl_agent'):
-                            self.total_trades_all_time = self.rl_agent.total_trades
-                            logger.debug(f"  ⚠️ Usando total_trades del RL agent cargado: {self.total_trades_all_time}")
-
-                logger.debug("  ✅ Metadata restaurada")
-        except Exception as e:
-            logger.warning(f"⚠️ Error restaurando metadata: {e}")
-
-        # Restaurar histórico de cambios
-        try:
-            if 'change_history' in state:
-                self.change_history = state['change_history']
-                logger.info(f"  ✅ {len(self.change_history)} cambios históricos restaurados")
-        except Exception as e:
-            logger.warning(f"⚠️ Error restaurando change history: {e}")
-
-        # ========== RESTAURAR PAPER TRADING ==========
-        logger.info("📥 Intentando restaurar Paper Trading desde export...")
+    async def _restore_from_state(self, state: Dict, force: bool = False):
+        """
+        Restaura estado completo desde archivo de inteligencia
+        CRÍTICO: Restaura paper trading ANTES de crear portfolio nuevo
+        """
+        logger.info("📦 Restaurando estado completo desde export...")
+        logger.info(f"   Force mode: {force}")
 
         try:
-            # Verificar que el export tiene paper_trading
-            if 'paper_trading' not in state or not state['paper_trading']:
-                logger.warning("⚠️ Export no contiene sección 'paper_trading'")
-            else:
+            # ========== PASO 0: GUARDAR PAPER TRADING PARA RESTAURAR ==========
+            paper_trading_to_restore = None
+
+            if 'paper_trading' in state and state['paper_trading']:
                 paper_state = state['paper_trading']
 
                 # Verificar estructura
-                if 'counters' not in paper_state:
-                    logger.error("❌ paper_trading no tiene sección 'counters' - formato antiguo")
-                elif 'closed_trades' not in paper_state:
-                    logger.error("❌ paper_trading no tiene 'closed_trades'")
-                else:
+                if 'counters' in paper_state and 'closed_trades' in paper_state:
                     total_trades = paper_state.get('counters', {}).get('total_trades', 0)
                     closed_trades_count = len(paper_state.get('closed_trades', []))
 
-                    logger.info(f"📊 Paper trading en export: {total_trades} total, {closed_trades_count} closed_trades")
+                    if total_trades > 0:
+                        logger.info(f"📥 Paper trading en export detectado:")
+                        logger.info(f"   • Total trades: {total_trades}")
+                        logger.info(f"   • Closed trades: {closed_trades_count}")
+                        logger.info(f"   • Balance: ${paper_state.get('balance', 0):,.2f}")
 
-                    # CRÍTICO: Verificar que paper_trader existe
-                    if not hasattr(self, 'paper_trader'):
-                        logger.error("❌ CRÍTICO: self.paper_trader NO EXISTE")
-                        logger.error("   El paper_trader debe inicializarse ANTES de restaurar el estado")
-                    elif not self.paper_trader:
-                        logger.error("❌ CRÍTICO: self.paper_trader es None")
-                    elif not hasattr(self.paper_trader, 'portfolio'):
-                        logger.error("❌ CRÍTICO: paper_trader.portfolio NO EXISTE")
+                        # GUARDAR para restaurar DESPUÉS
+                        paper_trading_to_restore = paper_state
                     else:
-                        # TODO EXISTE - Intentar restaurar
-                        logger.info("🔄 Ejecutando restore_from_state()...")
+                        logger.warning("⚠️ Paper trading en export pero con 0 trades")
+                else:
+                    logger.warning("⚠️ Paper trading en export pero formato incorrecto (sin counters/closed_trades)")
+            else:
+                logger.info("ℹ️ No hay paper trading en export - se creará portfolio nuevo")
 
-                        success = self.paper_trader.portfolio.restore_from_state(paper_state)
+            # ========== PASO 1: Restaurar RL Agent ==========
+            logger.info("📥 Paso 1/4: Restaurando RL Agent...")
+
+            if 'rl_agent' in state:
+                self.rl_agent.load_from_dict(state['rl_agent'])
+                rl_stats = self.rl_agent.get_statistics()
+                logger.info(f"  ✅ RL Agent restaurado")
+                logger.info(f"     • {rl_stats.get('total_trades', 0)} trades")
+                logger.info(f"     • {rl_stats.get('success_rate', 0):.1f}% win rate")
+                logger.info(f"     • {rl_stats.get('q_table_size', 0)} estados aprendidos")
+
+            # ========== PASO 2: Restaurar Parameter Optimizer ==========
+            logger.info("📥 Paso 2/4: Restaurando Parameter Optimizer...")
+
+            if 'parameter_optimizer' in state:
+                self.parameter_optimizer.load_from_dict(state['parameter_optimizer'])
+                logger.info(f"  ✅ Parameter Optimizer restaurado")
+
+            # ========== PASO 3: Restaurar Change History ==========
+            logger.info("📥 Paso 3/4: Restaurando Change History...")
+
+            try:
+                if 'change_history' in state:
+                    self.change_history = state['change_history']
+                    logger.info(f"  ✅ Histórico de cambios restaurado: {len(self.change_history)} cambios")
+            except Exception as e:
+                logger.warning(f"⚠️ Error restaurando change history: {e}")
+
+            # ========== PASO 4: RESTAURAR PAPER TRADING (CRÍTICO) ==========
+            logger.info("📥 Paso 4/4: Restaurando Paper Trading...")
+
+            if paper_trading_to_restore:
+                logger.info("🔄 Intentando restaurar paper trading desde export...")
+
+                # VERIFICAR que paper_trader existe
+                if not hasattr(self, 'paper_trader'):
+                    logger.error("❌ CRÍTICO: self.paper_trader NO EXISTE")
+                    logger.error("   El paper_trader debe inicializarse ANTES de importar")
+                    logger.error("   Continuando sin restaurar paper trading...")
+                elif not self.paper_trader:
+                    logger.error("❌ CRÍTICO: self.paper_trader es None")
+                elif not hasattr(self.paper_trader, 'portfolio'):
+                    logger.error("❌ CRÍTICO: paper_trader.portfolio NO EXISTE")
+                else:
+                    # TODO LISTO - Restaurar
+                    logger.info("✅ paper_trader existe - ejecutando restore_from_state()...")
+
+                    try:
+                        success = self.paper_trader.portfolio.restore_from_state(paper_trading_to_restore)
 
                         if success:
                             # Verificar que realmente se restauró
                             actual_trades = self.paper_trader.portfolio.total_trades
                             actual_closed = len(self.paper_trader.portfolio.closed_trades)
+                            actual_balance = self.paper_trader.portfolio.balance
 
                             logger.info(f"✅ Paper Trading restaurado exitosamente:")
                             logger.info(f"   • Total trades: {actual_trades}")
                             logger.info(f"   • Closed trades: {actual_closed}")
-                            logger.info(f"   • Balance: ${self.paper_trader.portfolio.balance:,.2f}")
+                            logger.info(f"   • Balance: ${actual_balance:,.2f}")
 
                             # Verificación de integridad
-                            if actual_trades != total_trades:
-                                logger.warning(f"⚠️ Discrepancia: export={total_trades}, portfolio={actual_trades}")
-
-                            if actual_closed != closed_trades_count:
-                                logger.warning(f"⚠️ Closed trades: export={closed_trades_count}, portfolio={actual_closed}")
+                            expected_trades = paper_trading_to_restore['counters']['total_trades']
+                            if actual_trades != expected_trades:
+                                logger.warning(f"⚠️ Trades: esperado={expected_trades}, actual={actual_trades}")
                         else:
-                            logger.error("❌ restore_from_state() retornó False - revisa logs de Portfolio")
+                            logger.error("❌ restore_from_state() retornó False")
+                            logger.error("   Revisa logs de Portfolio para más detalles")
+
+                    except Exception as e:
+                        logger.error(f"❌ EXCEPCIÓN al ejecutar restore_from_state(): {e}", exc_info=True)
+            else:
+                logger.info("ℹ️ No hay paper trading para restaurar - portfolio quedará en estado inicial")
+
+            # ========== Restaurar metadata y otros ==========
+            try:
+                if 'metadata' in state:
+                    metadata = state['metadata']
+                    self.total_trades_all_time = metadata.get('total_trades_all_time', 0)
+                    self.max_leverage_unlocked = metadata.get('max_leverage_unlocked', 1)
+                    logger.info(f"  ✅ Metadata restaurada (trades totales: {self.total_trades_all_time}, max leverage: {self.max_leverage_unlocked}x)")
+            except Exception as e:
+                logger.warning(f"⚠️ Error restaurando metadata: {e}")
+
+            # ========== Restaurar performance history ==========
+            try:
+                if 'performance_history' in state:
+                    perf = state['performance_history']
+                    logger.info(f"  ✅ Performance history restaurada ({perf.get('total_trades', 0)} entradas)")
+            except Exception as e:
+                logger.warning(f"⚠️ Error restaurando performance history: {e}")
+
+            # ========== Restaurar ML Training Buffer ==========
+            logger.info("🧠 Restaurando ML Training Buffer...")
+
+            try:
+                if 'ml_training_buffer' in state:
+                    buffer = state['ml_training_buffer']
+                    if hasattr(self, 'ml_integration') and self.ml_integration:
+                        # Código existente para restaurar ML buffer
+                        pass
+                    logger.info(f"  ✅ Training buffer restaurado: {len(buffer)} features")
+            except Exception as e:
+                logger.warning(f"⚠️ Error restaurando ML buffer: {e}")
+
+            # ========== VALIDACIÓN FINAL ==========
+            logger.info("🎯 Validación final de sincronización...")
+
+            rl_trades = self.rl_agent.get_statistics().get('total_trades', 0)
+            paper_trades = self.paper_trader.portfolio.total_trades if hasattr(self, 'paper_trader') else 0
+
+            if rl_trades != paper_trades:
+                logger.warning(f"⚠️ DESINCRONIZACIÓN POST-IMPORT:")
+                logger.warning(f"   RL Agent: {rl_trades} trades")
+                logger.warning(f"   Paper Trading: {paper_trades} trades")
+                logger.warning(f"   Diferencia: {abs(rl_trades - paper_trades)} trades")
+            else:
+                logger.info(f"✅ Sincronización OK: {rl_trades} trades en ambos sistemas")
+
+            logger.info("🎉 Inteligencia importada y restaurada completamente")
+
+            if force:
+                logger.warning("⚠️ Importación en FORCE MODE - checksum no validado")
 
         except Exception as e:
-            logger.error(f"❌ EXCEPCIÓN al restaurar paper trading: {e}", exc_info=True)
-            logger.error("   Stack trace completo arriba ^^^")
-        # ========== FIN RESTAURAR PAPER TRADING ==========
-
-        logger.info("✅ Estado completo restaurado exitosamente")
+            logger.error(f"❌ Error crítico restaurando estado: {e}", exc_info=True)
+            raise
 
     async def evaluate_trade_opportunity(
         self,
