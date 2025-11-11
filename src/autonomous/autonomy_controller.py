@@ -228,32 +228,64 @@ class AutonomyController:
         except Exception as e:
             logger.warning(f"⚠️ Error restaurando change history: {e}")
 
-        # Restaurar paper trading si viene en el export
+        # ========== RESTAURAR PAPER TRADING ==========
+        logger.info("📥 Intentando restaurar Paper Trading desde export...")
+
         try:
-            if 'paper_trading' in state and state['paper_trading']:
+            # Verificar que el export tiene paper_trading
+            if 'paper_trading' not in state or not state['paper_trading']:
+                logger.warning("⚠️ Export no contiene sección 'paper_trading'")
+            else:
                 paper_state = state['paper_trading']
 
-                # Verificar que tenga datos
-                if paper_state.get('counters', {}).get('total_trades', 0) > 0:
-                    logger.info(
-                        f"📥 Restaurando paper trading desde export: "
-                        f"{paper_state.get('counters', {}).get('total_trades', 0)} trades"
-                    )
+                # Verificar estructura
+                if 'counters' not in paper_state:
+                    logger.error("❌ paper_trading no tiene sección 'counters' - formato antiguo")
+                elif 'closed_trades' not in paper_state:
+                    logger.error("❌ paper_trading no tiene 'closed_trades'")
+                else:
+                    total_trades = paper_state.get('counters', {}).get('total_trades', 0)
+                    closed_trades_count = len(paper_state.get('closed_trades', []))
 
-                    # Restaurar estado completo del portfolio
-                    if hasattr(self, 'paper_trader') and self.paper_trader:
+                    logger.info(f"📊 Paper trading en export: {total_trades} total, {closed_trades_count} closed_trades")
+
+                    # CRÍTICO: Verificar que paper_trader existe
+                    if not hasattr(self, 'paper_trader'):
+                        logger.error("❌ CRÍTICO: self.paper_trader NO EXISTE")
+                        logger.error("   El paper_trader debe inicializarse ANTES de restaurar el estado")
+                    elif not self.paper_trader:
+                        logger.error("❌ CRÍTICO: self.paper_trader es None")
+                    elif not hasattr(self.paper_trader, 'portfolio'):
+                        logger.error("❌ CRÍTICO: paper_trader.portfolio NO EXISTE")
+                    else:
+                        # TODO EXISTE - Intentar restaurar
+                        logger.info("🔄 Ejecutando restore_from_state()...")
+
                         success = self.paper_trader.portfolio.restore_from_state(paper_state)
 
                         if success:
-                            logger.info("  ✅ Paper trading restaurado correctamente")
+                            # Verificar que realmente se restauró
+                            actual_trades = self.paper_trader.portfolio.total_trades
+                            actual_closed = len(self.paper_trader.portfolio.closed_trades)
+
+                            logger.info(f"✅ Paper Trading restaurado exitosamente:")
+                            logger.info(f"   • Total trades: {actual_trades}")
+                            logger.info(f"   • Closed trades: {actual_closed}")
+                            logger.info(f"   • Balance: ${self.paper_trader.portfolio.balance:,.2f}")
+
+                            # Verificación de integridad
+                            if actual_trades != total_trades:
+                                logger.warning(f"⚠️ Discrepancia: export={total_trades}, portfolio={actual_trades}")
+
+                            if actual_closed != closed_trades_count:
+                                logger.warning(f"⚠️ Closed trades: export={closed_trades_count}, portfolio={actual_closed}")
                         else:
-                            logger.warning("  ⚠️ Fallo al restaurar paper trading, continuando sin historial")
-                    else:
-                        logger.warning("  ⚠️ Paper trader no disponible para restaurar")
-                else:
-                    logger.debug("  ⚠️ Paper trading en export pero sin trades, omitiendo")
+                            logger.error("❌ restore_from_state() retornó False - revisa logs de Portfolio")
+
         except Exception as e:
-            logger.warning(f"⚠️ Error restaurando paper trading: {e}")
+            logger.error(f"❌ EXCEPCIÓN al restaurar paper trading: {e}", exc_info=True)
+            logger.error("   Stack trace completo arriba ^^^")
+        # ========== FIN RESTAURAR PAPER TRADING ==========
 
         logger.info("✅ Estado completo restaurado exitosamente")
 
