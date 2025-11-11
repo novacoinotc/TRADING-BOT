@@ -126,9 +126,14 @@ class AdvancedTechnicalAnalyzer:
         indicators['bb_upper'] = round(bb_indicator.bollinger_hband().iloc[-1], 2)
         indicators['bb_middle'] = round(bb_indicator.bollinger_mavg().iloc[-1], 2)
         indicators['bb_lower'] = round(bb_indicator.bollinger_lband().iloc[-1], 2)
-        indicators['bb_width'] = round(
-            ((indicators['bb_upper'] - indicators['bb_lower']) / indicators['bb_middle']) * 100, 2
-        )
+
+        # Safe BB width calculation (avoid division by zero)
+        if indicators['bb_middle'] > 0 and (indicators['bb_upper'] - indicators['bb_lower']) > 0:
+            indicators['bb_width'] = round(
+                ((indicators['bb_upper'] - indicators['bb_lower']) / indicators['bb_middle']) * 100, 2
+            )
+        else:
+            indicators['bb_width'] = 0.0
 
         # ADX (Trend Strength)
         adx_indicator = ADXIndicator(high=high, low=low, close=close, window=14)
@@ -297,16 +302,19 @@ class AdvancedTechnicalAnalyzer:
             score -= 1.5
             reasons.append(f"RSI overbought ({indicators['rsi']:.1f})")
 
-        # 2. Volume Confirmation (0-2 points)
+        # 2. Volume Confirmation (0-2 points) - OPTIMIZADO
         if indicators['volume_ratio'] > 1.5:
             score += 2.0 if score > 0 else -2.0
             reasons.append(f"📊 High volume confirmation (+{(indicators['volume_ratio']-1)*100:.0f}%)")
         elif indicators['volume_ratio'] > 1.2:
             score += 1.0 if score > 0 else -1.0
             reasons.append(f"Volume above average (+{(indicators['volume_ratio']-1)*100:.0f}%)")
+        elif indicators['volume_ratio'] > 0.9:
+            # Volumen normal - sin penalización
+            pass
         elif indicators['volume_ratio'] < 0.7:
             reasons.append("⚠️ Low volume - weak signal")
-            score *= 0.7  # Reduce score by 30% if low volume
+            score *= 0.85  # Penalización reducida (antes 0.7, ahora 0.85)
 
         # 3. Divergence Detection (0-1.5 points)
         if indicators['divergences']['rsi_divergence'] == 'bullish':
@@ -342,12 +350,15 @@ class AdvancedTechnicalAnalyzer:
             score -= 1.0
             reasons.append(f"📍 Near resistance level (${sr_levels['nearest_resistance']:.2f})")
 
-        # 7. ADX Trend Strength (bonus/penalty)
-        if indicators['adx'] > 25:
+        # 7. ADX Trend Strength (bonus/penalty) - OPTIMIZADO
+        if indicators['adx'] > 30:
+            score += 0.5  # Bonus por tendencia muy fuerte
+            reasons.append(f"💪 Very strong trend (ADX: {indicators['adx']:.1f})")
+        elif indicators['adx'] > 25:
             reasons.append(f"💪 Strong trend (ADX: {indicators['adx']:.1f})")
-        elif indicators['adx'] < 20:
-            reasons.append(f"⚠️ Weak trend (ADX: {indicators['adx']:.1f})")
-            score *= 0.8  # Reduce score in weak trends
+        elif indicators['adx'] < 15:
+            reasons.append(f"⚠️ Very weak trend (ADX: {indicators['adx']:.1f})")
+            score *= 0.90  # Penalización reducida (antes 0.8, ahora 0.90)
 
         # 8. Bollinger Bands
         if current_price < indicators['bb_lower']:
@@ -357,23 +368,46 @@ class AdvancedTechnicalAnalyzer:
             score -= 1.0
             reasons.append("Price above upper Bollinger Band")
 
+        # 9. EMA Alignment Bonus (0-1.5 points) - NUEVO
+        ema_short = indicators.get('ema_short', 0)
+        ema_medium = indicators.get('ema_medium', 0)
+        ema_long = indicators.get('ema_long', 0)
+
+        # Alineación alcista perfecta: Price > EMA9 > EMA21 > EMA50
+        if current_price > ema_short > ema_medium > ema_long and score > 0:
+            score += 1.5
+            reasons.append("🚀 Perfect bullish EMA alignment")
+        # Alineación bajista perfecta: Price < EMA9 < EMA21 < EMA50
+        elif current_price < ema_short < ema_medium < ema_long and score < 0:
+            score -= 1.5
+            reasons.append("🔻 Perfect bearish EMA alignment")
+        # Alineación alcista parcial
+        elif current_price > ema_short > ema_medium and score > 0:
+            score += 0.75
+            reasons.append("Partial bullish EMA alignment")
+        # Alineación bajista parcial
+        elif current_price < ema_short < ema_medium and score < 0:
+            score -= 0.75
+            reasons.append("Partial bearish EMA alignment")
+
         # Normalize score to 0-10 range
         final_score = max(0, min(abs(score), max_score))
 
-        # Determine action
-        if score >= 7:
+        # Determine action (usa threshold dinámico del config)
+        threshold = config.CONSERVATIVE_THRESHOLD
+        if score >= threshold:
             action = 'BUY'
             risk_level = 'LOW' if indicators['volume_ratio'] > 1.2 else 'MEDIUM'
             confidence = int((final_score / max_score) * 100)
-        elif score <= -7:
+        elif score <= -threshold:
             action = 'SELL'
             risk_level = 'LOW' if indicators['volume_ratio'] > 1.2 else 'MEDIUM'
             confidence = int((final_score / max_score) * 100)
         else:
             action = 'HOLD'
-            final_score = 0
+            # Keep the real score for visibility (don't force to 0)
             confidence = 0
-            reasons = ['Signal not strong enough (need 7+ points)']
+            reasons.append(f'Signal not strong enough (need {threshold}+ points, has {abs(score):.1f})')  # Show actual score
 
         return {
             'action': action,
@@ -388,12 +422,15 @@ class AdvancedTechnicalAnalyzer:
     def _calculate_sl_tp(self, entry_price: float, action: str, atr: float, levels: dict) -> dict:
         """
         Calculate dynamic stop-loss and take-profit levels
+        SCALPING STRATEGY: TPs pequeños y frecuentes (0.3%, 0.8%, 1.5%)
         """
         # Use ATR for dynamic stops
         atr_multiplier_sl = 2.0  # Stop loss at 2x ATR
-        atr_multiplier_tp1 = 2.5  # TP1 at 2.5x ATR
-        atr_multiplier_tp2 = 4.0  # TP2 at 4x ATR
-        atr_multiplier_tp3 = 6.0  # TP3 at 6x ATR
+
+        # SCALPING: Percentage-based TPs for many small wins
+        tp_pct_1 = 0.003  # TP1 at 0.3%
+        tp_pct_2 = 0.008  # TP2 at 0.8%
+        tp_pct_3 = 0.015  # TP3 at 1.5%
 
         if action == 'BUY':
             stop_loss = entry_price - (atr * atr_multiplier_sl)
@@ -401,39 +438,51 @@ class AdvancedTechnicalAnalyzer:
             if levels['nearest_support'] and levels['nearest_support'] < entry_price:
                 stop_loss = max(stop_loss, levels['nearest_support'] * 0.98)
 
-            tp1 = entry_price + (atr * atr_multiplier_tp1)
-            tp2 = entry_price + (atr * atr_multiplier_tp2)
-            tp3 = entry_price + (atr * atr_multiplier_tp3)
+            # Percentage-based TPs for scalping
+            tp1 = entry_price * (1 + tp_pct_1)
+            tp2 = entry_price * (1 + tp_pct_2)
+            tp3 = entry_price * (1 + tp_pct_3)
 
-            # Adjust TPs if near resistance
+            # Adjust TPs if near resistance (only TP3 to avoid blocking small wins)
             if levels['nearest_resistance'] and levels['nearest_resistance'] > entry_price:
-                tp1 = min(tp1, levels['nearest_resistance'] * 0.99)
+                if tp3 > levels['nearest_resistance']:
+                    adjusted_tp3 = levels['nearest_resistance'] * 0.99
+                    # Ensure TP3 always > TP2 (maintain proper order: TP1 < TP2 < TP3)
+                    tp3 = max(adjusted_tp3, tp2 * 1.001)  # TP3 at least 0.1% above TP2
         else:  # SELL
             stop_loss = entry_price + (atr * atr_multiplier_sl)
             # Adjust stop loss if above resistance
             if levels['nearest_resistance'] and levels['nearest_resistance'] > entry_price:
                 stop_loss = min(stop_loss, levels['nearest_resistance'] * 1.02)
 
-            tp1 = entry_price - (atr * atr_multiplier_tp1)
-            tp2 = entry_price - (atr * atr_multiplier_tp2)
-            tp3 = entry_price - (atr * atr_multiplier_tp3)
+            # Percentage-based TPs for scalping
+            tp1 = entry_price * (1 - tp_pct_1)
+            tp2 = entry_price * (1 - tp_pct_2)
+            tp3 = entry_price * (1 - tp_pct_3)
 
-            # Adjust TPs if near support
+            # Adjust TPs if near support (only TP3 to avoid blocking small wins)
             if levels['nearest_support'] and levels['nearest_support'] < entry_price:
-                tp1 = max(tp1, levels['nearest_support'] * 1.01)
+                if tp3 < levels['nearest_support']:
+                    adjusted_tp3 = levels['nearest_support'] * 1.01
+                    # Ensure TP3 always < TP2 (maintain proper order: TP1 > TP2 > TP3 for SELL)
+                    tp3 = min(adjusted_tp3, tp2 * 0.999)  # TP3 at least 0.1% below TP2
 
         risk = abs(entry_price - stop_loss)
         reward = abs(tp2 - entry_price)  # Use TP2 for R:R calculation
         risk_reward = round(reward / risk, 2) if risk > 0 else 0
 
+        # Ajustar decimales de redondeo según el precio
+        # Para precios bajos (< $1), usar más decimales para evitar que TP = entry_price
+        decimals = 4 if entry_price < 1.0 else 2
+
         return {
-            'stop_loss': round(stop_loss, 2),
+            'stop_loss': round(stop_loss, decimals),
             'take_profit': {
-                'tp1': round(tp1, 2),
-                'tp2': round(tp2, 2),
-                'tp3': round(tp3, 2)
+                'tp1': round(tp1, decimals),
+                'tp2': round(tp2, decimals),
+                'tp3': round(tp3, decimals)
             },
             'risk_reward': risk_reward,
-            'risk_amount': round(risk, 2),
-            'reward_amount': round(reward, 2)
+            'risk_amount': round(risk, decimals),
+            'reward_amount': round(reward, decimals)
         }
