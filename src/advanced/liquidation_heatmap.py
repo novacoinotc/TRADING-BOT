@@ -31,11 +31,11 @@ class LiquidationHeatmap:
         self.config = config
 
         # Parámetros optimizables
-        self.enabled = config.get('LIQUIDATION_ANALYSIS_ENABLED', True)
-        self.min_liquidation_volume = config.get('MIN_LIQUIDATION_VOLUME_USD', 1_000_000)  # $1M (0.5M-5M)
-        self.proximity_threshold_pct = config.get('LIQUIDATION_PROXIMITY_THRESHOLD_PCT', 2.0)  # 2% (1-5%)
-        self.boost_factor = config.get('LIQUIDATION_BOOST_FACTOR', 1.3)  # 1.1-1.5x
-        self.lookback_hours = config.get('LIQUIDATION_LOOKBACK_HOURS', 24)  # 12-48h
+        self.enabled = getattr(config, 'LIQUIDATION_ANALYSIS_ENABLED', True)
+        self.min_liquidation_volume = getattr(config, 'MIN_LIQUIDATION_VOLUME_USD', 1_000_000)  # $1M (0.5M-5M)
+        self.proximity_threshold_pct = getattr(config, 'LIQUIDATION_PROXIMITY_THRESHOLD_PCT', 2.0)  # 2% (1-5%)
+        self.boost_factor = getattr(config, 'LIQUIDATION_BOOST_FACTOR', 1.3)  # 1.1-1.5x
+        self.lookback_hours = getattr(config, 'LIQUIDATION_LOOKBACK_HOURS', 24)  # 12-48h
 
         # Cache de liquidaciones {pair: {price_level: volume}}
         self.liquidation_data: Dict[str, Dict[float, float]] = defaultdict(dict)
@@ -44,7 +44,7 @@ class LiquidationHeatmap:
 
         # API endpoints (múltiples fuentes)
         self.coinglass_api = "https://open-api.coinglass.com/public/v2/indicator/liquidation_heatmap"
-        self.use_mock_data = config.get('USE_MOCK_LIQUIDATION_DATA', False)  # Para testing
+        self.use_mock_data = getattr(config, 'USE_MOCK_LIQUIDATION_DATA', False)  # Para testing
 
         logger.info(f"LiquidationHeatmap initialized: min_volume=${self.min_liquidation_volume:,.0f}, proximity={self.proximity_threshold_pct}%")
 

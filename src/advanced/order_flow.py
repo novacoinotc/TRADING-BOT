@@ -20,11 +20,11 @@ class OrderFlowImbalance:
 
     def __init__(self, config):
         self.config = config
-        self.enabled = config.get('ORDER_FLOW_ENABLED', True)
-        self.strong_imbalance_ratio = config.get('STRONG_IMBALANCE_RATIO', 2.5)  # 2.0-3.5
-        self.moderate_imbalance_ratio = config.get('MODERATE_IMBALANCE_RATIO', 1.5)  # 1.3-2.0
-        self.boost_strong = config.get('ORDER_FLOW_BOOST_STRONG', 1.3)  # 1.2-1.5x
-        self.boost_moderate = config.get('ORDER_FLOW_BOOST_MODERATE', 1.15)  # 1.1-1.3x
+        self.enabled = getattr(config, 'ORDER_FLOW_ENABLED', True)
+        self.strong_imbalance_ratio = getattr(config, 'STRONG_IMBALANCE_RATIO', 2.5)  # 2.0-3.5
+        self.moderate_imbalance_ratio = getattr(config, 'MODERATE_IMBALANCE_RATIO', 1.5)  # 1.3-2.0
+        self.boost_strong = getattr(config, 'ORDER_FLOW_BOOST_STRONG', 1.3)  # 1.2-1.5x
+        self.boost_moderate = getattr(config, 'ORDER_FLOW_BOOST_MODERATE', 1.15)  # 1.1-1.3x
 
     def analyze_orderbook(self, orderbook: Dict) -> Tuple[str, float, float]:
         """

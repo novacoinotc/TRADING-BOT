@@ -30,13 +30,13 @@ class FundingRateAnalyzer:
         self.exchange = exchange
 
         # Parámetros optimizables
-        self.enabled = config.get('FUNDING_RATE_ANALYSIS_ENABLED', True)
-        self.extreme_positive_threshold = config.get('FUNDING_EXTREME_POSITIVE', 0.10)  # 0.08-0.15%
-        self.extreme_negative_threshold = config.get('FUNDING_EXTREME_NEGATIVE', -0.10)  # -0.15 a -0.08%
-        self.high_positive_threshold = config.get('FUNDING_HIGH_POSITIVE', 0.05)  # 0.03-0.08%
-        self.high_negative_threshold = config.get('FUNDING_HIGH_NEGATIVE', -0.05)  # -0.08 a -0.03%
-        self.boost_factor_extreme = config.get('FUNDING_BOOST_EXTREME', 1.5)  # 1.3-1.8x
-        self.boost_factor_high = config.get('FUNDING_BOOST_HIGH', 1.2)  # 1.1-1.4x
+        self.enabled = getattr(config, 'FUNDING_RATE_ANALYSIS_ENABLED', True)
+        self.extreme_positive_threshold = getattr(config, 'FUNDING_EXTREME_POSITIVE', 0.10)  # 0.08-0.15%
+        self.extreme_negative_threshold = getattr(config, 'FUNDING_EXTREME_NEGATIVE', -0.10)  # -0.15 a -0.08%
+        self.high_positive_threshold = getattr(config, 'FUNDING_HIGH_POSITIVE', 0.05)  # 0.03-0.08%
+        self.high_negative_threshold = getattr(config, 'FUNDING_HIGH_NEGATIVE', -0.05)  # -0.08 a -0.03%
+        self.boost_factor_extreme = getattr(config, 'FUNDING_BOOST_EXTREME', 1.5)  # 1.3-1.8x
+        self.boost_factor_high = getattr(config, 'FUNDING_BOOST_HIGH', 1.2)  # 1.1-1.4x
 
         # Cache de funding rates {pair: deque([rates])}
         self.funding_history: Dict[str, deque] = {}

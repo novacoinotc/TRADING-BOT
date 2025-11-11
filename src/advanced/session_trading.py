@@ -23,10 +23,10 @@ class SessionBasedTrading:
 
     def __init__(self, config):
         self.config = config
-        self.enabled = config.get('SESSION_TRADING_ENABLED', True)
-        self.us_open_boost = config.get('US_OPEN_BOOST', 1.3)  # 1.2-1.5x
-        self.overlap_boost = config.get('SESSION_OVERLAP_BOOST', 1.2)  # 1.1-1.4x
-        self.asian_penalty = config.get('ASIAN_SESSION_PENALTY', 0.9)  # 0.85-0.95x
+        self.enabled = getattr(config, 'SESSION_TRADING_ENABLED', True)
+        self.us_open_boost = getattr(config, 'US_OPEN_BOOST', 1.3)  # 1.2-1.5x
+        self.overlap_boost = getattr(config, 'SESSION_OVERLAP_BOOST', 1.2)  # 1.1-1.4x
+        self.asian_penalty = getattr(config, 'ASIAN_SESSION_PENALTY', 0.9)  # 0.85-0.95x
 
     def get_current_session(self) -> Tuple[str, float]:
         """

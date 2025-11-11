@@ -37,13 +37,13 @@ class VolumeProfile:
         self.config = config
 
         # Parámetros optimizables
-        self.enabled = config.get('VOLUME_PROFILE_ENABLED', True)
-        self.lookback_periods = config.get('VOLUME_PROFILE_LOOKBACK', 100)  # 50-200
-        self.price_bins = config.get('VOLUME_PROFILE_BINS', 50)  # 30-100
-        self.value_area_pct = config.get('VOLUME_PROFILE_VALUE_AREA', 70.0)  # 65-75%
-        self.poc_proximity_pct = config.get('POC_PROXIMITY_PCT', 1.0)  # 0.5-2%
-        self.boost_factor_poc = config.get('POC_BOOST_FACTOR', 1.3)  # 1.2-1.5x
-        self.boost_factor_value_area = config.get('VALUE_AREA_BOOST_FACTOR', 1.15)  # 1.1-1.3x
+        self.enabled = getattr(config, 'VOLUME_PROFILE_ENABLED', True)
+        self.lookback_periods = getattr(config, 'VOLUME_PROFILE_LOOKBACK', 100)  # 50-200
+        self.price_bins = getattr(config, 'VOLUME_PROFILE_BINS', 50)  # 30-100
+        self.value_area_pct = getattr(config, 'VOLUME_PROFILE_VALUE_AREA', 70.0)  # 65-75%
+        self.poc_proximity_pct = getattr(config, 'POC_PROXIMITY_PCT', 1.0)  # 0.5-2%
+        self.boost_factor_poc = getattr(config, 'POC_BOOST_FACTOR', 1.3)  # 1.2-1.5x
+        self.boost_factor_value_area = getattr(config, 'VALUE_AREA_BOOST_FACTOR', 1.15)  # 1.1-1.3x
 
         # Cache de volume profiles {pair: VolumeProfileData}
         self.volume_profiles: Dict[str, Dict] = {}

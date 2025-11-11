@@ -30,10 +30,10 @@ class PatternRecognition:
         self.config = config
 
         # Parámetros optimizables
-        self.enabled = config.get('PATTERN_RECOGNITION_ENABLED', True)
-        self.min_pattern_confidence = config.get('MIN_PATTERN_CONFIDENCE', 0.7)  # 0.6-0.85
-        self.lookback_candles = config.get('PATTERN_LOOKBACK_CANDLES', 50)  # 30-100
-        self.boost_factor = config.get('PATTERN_BOOST_FACTOR', 1.4)  # 1.2-1.6x
+        self.enabled = getattr(config, 'PATTERN_RECOGNITION_ENABLED', True)
+        self.min_pattern_confidence = getattr(config, 'MIN_PATTERN_CONFIDENCE', 0.7)  # 0.6-0.85
+        self.lookback_candles = getattr(config, 'PATTERN_LOOKBACK_CANDLES', 50)  # 30-100
+        self.boost_factor = getattr(config, 'PATTERN_BOOST_FACTOR', 1.4)  # 1.2-1.6x
 
         logger.info(f"PatternRecognition initialized: min_confidence={self.min_pattern_confidence}")
 

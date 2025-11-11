@@ -31,11 +31,11 @@ class CorrelationMatrix:
         self.config = config
 
         # Parámetros optimizables
-        self.enabled = config.get('CORRELATION_ANALYSIS_ENABLED', True)
-        self.high_correlation_threshold = config.get('HIGH_CORRELATION_THRESHOLD', 0.7)  # 0.6-0.85
-        self.lookback_periods = config.get('CORRELATION_LOOKBACK_PERIODS', 100)  # 50-200 períodos
-        self.min_data_points = config.get('CORRELATION_MIN_DATA_POINTS', 30)  # 20-50
-        self.max_correlated_positions = config.get('MAX_CORRELATED_POSITIONS', 2)  # 1-3
+        self.enabled = getattr(config, 'CORRELATION_ANALYSIS_ENABLED', True)
+        self.high_correlation_threshold = getattr(config, 'HIGH_CORRELATION_THRESHOLD', 0.7)  # 0.6-0.85
+        self.lookback_periods = getattr(config, 'CORRELATION_LOOKBACK_PERIODS', 100)  # 50-200 períodos
+        self.min_data_points = getattr(config, 'CORRELATION_MIN_DATA_POINTS', 30)  # 20-50
+        self.max_correlated_positions = getattr(config, 'MAX_CORRELATED_POSITIONS', 2)  # 1-3
 
         # Almacenamiento de precios históricos {pair: deque([prices])}
         self.price_history: Dict[str, deque] = {}
