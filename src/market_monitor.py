@@ -487,6 +487,7 @@ class MarketMonitor:
                     arsenal_ml_features_preview = self.feature_aggregator.get_ml_features(
                         pair=pair,
                         current_price=current_price,
+                        base_features={},  # Diccionario vacío para preview
                         ohlc_data=dfs.get('1h')
                     )
                     arsenal_rl_extensions_preview = self.feature_aggregator.get_rl_state_extensions(
@@ -640,6 +641,7 @@ class MarketMonitor:
                             arsenal_ml_features = self.feature_aggregator.get_ml_features(
                                 pair=pair,
                                 current_price=current_price,
+                                base_features={},  # Será combinado con sentiment_features después
                                 ohlc_data=dfs.get('1h')
                             )
                             arsenal_rl_extensions = self.feature_aggregator.get_rl_state_extensions(
@@ -829,6 +831,7 @@ class MarketMonitor:
                             arsenal_flash_ml = self.feature_aggregator.get_ml_features(
                                 pair=pair,
                                 current_price=flash_price,
+                                base_features={},  # Preview de flash
                                 ohlc_data=flash_df
                             )
                             arsenal_flash_rl = self.feature_aggregator.get_rl_state_extensions(
@@ -967,6 +970,7 @@ class MarketMonitor:
                                     arsenal_ml_features_flash = self.feature_aggregator.get_ml_features(
                                         pair=pair,
                                         current_price=flash_price,
+                                        base_features={},  # Será combinado con sentiment_features después
                                         ohlc_data=flash_df
                                     )
                                 except Exception as e:
