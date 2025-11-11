@@ -49,12 +49,22 @@ class StartupValidator:
             ("ML System (Predictor)", self._validate_ml_system, monitor),
             ("Paper Trading Engine", self._validate_paper_trading, monitor),
             ("RL Agent (Q-Learning)", self._validate_rl_agent, monitor),
-            ("Parameter Optimizer (41 params)", self._validate_parameter_optimizer, monitor),
+            ("Parameter Optimizer (93 params)", self._validate_parameter_optimizer, monitor),
             ("Order Book Analyzer", self._validate_orderbook, monitor),
             ("Market Regime Detector", self._validate_market_regime, monitor),
             ("Dynamic TP Manager", self._validate_dynamic_tp, monitor),
             ("Learning Persistence (Export/Import)", self._validate_learning_persistence, monitor),
             ("Git Backup System", self._validate_git_backup, monitor),
+
+            # ===== ARSENAL AVANZADO (NUEVOS MÓDULOS) =====
+            ("Correlation Matrix (Diversification)", self._validate_correlation_matrix, monitor),
+            ("Liquidation Heatmap (Stop Hunts)", self._validate_liquidation_heatmap, monitor),
+            ("Funding Rate Analyzer (Sentiment)", self._validate_funding_rate, monitor),
+            ("Volume Profile & POC (Value Zones)", self._validate_volume_profile, monitor),
+            ("Pattern Recognition (Chartism)", self._validate_pattern_recognition, monitor),
+            ("Session-Based Trading (Volatility)", self._validate_session_trading, monitor),
+            ("Order Flow Imbalance (Momentum)", self._validate_order_flow, monitor),
+            ("Feature Aggregator (Central Hub)", self._validate_feature_aggregator, monitor),
         ]
 
         operational = []
@@ -311,6 +321,113 @@ class StartupValidator:
         except Exception as e:
             return False, f"Error: {str(e)[:50]}"
 
+    # ===== VALIDACIONES ARSENAL AVANZADO =====
+
+    async def _validate_correlation_matrix(self, monitor) -> Tuple[bool, str]:
+        """Valida Correlation Matrix"""
+        try:
+            if hasattr(monitor, 'feature_aggregator') and monitor.feature_aggregator:
+                corr_matrix = monitor.feature_aggregator.correlation_matrix
+                if corr_matrix and corr_matrix.enabled:
+                    pairs_tracked = len(corr_matrix.price_history)
+                    threshold = corr_matrix.high_correlation_threshold
+                    return True, f"{pairs_tracked} pares tracked - threshold {threshold}"
+            return False, "No inicializado (requiere feature_aggregator)"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_liquidation_heatmap(self, monitor) -> Tuple[bool, str]:
+        """Valida Liquidation Heatmap"""
+        try:
+            if hasattr(monitor, 'feature_aggregator') and monitor.feature_aggregator:
+                liq_heatmap = monitor.feature_aggregator.liquidation_heatmap
+                if liq_heatmap and liq_heatmap.enabled:
+                    min_volume = liq_heatmap.min_liquidation_volume / 1_000_000
+                    boost = liq_heatmap.boost_factor
+                    return True, f"Min ${min_volume:.1f}M volume - boost {boost}x"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_funding_rate(self, monitor) -> Tuple[bool, str]:
+        """Valida Funding Rate Analyzer"""
+        try:
+            if hasattr(monitor, 'feature_aggregator') and monitor.feature_aggregator:
+                funding = monitor.feature_aggregator.funding_rate_analyzer
+                if funding and funding.enabled:
+                    extreme = funding.extreme_positive_threshold
+                    boost = funding.boost_factor_extreme
+                    return True, f"Extreme threshold ±{extreme}% - boost {boost}x"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_volume_profile(self, monitor) -> Tuple[bool, str]:
+        """Valida Volume Profile & POC"""
+        try:
+            if hasattr(monitor, 'feature_aggregator') and monitor.feature_aggregator:
+                vol_profile = monitor.feature_aggregator.volume_profile
+                if vol_profile and vol_profile.enabled:
+                    lookback = vol_profile.lookback_periods
+                    bins = vol_profile.price_bins
+                    return True, f"Lookback {lookback} - {bins} bins - POC detection"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_pattern_recognition(self, monitor) -> Tuple[bool, str]:
+        """Valida Pattern Recognition"""
+        try:
+            if hasattr(monitor, 'feature_aggregator') and monitor.feature_aggregator:
+                patterns = monitor.feature_aggregator.pattern_recognition
+                if patterns and patterns.enabled:
+                    min_conf = patterns.min_pattern_confidence
+                    boost = patterns.boost_factor
+                    return True, f"H&S, Double Top/Bottom - min conf {min_conf} - boost {boost}x"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_session_trading(self, monitor) -> Tuple[bool, str]:
+        """Valida Session-Based Trading"""
+        try:
+            if hasattr(monitor, 'feature_aggregator') and monitor.feature_aggregator:
+                session = monitor.feature_aggregator.session_trading
+                if session and session.enabled:
+                    us_boost = session.us_open_boost
+                    current_session, multiplier = session.get_current_session()
+                    return True, f"Current: {current_session} ({multiplier}x) - US boost {us_boost}x"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_order_flow(self, monitor) -> Tuple[bool, str]:
+        """Valida Order Flow Imbalance"""
+        try:
+            if hasattr(monitor, 'feature_aggregator') and monitor.feature_aggregator:
+                order_flow = monitor.feature_aggregator.order_flow
+                if order_flow and order_flow.enabled:
+                    strong_ratio = order_flow.strong_imbalance_ratio
+                    boost = order_flow.boost_strong
+                    return True, f"Strong ratio {strong_ratio}:1 - boost {boost}x"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
+    async def _validate_feature_aggregator(self, monitor) -> Tuple[bool, str]:
+        """Valida Feature Aggregator (Hub Central)"""
+        try:
+            if hasattr(monitor, 'feature_aggregator') and monitor.feature_aggregator:
+                aggregator = monitor.feature_aggregator
+                # Contar módulos activos
+                status = aggregator.is_everything_enabled()
+                active_count = sum(1 for enabled in status.values() if enabled)
+                total_modules = len(status)
+                return True, f"Hub central - {active_count}/{total_modules} módulos activos"
+            return False, "No inicializado"
+        except Exception as e:
+            return False, f"Error: {str(e)[:50]}"
+
     def generate_telegram_message(self, validation_results: Dict) -> str:
         """
         Genera mensaje para Telegram con checklist de servicios
@@ -335,10 +452,16 @@ class StartupValidator:
         message += f"{status_icon} **Servicios operando: {count_operational}/{total}**\n"
         message += f"⏱️ Validación completada en {elapsed:.1f}s\n\n"
 
-        # Checklist de servicios operativos
-        message += "**📋 SERVICIOS ACTIVOS:**\n"
-        for service in operational:
+        # Checklist de servicios operativos (separar core vs arsenal)
+        message += "**📋 SERVICIOS CORE:**\n"
+        for service in operational[:16]:  # Primeros 16 son core
             message += f"✅ {service}\n"
+
+        # Arsenal avanzado (si hay más de 16 servicios)
+        if len(operational) > 16:
+            message += "\n**🎯 ARSENAL AVANZADO (NUEVO):**\n"
+            for service in operational[16:]:
+                message += f"✅ {service}\n"
 
         # Servicios fallidos (si hay)
         if failed:

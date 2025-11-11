@@ -18,6 +18,7 @@ from src.ml.ml_integration import MLIntegration
 from src.sentiment.sentiment_integration import SentimentIntegration
 from src.orderbook.orderbook_analyzer import OrderBookAnalyzer
 from src.market_regime.regime_detector import RegimeDetector
+from src.advanced.feature_aggregator import FeatureAggregator
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,10 @@ class MarketMonitor:
 
         # Initialize Market Regime Detector
         self.regime_detector = RegimeDetector()
+
+        # Initialize Feature Aggregator (Arsenal Avanzado) - Orquesta 7 módulos
+        self.feature_aggregator = FeatureAggregator(config, self.exchange)
+        logger.info("✅ Feature Aggregator initialized: Arsenal Avanzado loaded")
 
         self.trading_pairs = config.TRADING_PAIRS
         self.timeframe = config.TIMEFRAME
@@ -463,6 +468,48 @@ class MarketMonitor:
                 if orderbook_analysis:
                     logger.info(f"  Order Book: {orderbook_analysis['market_pressure']} (imbalance={orderbook_analysis['imbalance']:.2f})")
 
+                # ===== ARSENAL AVANZADO: ENRICH SIGNAL =====
+                # Aplicar Feature Aggregator ANTES de sentiment (para combinar TODOS los módulos)
+                if signals['action'] != 'HOLD':
+                    try:
+                        # Obtener orderbook raw para arsenal
+                        orderbook_raw = None
+                        try:
+                            orderbook_raw = self.exchange.fetch_order_book(pair)
+                        except Exception as e:
+                            logger.debug(f"No se pudo obtener orderbook raw para {pair}: {e}")
+
+                        # Obtener posiciones abiertas para correlation matrix
+                        open_positions = []
+                        if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
+                            open_positions = list(self.ml_system.paper_trader.portfolio.positions.keys())
+
+                        # ENRIQUECER SEÑAL CON ARSENAL AVANZADO
+                        enriched_signal = self.feature_aggregator.enrich_signal(
+                            pair=pair,
+                            signal=signals,
+                            current_price=current_price,
+                            ohlc_data=dfs.get('1h'),  # Usamos 1h para análisis
+                            orderbook=orderbook_raw,
+                            open_positions=open_positions
+                        )
+
+                        # Aplicar boost/penalty del arsenal
+                        if enriched_signal.get('blocked', False):
+                            logger.warning(f"🚫 Trade bloqueado por Arsenal Avanzado: {enriched_signal.get('block_reason', 'UNKNOWN')}")
+                            return
+
+                        # Actualizar señal con datos del arsenal
+                        signals['confidence'] = enriched_signal.get('final_confidence', signals.get('confidence', 50))
+                        signals['arsenal_boost'] = enriched_signal.get('total_boost', 1.0)
+                        signals['arsenal_analysis'] = enriched_signal.get('analysis', {})
+
+                        logger.info(f"🚀 Arsenal Avanzado aplicado a {pair}: confidence={signals['confidence']:.1f}% (boost={enriched_signal.get('total_boost', 1.0):.2f}x)")
+
+                    except Exception as e:
+                        logger.error(f"Error applying Feature Aggregator to signal: {e}")
+                # ===== FIN ARSENAL AVANZADO =====
+
                 # APPLY SENTIMENT ANALYSIS TO SIGNALS
                 if self.sentiment_system and signals['action'] != 'HOLD':
                     # Check if trade should be blocked by sentiment
@@ -498,7 +545,24 @@ class MarketMonitor:
                             elif pressure == 'SELL_PRESSURE':
                                 orderbook_status = 'SELL_PRESSURE'
 
-                        # Construir market state para RL Agent - INTEGRACIÓN COMPLETA DE LOS 16 SERVICIOS
+                        # ===== ARSENAL AVANZADO: ML FEATURES + RL STATE EXTENSIONS =====
+                        # Obtener features adicionales del arsenal para ML
+                        arsenal_ml_features = {}
+                        arsenal_rl_extensions = {}
+                        try:
+                            arsenal_ml_features = self.feature_aggregator.get_ml_features(
+                                pair=pair,
+                                current_price=current_price,
+                                ohlc_data=dfs.get('1h')
+                            )
+                            arsenal_rl_extensions = self.feature_aggregator.get_rl_state_extensions(
+                                pair=pair,
+                                current_price=current_price
+                            )
+                        except Exception as e:
+                            logger.warning(f"No se pudieron obtener features del arsenal: {e}")
+
+                        # Construir market state para RL Agent - INTEGRACIÓN COMPLETA DE 24 SERVICIOS
                         market_state = {
                             # Indicadores técnicos básicos
                             'rsi': analysis['indicators'].get('rsi', 50),
@@ -539,7 +603,37 @@ class MarketMonitor:
                             'regime_confidence': regime_data.get('confidence', 0) if regime_data else 0,
                             'trend_strength': regime_data.get('trend_strength', 0) if regime_data else 0,
                             'volatility_regime': regime_data.get('volatility', 'NORMAL') if regime_data else 'NORMAL',
+
+                            # ===== ARSENAL AVANZADO (8 NUEVOS SERVICIOS) =====
+                            # 17. Correlation Matrix
+                            'correlation_risk': arsenal_rl_extensions.get('correlation_risk', 0),
+                            'correlated_positions': arsenal_rl_extensions.get('correlated_positions', 0),
+
+                            # 18. Liquidation Heatmap
+                            'liquidation_bias': arsenal_rl_extensions.get('liquidation_bias', 'neutral'),
+                            'liquidation_confidence': arsenal_rl_extensions.get('liquidation_confidence', 0),
+
+                            # 19. Funding Rate Analyzer
+                            'funding_sentiment': arsenal_rl_extensions.get('funding_sentiment', 'neutral'),
+                            'funding_rate': arsenal_rl_extensions.get('funding_rate', 0),
+
+                            # 20. Volume Profile & POC
+                            'near_poc': arsenal_rl_extensions.get('near_poc', False),
+                            'in_value_area': arsenal_rl_extensions.get('in_value_area', False),
+
+                            # 21. Pattern Recognition
+                            'pattern_detected': arsenal_rl_extensions.get('pattern_detected', False),
+                            'pattern_type': arsenal_rl_extensions.get('pattern_type', 'NONE'),
+
+                            # 22. Session-Based Trading
+                            'current_session': arsenal_rl_extensions.get('current_session', 'UNKNOWN'),
+                            'session_multiplier': arsenal_rl_extensions.get('session_multiplier', 1.0),
+
+                            # 23. Order Flow Imbalance
+                            'order_flow_bias': arsenal_rl_extensions.get('order_flow_bias', 'neutral'),
+                            'order_flow_ratio': arsenal_rl_extensions.get('order_flow_ratio', 1.0),
                         }
+                        # ===== FIN ARSENAL EXTENSIONS =====
 
                         # Obtener portfolio metrics
                         portfolio_metrics = {}
@@ -575,13 +669,17 @@ class MarketMonitor:
 
                     # Ejecutar trade solo si RL Agent lo aprueba
                     if should_execute_trade:
+                        # ===== COMBINAR FEATURES: Sentiment + Orderbook + Regime + ARSENAL =====
+                        # Merge arsenal ML features con las existentes
+                        combined_sentiment_features = {**(sentiment_features or {}), **arsenal_ml_features}
+
                         trade_result = self.ml_system.process_signal(
                             pair=pair,
                             signal=signals,
                             indicators=analysis['indicators'],
                             current_price=current_price,
                             mtf_indicators=analysis.get('mtf_indicators'),
-                            sentiment_features=sentiment_features,  # Pass all features to ML
+                            sentiment_features=combined_sentiment_features,  # ARSENAL + Sentiment combined
                             orderbook_features=orderbook_features,
                             regime_features=regime_features
                         )
@@ -637,6 +735,47 @@ class MarketMonitor:
                             f"(Score: {flash_signals.get('score', 0):.1f}/{flash_signals.get('max_score', 10)}) "
                             f"@ ${flash_price:.2f}"
                         )
+
+                        # ===== ARSENAL AVANZADO: ENRICH FLASH SIGNAL =====
+                        if flash_signals['action'] != 'HOLD':
+                            try:
+                                # Obtener orderbook raw para arsenal (reusar si ya se obtuvo)
+                                orderbook_raw_flash = None
+                                try:
+                                    orderbook_raw_flash = self.exchange.fetch_order_book(pair)
+                                except Exception as e:
+                                    logger.debug(f"No se pudo obtener orderbook raw para flash {pair}: {e}")
+
+                                # Obtener posiciones abiertas
+                                open_positions_flash = []
+                                if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
+                                    open_positions_flash = list(self.ml_system.paper_trader.portfolio.positions.keys())
+
+                                # ENRIQUECER FLASH SIGNAL CON ARSENAL
+                                enriched_flash = self.feature_aggregator.enrich_signal(
+                                    pair=pair,
+                                    signal=flash_signals,
+                                    current_price=flash_price,
+                                    ohlc_data=flash_df,  # 10m data para flash
+                                    orderbook=orderbook_raw_flash,
+                                    open_positions=open_positions_flash
+                                )
+
+                                # Aplicar boost/penalty del arsenal
+                                if enriched_flash.get('blocked', False):
+                                    logger.warning(f"🚫 Flash trade bloqueado por Arsenal: {enriched_flash.get('block_reason', 'UNKNOWN')}")
+                                    return
+
+                                # Actualizar flash signal con datos del arsenal
+                                flash_signals['confidence'] = enriched_flash.get('final_confidence', flash_signals.get('confidence', 50))
+                                flash_signals['arsenal_boost'] = enriched_flash.get('total_boost', 1.0)
+                                flash_signals['arsenal_analysis'] = enriched_flash.get('analysis', {})
+
+                                logger.info(f"⚡ Arsenal aplicado a FLASH {pair}: confidence={flash_signals['confidence']:.1f}% (boost={enriched_flash.get('total_boost', 1.0):.2f}x)")
+
+                            except Exception as e:
+                                logger.error(f"Error applying Arsenal to flash signal: {e}")
+                        # ===== FIN ARSENAL FLASH =====
 
                         # APPLY SENTIMENT TO FLASH SIGNALS
                         if self.sentiment_system and flash_signals['action'] != 'HOLD':
@@ -710,13 +849,26 @@ class MarketMonitor:
 
                             # Ejecutar flash trade solo si RL Agent lo aprueba
                             if should_execute_flash:
+                                # ===== COMBINAR FEATURES PARA FLASH: Sentiment + ARSENAL =====
+                                arsenal_ml_features_flash = {}
+                                try:
+                                    arsenal_ml_features_flash = self.feature_aggregator.get_ml_features(
+                                        pair=pair,
+                                        current_price=flash_price,
+                                        ohlc_data=flash_df
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"No se pudieron obtener arsenal features para flash: {e}")
+
+                                combined_flash_features = {**(sentiment_features or {}), **arsenal_ml_features_flash}
+
                                 flash_trade_result = self.ml_system.process_signal(
                                     pair=pair,
                                     signal=flash_signals,
                                     indicators=flash_analysis['indicators'],
                                     current_price=flash_price,
                                     mtf_indicators=None,  # Flash signals don't use MTF
-                                    sentiment_features=sentiment_features,  # Pass all features to ML
+                                    sentiment_features=combined_flash_features,  # ARSENAL + Sentiment combined
                                     orderbook_features=orderbook_features,
                                     regime_features=regime_features
                                 )

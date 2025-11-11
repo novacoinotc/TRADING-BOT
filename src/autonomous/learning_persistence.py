@@ -46,7 +46,8 @@ class LearningPersistence:
         change_history: Optional[list] = None,
         metadata: Optional[Dict] = None,
         paper_trading: Optional[Dict] = None,
-        ml_training_buffer: Optional[list] = None
+        ml_training_buffer: Optional[list] = None,
+        advanced_modules_state: Optional[Dict] = None
     ) -> bool:
         """
         Guarda estado completo del sistema autónomo
@@ -59,6 +60,7 @@ class LearningPersistence:
             metadata: Información adicional (versión, timestamp, etc.)
             paper_trading: Estado del paper trading (balance, trades, etc.)
             ml_training_buffer: Training buffer del ML System (features para entrenamiento)
+            advanced_modules_state: Estado del arsenal avanzado (correlation, liquidation, funding, etc.)
 
         Returns:
             True si guardado fue exitoso
@@ -72,15 +74,16 @@ class LearningPersistence:
 
             # Construir estado completo
             full_state = {
-                'version': '1.0',
+                'version': '2.0',  # Bumped to 2.0 para soportar arsenal avanzado
                 'timestamp': datetime.now().isoformat(),
                 'rl_agent': rl_agent_state,
                 'parameter_optimizer': optimizer_state,
                 'performance_history': performance_history,
                 'change_history': change_history or [],  # Histórico de cambios con razonamiento
                 'metadata': metadata or {},
-                'paper_trading': paper_trading or {},  # NUEVO: estado de paper trading
-                'ml_training_buffer': ml_training_buffer or []  # NUEVO: training buffer del ML System
+                'paper_trading': paper_trading or {},  # Estado de paper trading
+                'ml_training_buffer': ml_training_buffer or [],  # Training buffer del ML System
+                'advanced_modules': advanced_modules_state or {}  # NUEVO: Estado del arsenal avanzado (7 módulos)
             }
 
             # Calcular checksum para validación

@@ -91,8 +91,9 @@ class RiskManager:
             winrate_factor
         )
 
-        # Limitar entre 1% y 10% del equity
-        position_size_pct = max(1.0, min(position_size_pct, 10.0))
+        # Limitar entre 1% y 12% del equity (AMPLIADO para mayor agresividad)
+        # La IA puede ser más agresiva en señales excelentes
+        position_size_pct = max(1.0, min(position_size_pct, 12.0))
 
         logger.debug(
             f"Position sizing: Base={self.base_position_size_pct}% | "
