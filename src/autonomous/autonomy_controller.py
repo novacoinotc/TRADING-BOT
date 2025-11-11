@@ -766,6 +766,16 @@ class AutonomyController:
         """
         logger.info("💾 Guardando inteligencia aprendida...")
 
+        # Validar sincronización ANTES de exportar
+        sync_status = self.validate_sync()
+        if not sync_status['in_sync']:
+            logger.warning(
+                f"⚠️ ADVERTENCIA: Exportando con desincronización\n"
+                f"   Paper Trading: {sync_status['paper_trades']} trades\n"
+                f"   RL Agent: {sync_status['rl_trades']} trades\n"
+                f"   El export contendrá esta desincronización"
+            )
+
         rl_state = self.rl_agent.save_to_dict()
         optimizer_state = self.parameter_optimizer.save_to_dict()
 
@@ -863,6 +873,59 @@ class AutonomyController:
             'rl_trades': rl_trades,
             'difference': abs(paper_trades - rl_trades)
         }
+
+    async def force_sync_from_paper(self) -> bool:
+        """
+        FUERZA sincronización usando Paper Trading como fuente de verdad
+
+        ADVERTENCIA: Esto ajustará el contador del RL Agent al Paper Trading,
+        pero NO borrará el conocimiento aprendido (Q-table se mantiene).
+
+        Returns:
+            True si sincronización fue exitosa
+        """
+        if not hasattr(self, 'paper_trader') or not self.paper_trader:
+            logger.error("❌ Paper trader no disponible")
+            return False
+
+        if not hasattr(self, 'rl_agent') or not self.rl_agent:
+            logger.error("❌ RL Agent no disponible")
+            return False
+
+        # Obtener conteos actuales
+        paper_trades = self.paper_trader.portfolio.total_trades
+        rl_trades = self.rl_agent.total_trades
+
+        if paper_trades == rl_trades:
+            logger.info("✅ Ya están sincronizados, no se requiere acción")
+            return True
+
+        logger.warning(
+            f"⚠️ FORZANDO SINCRONIZACIÓN:\n"
+            f"   Paper Trading: {paper_trades} trades (FUENTE DE VERDAD)\n"
+            f"   RL Agent ANTES: {rl_trades} trades\n"
+            f"   RL Agent DESPUÉS: {paper_trades} trades"
+        )
+
+        # Ajustar contador del RL Agent
+        self.rl_agent.total_trades = paper_trades
+
+        # También ajustar successful_trades proporcionalmente
+        if rl_trades > 0:
+            success_rate = self.rl_agent.get_success_rate()
+            self.rl_agent.successful_trades = int(paper_trades * success_rate / 100)
+        else:
+            # Si no había trades en RL, usar win rate de paper trading
+            paper_stats = self.paper_trader.portfolio.get_statistics()
+            self.rl_agent.successful_trades = int(paper_trades * paper_stats['win_rate'] / 100)
+
+        logger.info(f"✅ Sincronización forzada completada")
+        logger.info(f"   Ambos sistemas ahora tienen: {paper_trades} trades")
+
+        # Guardar el estado sincronizado
+        await self.save_intelligence()
+
+        return True
 
     def get_statistics(self) -> Dict:
         """Retorna estadísticas completas del sistema autónomo"""

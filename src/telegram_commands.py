@@ -59,6 +59,7 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("futures_stats", self.futures_stats_command))
             self.application.add_handler(CommandHandler("params", self.params_command))
             self.application.add_handler(CommandHandler("train_ml", self.train_ml_command))  # Entrenar ML System
+            self.application.add_handler(CommandHandler("force_sync", self.force_sync_command))  # Forzar sincronización RL ↔ Paper
             self.application.add_handler(CommandHandler("help", self.help_command))
 
             # Handler para recibir archivos (documentos)
@@ -282,6 +283,11 @@ class TelegramCommands:
                 "  ├─ Usa después de /import para cargar datos\n"
                 "  ├─ Requiere mínimo 25 trades\n"
                 "  └─ Habilita predicciones ML automáticas\n\n"
+                "/force_sync\n"
+                "  ├─ Fuerza sincronización RL ↔ Paper Trading\n"
+                "  ├─ Usa Paper Trading como fuente de verdad\n"
+                "  ├─ Ajusta contador del RL Agent automáticamente\n"
+                "  └─ Útil si /stats muestra desincronización ⚠️\n\n"
                 "/help\n"
                 "  └─ Muestra este mensaje\n\n"
                 "**Auto-Backup**: Cada 24h automático\n"
@@ -659,6 +665,69 @@ class TelegramCommands:
             logger.error(f"Error en comando train_ml: {e}", exc_info=True)
             await update.message.reply_text(
                 f"❌ **Error en Entrenamiento ML**\n\n{str(e)}"
+            )
+
+    async def force_sync_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /force_sync
+        Fuerza sincronización entre Paper Trading y RL Agent
+        """
+        try:
+            logger.info("🔄 Comando /force_sync recibido")
+
+            if not self.autonomy_controller:
+                await update.message.reply_text("⚠️ Sistema autónomo no disponible")
+                return
+
+            # Verificar estado actual de sincronización
+            sync_status = self.autonomy_controller.validate_sync()
+
+            if sync_status['in_sync']:
+                await update.message.reply_text(
+                    "✅ **Sistemas Ya Sincronizados**\n\n"
+                    f"Paper Trading: {sync_status['paper_trades']} trades\n"
+                    f"RL Agent: {sync_status['rl_trades']} trades\n\n"
+                    "No se requiere acción 👍"
+                )
+                return
+
+            # Mostrar estado actual
+            await update.message.reply_text(
+                "⚠️ **Desincronización Detectada**\n\n"
+                f"Paper Trading: {sync_status['paper_trades']} trades\n"
+                f"RL Agent: {sync_status['rl_trades']} trades\n"
+                f"Diferencia: {sync_status['difference']} trades\n\n"
+                "🔄 Forzando sincronización...\n"
+                "Usando Paper Trading como fuente de verdad..."
+            )
+
+            # Ejecutar sincronización forzada
+            success = await self.autonomy_controller.force_sync_from_paper()
+
+            if success:
+                # Verificar sincronización post-fix
+                new_sync = self.autonomy_controller.validate_sync()
+
+                await update.message.reply_text(
+                    "✅ **Sincronización Completada**\n\n"
+                    f"Ambos sistemas ahora tienen: {new_sync['paper_trades']} trades\n\n"
+                    "📊 **Acciones realizadas:**\n"
+                    f"  • RL Agent ajustado: {sync_status['rl_trades']} → {new_sync['rl_trades']}\n"
+                    f"  • Win rate recalculado\n"
+                    f"  • Estado guardado automáticamente\n\n"
+                    "💡 Usa /export para crear backup actualizado"
+                )
+            else:
+                await update.message.reply_text(
+                    "❌ **Error en Sincronización**\n\n"
+                    "No se pudo completar la sincronización.\n"
+                    "Revisa los logs para más detalles."
+                )
+
+        except Exception as e:
+            logger.error(f"Error en comando force_sync: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ **Error en Sincronización**\n\n{str(e)}"
             )
 
     async def import_intelligence_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
