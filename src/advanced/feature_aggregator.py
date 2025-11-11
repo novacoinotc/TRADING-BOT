@@ -245,12 +245,23 @@ class FeatureAggregator:
             ml_features['funding_rate'] = funding_rate
             ml_features['funding_is_extreme'] = abs(funding_rate) > 0.1
             ml_features['funding_is_positive'] = funding_rate > 0
+        else:
+            ml_features['funding_rate'] = 0.0
+
+        # Funding sentiment (para logging)
+        sentiment, strength, _ = self.funding_rate_analyzer.get_funding_sentiment(pair)
+        ml_features['funding_sentiment'] = sentiment
 
         # Liquidation features
         is_near_liq, liq_details = self.liquidation_heatmap.is_near_liquidation_zone(pair, current_price)
         ml_features['near_liquidation'] = 1.0 if is_near_liq else 0.0
         if liq_details:
             ml_features['liquidation_direction'] = 1.0 if liq_details['direction'] == 'above' else 0.0
+
+        # Liquidation bias (para logging)
+        liq_bias, liq_conf = self.liquidation_heatmap.get_liquidation_bias(pair, current_price)
+        ml_features['liquidation_bias'] = liq_bias
+        ml_features['liquidation_confidence'] = liq_conf
 
         # Volume profile features
         if ohlc_data is not None and pair in self.volume_profile.volume_profiles:
@@ -263,6 +274,11 @@ class FeatureAggregator:
             patterns = self.pattern_recognition.detect_all_patterns(ohlc_data)
             ml_features['has_pattern'] = 1.0 if patterns else 0.0
             ml_features['pattern_confidence'] = max([p['confidence'] for p in patterns], default=0.0)
+            ml_features['pattern_detected'] = bool(patterns)
+            ml_features['pattern_type'] = patterns[0]['pattern'] if patterns else 'NONE'
+        else:
+            ml_features['pattern_detected'] = False
+            ml_features['pattern_type'] = 'NONE'
 
         # Session features
         session, multiplier = self.session_trading.get_current_session()
@@ -292,11 +308,21 @@ class FeatureAggregator:
         """
         state_extensions = {}
 
-        # Diversification score
+        # Correlation & Diversification
         if open_positions:
             state_extensions['diversification_score'] = self.correlation_matrix.get_diversification_score(open_positions)
+            # Calcular correlaciones con posiciones abiertas
+            correlated_count = 0
+            for open_pair in open_positions:
+                corr = self.correlation_matrix.get_correlation(pair, open_pair)
+                if corr is not None and abs(corr) > 0.7:
+                    correlated_count += 1
+            state_extensions['correlated_positions'] = correlated_count
+            state_extensions['correlation_risk'] = 1.0 - state_extensions['diversification_score']
         else:
             state_extensions['diversification_score'] = 1.0
+            state_extensions['correlated_positions'] = 0
+            state_extensions['correlation_risk'] = 0.0
 
         # Funding sentiment
         sentiment, strength, _ = self.funding_rate_analyzer.get_funding_sentiment(pair)
@@ -316,7 +342,12 @@ class FeatureAggregator:
 
         # Session info
         session, multiplier = self.session_trading.get_current_session()
+        state_extensions['current_session'] = session
         state_extensions['session_multiplier'] = multiplier
+
+        # Order Flow (defaults neutros, se actualiza en enrich_signal con orderbook real)
+        state_extensions['order_flow_bias'] = 'neutral'
+        state_extensions['order_flow_ratio'] = 1.0
 
         logger.debug(f"🤖 RL state extensions generados para {pair}")
 
