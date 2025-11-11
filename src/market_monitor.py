@@ -492,7 +492,8 @@ class MarketMonitor:
                     )
                     arsenal_rl_extensions_preview = self.feature_aggregator.get_rl_state_extensions(
                         pair=pair,
-                        current_price=current_price
+                        current_price=current_price,
+                        open_positions=open_positions
                     )
 
                     # LOG DETALLADO DEL ARSENAL
@@ -646,7 +647,8 @@ class MarketMonitor:
                             )
                             arsenal_rl_extensions = self.feature_aggregator.get_rl_state_extensions(
                                 pair=pair,
-                                current_price=current_price
+                                current_price=current_price,
+                                open_positions=open_positions
                             )
                         except Exception as e:
                             logger.warning(f"No se pudieron obtener features del arsenal: {e}")
@@ -836,7 +838,8 @@ class MarketMonitor:
                             )
                             arsenal_flash_rl = self.feature_aggregator.get_rl_state_extensions(
                                 pair=pair,
-                                current_price=flash_price
+                                current_price=flash_price,
+                                open_positions=open_positions
                             )
 
                             # LOG DETALLADO FLASH
