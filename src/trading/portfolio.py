@@ -77,6 +77,15 @@ class Portfolio:
         """
         position_value = entry_price * quantity
 
+        # Validar leverage para FUTURES
+        if trade_type == 'FUTURES':
+            if not (1 <= leverage <= 20):
+                raise ValueError(
+                    f"❌ Leverage {leverage}x inválido para {pair}\n"
+                    f"   Permitido: 1-20x\n"
+                    f"   Verifica que el RL Agent esté calculando leverage correctamente"
+                )
+
         # Para SPOT: usa el valor completo
         # Para FUTURES: solo usa colateral (valor / leverage)
         if trade_type == 'FUTURES':

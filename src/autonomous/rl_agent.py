@@ -361,7 +361,8 @@ class RLAgent:
                 'position_size_multiplier': 0.0,
                 'leverage': 1,
                 'confidence': self._get_action_confidence(state, chosen_action),
-                'chosen_action': chosen_action
+                'chosen_action': chosen_action,
+                'composite_score': composite_score  # Para telemetría/debugging
             }
         elif chosen_action.startswith('FUTURES'):
             # Acciones de FUTURES
@@ -385,7 +386,8 @@ class RLAgent:
                 'position_size_multiplier': multiplier,
                 'leverage': leverage,
                 'confidence': self._get_action_confidence(state, chosen_action),
-                'chosen_action': chosen_action
+                'chosen_action': chosen_action,
+                'composite_score': composite_score  # Para telemetría/debugging
             }
         else:
             # Acciones SPOT (OPEN_CONSERVATIVE, OPEN_NORMAL, OPEN_AGGRESSIVE)
@@ -403,7 +405,8 @@ class RLAgent:
                 'position_size_multiplier': multiplier,
                 'leverage': 1,
                 'confidence': self._get_action_confidence(state, chosen_action),
-                'chosen_action': chosen_action
+                'chosen_action': chosen_action,
+                'composite_score': composite_score  # Para telemetría/debugging
             }
 
         logger.info(
@@ -589,6 +592,7 @@ class RLAgent:
             'q_table': self.q_table,
             'statistics': self.get_statistics(),
             'episode_rewards': self.episode_rewards,
+            'memory': list(self.memory),  # Experience buffer para replay
             'timestamp': datetime.now().isoformat()
         }
 
@@ -639,6 +643,15 @@ class RLAgent:
             imported_rewards = data.get('episode_rewards', [])
             self.episode_rewards.extend(imported_rewards)
 
+            # Merge experience buffer
+            loaded_memory = data.get('memory', [])
+            if loaded_memory:
+                # Convertir a list de tuples para agregar al deque
+                for experience in loaded_memory:
+                    if len(experience) == 4:  # (state, action, reward, next_state)
+                        self.memory.append(tuple(experience))
+                logger.debug(f"  ✅ Experience buffer merged: +{len(loaded_memory)} experiencias")
+
             logger.info(
                 f"🔄 RL Agent MERGED: {stats.get('total_trades', 0)} trades importados, "
                 f"Total acumulado: {self.total_trades} trades, "
@@ -655,6 +668,18 @@ class RLAgent:
             self.total_reward = stats.get('total_reward', 0.0)
 
             self.episode_rewards = data.get('episode_rewards', [])
+
+            # Restaurar experience buffer
+            loaded_memory = data.get('memory', [])
+            if loaded_memory:
+                # Convertir list a deque, preservando maxlen
+                self.memory = deque(
+                    [tuple(exp) if isinstance(exp, list) else exp for exp in loaded_memory],
+                    maxlen=self.memory.maxlen
+                )
+                logger.debug(f"  ✅ Experience buffer restaurado: {len(self.memory)} experiencias")
+            else:
+                logger.debug("  ℹ️ No hay experience buffer en export (puede ser antiguo)")
 
             logger.info(
                 f"✅ RL Agent cargado: {self.total_trades} trades, "

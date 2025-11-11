@@ -479,8 +479,12 @@ class AutonomyController:
         # Convertir estado de mercado a representación para RL
         state = self.rl_agent.get_state_representation(market_state)
 
+        # Determinar si el episodio termina (grandes wins/losses)
+        profit_pct = trade_data.get('profit_pct', 0)
+        done = (profit_pct > 20) or (profit_pct < -10)  # Episodio termina en extremos
+
         # RL Agent aprende del trade
-        self.rl_agent.learn_from_trade(reward=reward, next_state=state, done=False)
+        self.rl_agent.learn_from_trade(reward=reward, next_state=state, done=done)
 
         # Experience Replay periódico
         if self.rl_agent.total_trades % 10 == 0:
@@ -766,6 +770,16 @@ class AutonomyController:
         """
         logger.info("💾 Guardando inteligencia aprendida...")
 
+        # Validar sincronización ANTES de exportar
+        sync_status = self.validate_sync()
+        if not sync_status['in_sync']:
+            logger.warning(
+                f"⚠️ ADVERTENCIA: Exportando con desincronización\n"
+                f"   Paper Trading: {sync_status['paper_trades']} trades\n"
+                f"   RL Agent: {sync_status['rl_trades']} trades\n"
+                f"   El export contendrá esta desincronización"
+            )
+
         rl_state = self.rl_agent.save_to_dict()
         optimizer_state = self.parameter_optimizer.save_to_dict()
 
@@ -832,37 +846,140 @@ class AutonomyController:
 
     def validate_sync(self) -> Dict:
         """
-        Valida sincronización entre Paper Trading y RL Agent
+        Valida sincronización entre TODOS los contadores de trades:
+        - Paper Trading
+        - RL Agent
+        - AutonomyController (total_trades_processed y total_trades_all_time)
+        - Win Rate entre Paper Trading y RL Agent
         """
         paper_trades = 0
         rl_trades = 0
+        paper_win_rate = 0.0
+        rl_win_rate = 0.0
+        processed_trades = self.total_trades_processed
+        all_time_trades = self.total_trades_all_time
 
         # Obtener conteos de cada sistema
         if hasattr(self, 'paper_trader') and self.paper_trader:
             paper_trades = self.paper_trader.portfolio.total_trades
+            paper_stats = self.paper_trader.portfolio.get_statistics()
+            paper_win_rate = paper_stats.get('win_rate', 0)
 
         if hasattr(self, 'rl_agent') and self.rl_agent:
             rl_stats = self.rl_agent.get_statistics()
             rl_trades = rl_stats.get('total_trades', 0)
+            rl_win_rate = rl_stats.get('success_rate', 0)
 
-        in_sync = paper_trades == rl_trades
+        # Verificar sincronización completa (TODOS los contadores deben coincidir)
+        # Win rate puede tener diferencia de hasta 1% por redondeo
+        win_rate_in_sync = abs(paper_win_rate - rl_win_rate) < 1.0
+
+        in_sync = (paper_trades == rl_trades and
+                   paper_trades == processed_trades and
+                   paper_trades == all_time_trades and
+                   win_rate_in_sync)
 
         if not in_sync:
             logger.error(
                 f"🚨 DESINCRONIZACIÓN DETECTADA:\n"
-                f"   Paper Trading: {paper_trades} trades\n"
-                f"   RL Agent: {rl_trades} trades\n"
-                f"   Diferencia: {abs(paper_trades - rl_trades)}"
+                f"   Paper Trading: {paper_trades} trades, {paper_win_rate:.1f}% win rate\n"
+                f"   RL Agent: {rl_trades} trades, {rl_win_rate:.1f}% win rate\n"
+                f"   Trades Procesados: {processed_trades}\n"
+                f"   Total All Time: {all_time_trades}\n"
+                f"   Usa /force_sync para sincronizar todos"
             )
         else:
-            logger.debug(f"✅ Sincronización OK: {paper_trades} trades en ambos sistemas")
+            logger.debug(f"✅ Sincronización OK: {paper_trades} trades, {paper_win_rate:.1f}% win rate en TODOS los contadores")
 
         return {
             'in_sync': in_sync,
             'paper_trades': paper_trades,
             'rl_trades': rl_trades,
-            'difference': abs(paper_trades - rl_trades)
+            'processed_trades': processed_trades,
+            'all_time_trades': all_time_trades,
+            'paper_win_rate': paper_win_rate,
+            'rl_win_rate': rl_win_rate,
+            'win_rate_in_sync': win_rate_in_sync,
+            'differences': {
+                'rl_vs_paper': abs(rl_trades - paper_trades),
+                'processed_vs_paper': abs(processed_trades - paper_trades),
+                'all_time_vs_paper': abs(all_time_trades - paper_trades),
+                'win_rate_diff': abs(paper_win_rate - rl_win_rate)
+            }
         }
+
+    async def force_sync_from_paper(self) -> bool:
+        """
+        FUERZA sincronización usando Paper Trading como fuente de verdad
+
+        ADVERTENCIA: Esto ajustará TODOS los contadores al Paper Trading,
+        pero NO borrará el conocimiento aprendido (Q-table se mantiene).
+
+        Sincroniza:
+        - RL Agent total_trades y successful_trades
+        - AutonomyController total_trades_processed
+        - AutonomyController total_trades_all_time
+
+        Returns:
+            True si sincronización fue exitosa
+        """
+        if not hasattr(self, 'paper_trader') or not self.paper_trader:
+            logger.error("❌ Paper trader no disponible")
+            return False
+
+        if not hasattr(self, 'rl_agent') or not self.rl_agent:
+            logger.error("❌ RL Agent no disponible")
+            return False
+
+        # Obtener conteos actuales
+        paper_trades = self.paper_trader.portfolio.total_trades
+        rl_trades = self.rl_agent.total_trades
+        processed_trades = self.total_trades_processed
+        all_time_trades = self.total_trades_all_time
+
+        # Verificar si ya están sincronizados TODOS los contadores
+        if (paper_trades == rl_trades and
+            paper_trades == processed_trades and
+            paper_trades == all_time_trades):
+            logger.info("✅ Ya están sincronizados todos los contadores, no se requiere acción")
+            return True
+
+        logger.warning(
+            f"⚠️ FORZANDO SINCRONIZACIÓN COMPLETA:\n"
+            f"   Paper Trading: {paper_trades} trades (FUENTE DE VERDAD)\n"
+            f"   \n"
+            f"   ANTES:\n"
+            f"   • RL Agent: {rl_trades} trades\n"
+            f"   • Trades Procesados: {processed_trades}\n"
+            f"   • Total All Time: {all_time_trades}\n"
+            f"   \n"
+            f"   DESPUÉS (todos ajustados a {paper_trades}):"
+        )
+
+        # 1. Ajustar contador del RL Agent
+        self.rl_agent.total_trades = paper_trades
+
+        # 2. Ajustar successful_trades usando SIEMPRE Paper Trading como fuente de verdad
+        paper_stats = self.paper_trader.portfolio.get_statistics()
+        paper_win_rate = paper_stats['win_rate']
+        self.rl_agent.successful_trades = int(paper_trades * paper_win_rate / 100)
+
+        logger.info(f"🎯 Win rate sincronizado: {paper_win_rate:.1f}% ({self.rl_agent.successful_trades}/{paper_trades} ganadores)")
+
+        # 3. Ajustar contadores del AutonomyController
+        self.total_trades_processed = paper_trades
+        self.total_trades_all_time = paper_trades
+
+        logger.info(f"✅ Sincronización forzada completada - TODOS los contadores:")
+        logger.info(f"   • Paper Trading: {paper_trades} trades ✅")
+        logger.info(f"   • RL Agent: {self.rl_agent.total_trades} trades ✅")
+        logger.info(f"   • Trades Procesados: {self.total_trades_processed} ✅")
+        logger.info(f"   • Total All Time: {self.total_trades_all_time} ✅")
+
+        # Guardar el estado sincronizado
+        await self.save_intelligence()
+
+        return True
 
     def get_statistics(self) -> Dict:
         """Retorna estadísticas completas del sistema autónomo"""
@@ -1129,169 +1246,65 @@ class AutonomyController:
             f"  • Change history: {len(self.change_history)} cambios"
         )
 
-        # ===== RESTAURAR PAPER TRADING =====
+        # ===== RESTAURAR PAPER TRADING (USANDO MÉTODO CORRECTO) =====
         try:
-            logger.debug("  • Verificando Paper Trading en archivo...")
-            if 'paper_trading' in loaded:
+            logger.info("📥 Verificando Paper Trading en archivo...")
+
+            if 'paper_trading' in loaded and loaded['paper_trading']:
                 paper_data = loaded['paper_trading']
 
-                # Verificar si paper_trader existe
-                if not hasattr(self, 'paper_trader') or self.paper_trader is None:
-                    logger.warning("⚠️ Paper trader no inicializado - intentando crear...")
-                    # Intentar inicializar paper trader si es posible
-                    from src.trading.paper_trader import PaperTrader
-                    self.paper_trader = PaperTrader()
+                # Verificar estructura del export (NUEVO FORMATO con counters)
+                if 'counters' in paper_data and 'closed_trades' in paper_data:
+                    total_trades = paper_data.get('counters', {}).get('total_trades', 0)
+                    closed_trades_count = len(paper_data.get('closed_trades', []))
 
-                if self.paper_trader and hasattr(self.paper_trader, 'portfolio'):
-                    portfolio = self.paper_trader.portfolio
+                    if total_trades > 0:
+                        logger.info(f"📊 Paper trading detectado en export:")
+                        logger.info(f"   • Total trades: {total_trades}")
+                        logger.info(f"   • Closed trades: {closed_trades_count}")
+                        logger.info(f"   • Balance: ${paper_data.get('balance', 0):,.2f}")
 
-                    # Restaurar balances (solo atributos que existen en Portfolio)
-                    portfolio.initial_balance = paper_data.get('initial_balance', 50000)
-                    portfolio.balance = paper_data.get('current_balance', portfolio.initial_balance)
-                    portfolio.equity = portfolio.balance
-                    portfolio.peak_equity = paper_data.get('peak_balance', portfolio.balance)  # peak_equity, no peak_balance
-
-                    # Restaurar trades cerrados
-                    trades_restaurados_desde_archivo = False
-                    if 'trades' in paper_data and isinstance(paper_data['trades'], list):
-                        trades_to_restore = paper_data['trades']
-                        logger.info(f"  📊 Restaurando {len(trades_to_restore)} trades desde archivo...")
-
-                        if len(trades_to_restore) > 0:
-                            portfolio.closed_trades = trades_to_restore
-                            portfolio.total_trades = len(portfolio.closed_trades)
-                            trades_restaurados_desde_archivo = True
-                            logger.info(f"  ✅ Trades restaurados en portfolio.closed_trades: {len(portfolio.closed_trades)}")
+                        # Verificar que paper_trader existe
+                        if not hasattr(self, 'paper_trader') or self.paper_trader is None:
+                            logger.error("❌ CRÍTICO: self.paper_trader NO EXISTE")
+                            logger.error("   El paper_trader debe asignarse desde main.py ANTES de import")
+                            logger.error("   Continuando sin restaurar paper trading...")
+                        elif not hasattr(self.paper_trader, 'portfolio'):
+                            logger.error("❌ CRÍTICO: paper_trader.portfolio NO EXISTE")
                         else:
-                            logger.warning(f"  ⚠️ El archivo NO contiene trades en paper_trading.trades (lista vacía)")
-                            logger.warning(f"  ⚠️ Este export fue creado con una versión vieja o los trades no se guardaron")
+                            # TODO LISTO - Usar método restore_from_state()
+                            logger.info("✅ paper_trader existe - ejecutando restore_from_state()...")
 
-                        # Calcular estadísticas desde trades SI hay trades
-                        if portfolio.total_trades > 0:
-                            # Recalcular profit/loss desde los trades reales
-                            portfolio.total_profit = sum(t.get('pnl', 0) for t in portfolio.closed_trades if t.get('pnl', 0) > 0)
-                            portfolio.total_loss = sum(abs(t.get('pnl', 0)) for t in portfolio.closed_trades if t.get('pnl', 0) < 0)
+                            try:
+                                success = self.paper_trader.portfolio.restore_from_state(paper_data)
 
-                            portfolio.winning_trades = sum(1 for t in portfolio.closed_trades if t.get('pnl', 0) > 0)
-                            portfolio.losing_trades = portfolio.total_trades - portfolio.winning_trades
+                                if success:
+                                    # Verificar que realmente se restauró
+                                    actual_trades = self.paper_trader.portfolio.total_trades
+                                    actual_closed = len(self.paper_trader.portfolio.closed_trades)
+                                    actual_balance = self.paper_trader.portfolio.balance
 
-                    # ===== SINCRONIZACIÓN INTELIGENTE DE ESTADÍSTICAS =====
-                    # Detectar si necesitamos sincronizar (condiciones más amplias)
-                    needs_sync = False
-                    rl_success_rate = self.rl_agent.get_success_rate()  # Usar método correcto
+                                    logger.info(f"✅ Paper Trading restaurado exitosamente:")
+                                    logger.info(f"   • Total trades: {actual_trades}")
+                                    logger.info(f"   • Closed trades: {actual_closed}")
+                                    logger.info(f"   • Balance: ${actual_balance:,.2f}")
 
-                    # Condición 1: Portfolio sin trades pero RL tiene experiencia
-                    if portfolio.total_trades == 0 and self.rl_agent.total_trades > 0:
-                        needs_sync = True
-                        logger.warning(f"⚠️ Portfolio sin trades pero RL tiene {self.rl_agent.total_trades} - necesita sincronización")
-
-                    # Condición 2: Trades existen pero winning/losing están en 0
-                    elif portfolio.total_trades > 0 and (portfolio.winning_trades + portfolio.losing_trades) == 0:
-                        needs_sync = True
-                        logger.warning(f"⚠️ Portfolio tiene {portfolio.total_trades} trades pero sin estadísticas de ganadores/perdedores")
-
-                    # Condición 3: Desincronización entre portfolio y RL Agent
-                    elif portfolio.total_trades != self.rl_agent.total_trades and self.rl_agent.total_trades > 0:
-                        needs_sync = True
-                        logger.warning(f"⚠️ Trades desincronizados: Portfolio={portfolio.total_trades}, RL={self.rl_agent.total_trades}")
-
-                    if needs_sync:
-                        # SOLO sincronizar si hay trades restaurados desde archivo
-                        # Si no hay trades reales, no podemos inventar contadores sin datos
-                        if not trades_restaurados_desde_archivo:
-                            logger.error("❌ NO SE PUEDE SINCRONIZAR: El archivo NO contiene trades reales")
-                            logger.error("   Portfolio.closed_trades está vacío - no hay datos para sincronizar")
-                            logger.error("   El RL Agent tiene experiencia pero los trades NO fueron exportados")
-                            logger.error("")
-                            logger.error("   SOLUCIÓN:")
-                            logger.error("   1. Haz /export AHORA para crear export con trades reales")
-                            logger.error("   2. O espera a que el bot acumule nuevos trades (operando en vivo)")
-                            logger.error("   3. El ML NO podrá entrenar hasta tener trades reales")
-                            logger.error("")
-                            # NO sincronizar - dejar portfolio.total_trades en 0
-                        else:
-                            logger.info("🔄 Sincronizando estadísticas desde RL Agent...")
-
-                            # Sincronizar contadores de trades
-                            portfolio.total_trades = self.rl_agent.total_trades
-                            portfolio.winning_trades = int(self.rl_agent.total_trades * rl_success_rate / 100)
-                            portfolio.losing_trades = portfolio.total_trades - portfolio.winning_trades
-
-                            # Calcular profit/loss basado en balance actual vs inicial
-                            net_pnl = portfolio.balance - portfolio.initial_balance
-
-                            if portfolio.winning_trades > 0:
-                                # Estimar distribución de ganancias/pérdidas
-                                # Asumiendo ratio 1.5:1 entre ganancias promedio y pérdidas promedio
-                                avg_win_loss_ratio = 1.5
-
-                                if net_pnl > 0:
-                                    # Calcular total_profit y total_loss que resulten en el net_pnl correcto
-                                    # net_pnl = total_profit - total_loss
-                                    # total_profit = avg_win * winning_trades
-                                    # total_loss = avg_loss * losing_trades
-                                    # avg_win / avg_loss = avg_win_loss_ratio
-
-                                    # Fórmula: total_profit = (net_pnl + total_loss)
-                                    # avg_win = avg_loss * avg_win_loss_ratio
-                                    # total_profit / winning_trades = (total_loss / losing_trades) * avg_win_loss_ratio
-
-                                    if portfolio.losing_trades > 0:
-                                        # Resolver para total_loss
-                                        total_loss = (net_pnl * portfolio.losing_trades) / (portfolio.winning_trades * avg_win_loss_ratio - portfolio.losing_trades)
-                                        total_profit = net_pnl + total_loss
-                                    else:
-                                        # Solo ganancias, sin pérdidas
-                                        total_profit = net_pnl
-                                        total_loss = 0
-
-                                    portfolio.total_profit = max(0, total_profit)
-                                    portfolio.total_loss = max(0, total_loss)
+                                    # Verificación de integridad
+                                    if actual_trades != total_trades:
+                                        logger.warning(f"⚠️ Trades: esperado={total_trades}, actual={actual_trades}")
                                 else:
-                                    # PnL negativo: estimar valores conservadores
-                                    portfolio.total_profit = abs(net_pnl) * 0.3  # Algunas ganancias pequeñas
-                                    portfolio.total_loss = abs(net_pnl) + portfolio.total_profit  # Pérdidas mayores
-                            else:
-                                portfolio.total_profit = 0
-                                portfolio.total_loss = abs(net_pnl) if net_pnl < 0 else 0
+                                    logger.error("❌ restore_from_state() retornó False")
+                                    logger.error("   Revisa logs de Portfolio para más detalles")
 
-                            # IMPORTANTE: Calcular promedios después de establecer totales
-                            # El método get_statistics() del Portfolio necesita estos valores
-                            # pero también podemos calcularlos directamente aquí para asegurar
-                            if not hasattr(portfolio, 'avg_win'):
-                                portfolio.avg_win = 0
-                            if not hasattr(portfolio, 'avg_loss'):
-                                portfolio.avg_loss = 0
-
-                            # Sobrescribir con los valores calculados correctamente
-                            portfolio.avg_win = portfolio.total_profit / portfolio.winning_trades if portfolio.winning_trades > 0 else 0
-                            portfolio.avg_loss = portfolio.total_loss / portfolio.losing_trades if portfolio.losing_trades > 0 else 0
-
-                            logger.info(f"  ✅ Sincronización completa:")
-                            logger.info(f"     • Total trades: {portfolio.total_trades}")
-                            logger.info(f"     • Ganadores: {portfolio.winning_trades} ({portfolio.winning_trades/portfolio.total_trades*100:.1f}%)")
-                            logger.info(f"     • Perdedores: {portfolio.losing_trades} ({portfolio.losing_trades/portfolio.total_trades*100:.1f}%)")
-                            logger.info(f"     • Win rate: {rl_success_rate:.1f}%")
-                            logger.info(f"     • Profit total: ${portfolio.total_profit:.2f}")
-                            logger.info(f"     • Loss total: ${portfolio.total_loss:.2f}")
-                    # ===== FIN SINCRONIZACIÓN =====
-
-                    # Obtener estadísticas calculadas del portfolio
-                    portfolio_stats = portfolio.get_statistics()
-
-                    # CRÍTICO: Guardar portfolio a disco para persistir los cambios
-                    portfolio._save_portfolio()
-                    logger.debug(f"  💾 Portfolio guardado en disco")
-
-                    logger.info(f"  ✅ Paper Trading restaurado:")
-                    logger.info(f"     • Balance: ${portfolio.balance:,.2f}")
-                    logger.info(f"     • PnL: ${portfolio_stats['net_pnl']:+,.2f} ({portfolio_stats['roi']:+.2f}%)")
-                    logger.info(f"     • Trades históricos: {portfolio.total_trades}")
-                    logger.info(f"     • Win rate: {portfolio_stats['win_rate']:.1f}%")
+                            except Exception as e:
+                                logger.error(f"❌ EXCEPCIÓN al ejecutar restore_from_state(): {e}", exc_info=True)
+                    else:
+                        logger.warning("⚠️ Paper trading en export pero con 0 trades")
                 else:
-                    logger.warning("⚠️ No se pudo acceder al portfolio del paper trader")
+                    logger.warning("⚠️ Paper trading en export pero formato incorrecto (sin counters/closed_trades)")
+                    logger.warning("   Puede ser un export antiguo - usa un export reciente creado con /export")
             else:
-                logger.warning("⚠️ No se encontró 'paper_trading' en el archivo importado")
+                logger.info("ℹ️ No hay paper trading en el export")
 
         except Exception as e:
             logger.error(f"❌ Error restaurando Paper Trading: {e}", exc_info=True)
