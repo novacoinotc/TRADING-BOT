@@ -369,16 +369,23 @@ class TelegramCommands:
                 "**📍 Posiciones:**\n"
                 f"  • Abiertas: {len(portfolio.positions) if hasattr(portfolio, 'positions') else 0}\n"
                 f"  • Cerradas: {len(portfolio.closed_trades) if hasattr(portfolio, 'closed_trades') else 0}\n\n"
-                "**🔄 Sincronización:**\n"
-                f"  • Paper Trading ↔️ RL Agent: {sync_emoji}\n"
+                "**🔄 Sincronización de Contadores:**\n"
+                f"  • Estado: {sync_emoji}\n"
             )
 
             if not sync['in_sync']:
+                diffs = sync['differences']
                 message += (
                     f"\n⚠️ **Desincronización detectada:**\n"
-                    f"  • Paper: {sync['paper_trades']} trades\n"
-                    f"  • RL Agent: {sync['rl_trades']} trades\n"
-                    f"  • Diferencia: {sync['difference']} trades\n"
+                    f"  • Paper Trading: {sync['paper_trades']} trades ✅\n"
+                    f"  • RL Agent: {sync['rl_trades']} trades {'' if diffs['rl_vs_paper'] == 0 else '❌'}\n"
+                    f"  • Trades Procesados: {sync['processed_trades']} {'' if diffs['processed_vs_paper'] == 0 else '❌'}\n"
+                    f"  • Total All Time: {sync['all_time_trades']} {'' if diffs['all_time_vs_paper'] == 0 else '❌'}\n"
+                    f"\n💡 Usa /force_sync para sincronizar todos los contadores\n"
+                )
+            else:
+                message += (
+                    f"  • Todos los contadores sincronizados: {sync['paper_trades']} trades ✅\n"
                 )
 
             message += "\nUsa /status para ver estado del sistema autónomo"
@@ -684,20 +691,24 @@ class TelegramCommands:
 
             if sync_status['in_sync']:
                 await update.message.reply_text(
-                    "✅ **Sistemas Ya Sincronizados**\n\n"
+                    "✅ **Todos los Contadores Sincronizados**\n\n"
                     f"Paper Trading: {sync_status['paper_trades']} trades\n"
-                    f"RL Agent: {sync_status['rl_trades']} trades\n\n"
+                    f"RL Agent: {sync_status['rl_trades']} trades\n"
+                    f"Trades Procesados: {sync_status['processed_trades']}\n"
+                    f"Total All Time: {sync_status['all_time_trades']}\n\n"
                     "No se requiere acción 👍"
                 )
                 return
 
-            # Mostrar estado actual
+            # Mostrar estado actual con TODOS los contadores
+            diffs = sync_status['differences']
             await update.message.reply_text(
                 "⚠️ **Desincronización Detectada**\n\n"
-                f"Paper Trading: {sync_status['paper_trades']} trades\n"
-                f"RL Agent: {sync_status['rl_trades']} trades\n"
-                f"Diferencia: {sync_status['difference']} trades\n\n"
-                "🔄 Forzando sincronización...\n"
+                f"Paper Trading: {sync_status['paper_trades']} trades ✅ (fuente de verdad)\n"
+                f"RL Agent: {sync_status['rl_trades']} trades {'' if diffs['rl_vs_paper'] == 0 else '❌'}\n"
+                f"Trades Procesados: {sync_status['processed_trades']} {'' if diffs['processed_vs_paper'] == 0 else '❌'}\n"
+                f"Total All Time: {sync_status['all_time_trades']} {'' if diffs['all_time_vs_paper'] == 0 else '❌'}\n\n"
+                "🔄 Forzando sincronización de TODOS los contadores...\n"
                 "Usando Paper Trading como fuente de verdad..."
             )
 
@@ -710,9 +721,11 @@ class TelegramCommands:
 
                 await update.message.reply_text(
                     "✅ **Sincronización Completada**\n\n"
-                    f"Ambos sistemas ahora tienen: {new_sync['paper_trades']} trades\n\n"
+                    f"Todos los contadores ahora tienen: {new_sync['paper_trades']} trades\n\n"
                     "📊 **Acciones realizadas:**\n"
-                    f"  • RL Agent ajustado: {sync_status['rl_trades']} → {new_sync['rl_trades']}\n"
+                    f"  • RL Agent: {sync_status['rl_trades']} → {new_sync['rl_trades']}\n"
+                    f"  • Trades Procesados: {sync_status['processed_trades']} → {new_sync['processed_trades']}\n"
+                    f"  • Total All Time: {sync_status['all_time_trades']} → {new_sync['all_time_trades']}\n"
                     f"  • Win rate recalculado\n"
                     f"  • Estado guardado automáticamente\n\n"
                     "💡 Usa /export para crear backup actualizado"

@@ -842,10 +842,15 @@ class AutonomyController:
 
     def validate_sync(self) -> Dict:
         """
-        Valida sincronización entre Paper Trading y RL Agent
+        Valida sincronización entre TODOS los contadores de trades:
+        - Paper Trading
+        - RL Agent
+        - AutonomyController (total_trades_processed y total_trades_all_time)
         """
         paper_trades = 0
         rl_trades = 0
+        processed_trades = self.total_trades_processed
+        all_time_trades = self.total_trades_all_time
 
         # Obtener conteos de cada sistema
         if hasattr(self, 'paper_trader') and self.paper_trader:
@@ -855,31 +860,47 @@ class AutonomyController:
             rl_stats = self.rl_agent.get_statistics()
             rl_trades = rl_stats.get('total_trades', 0)
 
-        in_sync = paper_trades == rl_trades
+        # Verificar sincronización completa (TODOS los contadores deben coincidir)
+        in_sync = (paper_trades == rl_trades and
+                   paper_trades == processed_trades and
+                   paper_trades == all_time_trades)
 
         if not in_sync:
             logger.error(
                 f"🚨 DESINCRONIZACIÓN DETECTADA:\n"
                 f"   Paper Trading: {paper_trades} trades\n"
                 f"   RL Agent: {rl_trades} trades\n"
-                f"   Diferencia: {abs(paper_trades - rl_trades)}"
+                f"   Trades Procesados: {processed_trades}\n"
+                f"   Total All Time: {all_time_trades}\n"
+                f"   Usa /force_sync para sincronizar todos"
             )
         else:
-            logger.debug(f"✅ Sincronización OK: {paper_trades} trades en ambos sistemas")
+            logger.debug(f"✅ Sincronización OK: {paper_trades} trades en TODOS los contadores")
 
         return {
             'in_sync': in_sync,
             'paper_trades': paper_trades,
             'rl_trades': rl_trades,
-            'difference': abs(paper_trades - rl_trades)
+            'processed_trades': processed_trades,
+            'all_time_trades': all_time_trades,
+            'differences': {
+                'rl_vs_paper': abs(rl_trades - paper_trades),
+                'processed_vs_paper': abs(processed_trades - paper_trades),
+                'all_time_vs_paper': abs(all_time_trades - paper_trades)
+            }
         }
 
     async def force_sync_from_paper(self) -> bool:
         """
         FUERZA sincronización usando Paper Trading como fuente de verdad
 
-        ADVERTENCIA: Esto ajustará el contador del RL Agent al Paper Trading,
+        ADVERTENCIA: Esto ajustará TODOS los contadores al Paper Trading,
         pero NO borrará el conocimiento aprendido (Q-table se mantiene).
+
+        Sincroniza:
+        - RL Agent total_trades y successful_trades
+        - AutonomyController total_trades_processed
+        - AutonomyController total_trades_all_time
 
         Returns:
             True si sincronización fue exitosa
@@ -895,22 +916,32 @@ class AutonomyController:
         # Obtener conteos actuales
         paper_trades = self.paper_trader.portfolio.total_trades
         rl_trades = self.rl_agent.total_trades
+        processed_trades = self.total_trades_processed
+        all_time_trades = self.total_trades_all_time
 
-        if paper_trades == rl_trades:
-            logger.info("✅ Ya están sincronizados, no se requiere acción")
+        # Verificar si ya están sincronizados TODOS los contadores
+        if (paper_trades == rl_trades and
+            paper_trades == processed_trades and
+            paper_trades == all_time_trades):
+            logger.info("✅ Ya están sincronizados todos los contadores, no se requiere acción")
             return True
 
         logger.warning(
-            f"⚠️ FORZANDO SINCRONIZACIÓN:\n"
+            f"⚠️ FORZANDO SINCRONIZACIÓN COMPLETA:\n"
             f"   Paper Trading: {paper_trades} trades (FUENTE DE VERDAD)\n"
-            f"   RL Agent ANTES: {rl_trades} trades\n"
-            f"   RL Agent DESPUÉS: {paper_trades} trades"
+            f"   \n"
+            f"   ANTES:\n"
+            f"   • RL Agent: {rl_trades} trades\n"
+            f"   • Trades Procesados: {processed_trades}\n"
+            f"   • Total All Time: {all_time_trades}\n"
+            f"   \n"
+            f"   DESPUÉS (todos ajustados a {paper_trades}):"
         )
 
-        # Ajustar contador del RL Agent
+        # 1. Ajustar contador del RL Agent
         self.rl_agent.total_trades = paper_trades
 
-        # También ajustar successful_trades proporcionalmente
+        # 2. Ajustar successful_trades proporcionalmente
         if rl_trades > 0:
             success_rate = self.rl_agent.get_success_rate()
             self.rl_agent.successful_trades = int(paper_trades * success_rate / 100)
@@ -919,8 +950,15 @@ class AutonomyController:
             paper_stats = self.paper_trader.portfolio.get_statistics()
             self.rl_agent.successful_trades = int(paper_trades * paper_stats['win_rate'] / 100)
 
-        logger.info(f"✅ Sincronización forzada completada")
-        logger.info(f"   Ambos sistemas ahora tienen: {paper_trades} trades")
+        # 3. Ajustar contadores del AutonomyController
+        self.total_trades_processed = paper_trades
+        self.total_trades_all_time = paper_trades
+
+        logger.info(f"✅ Sincronización forzada completada - TODOS los contadores:")
+        logger.info(f"   • Paper Trading: {paper_trades} trades ✅")
+        logger.info(f"   • RL Agent: {self.rl_agent.total_trades} trades ✅")
+        logger.info(f"   • Trades Procesados: {self.total_trades_processed} ✅")
+        logger.info(f"   • Total All Time: {self.total_trades_all_time} ✅")
 
         # Guardar el estado sincronizado
         await self.save_intelligence()
