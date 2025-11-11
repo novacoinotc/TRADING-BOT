@@ -479,8 +479,12 @@ class AutonomyController:
         # Convertir estado de mercado a representación para RL
         state = self.rl_agent.get_state_representation(market_state)
 
+        # Determinar si el episodio termina (grandes wins/losses)
+        profit_pct = trade_data.get('profit_pct', 0)
+        done = (profit_pct > 20) or (profit_pct < -10)  # Episodio termina en extremos
+
         # RL Agent aprende del trade
-        self.rl_agent.learn_from_trade(reward=reward, next_state=state, done=False)
+        self.rl_agent.learn_from_trade(reward=reward, next_state=state, done=done)
 
         # Experience Replay periódico
         if self.rl_agent.total_trades % 10 == 0:
