@@ -284,9 +284,10 @@ class TelegramCommands:
                 "  ├─ Requiere mínimo 25 trades\n"
                 "  └─ Habilita predicciones ML automáticas\n\n"
                 "/force_sync\n"
-                "  ├─ Fuerza sincronización RL ↔ Paper Trading\n"
+                "  ├─ Fuerza sincronización COMPLETA de todos los contadores\n"
                 "  ├─ Usa Paper Trading como fuente de verdad\n"
-                "  ├─ Ajusta contador del RL Agent automáticamente\n"
+                "  ├─ Sincroniza: trades, win rate, procesados, all-time\n"
+                "  ├─ Ajusta RL Agent automáticamente\n"
                 "  └─ Útil si /stats muestra desincronización ⚠️\n\n"
                 "/help\n"
                 "  └─ Muestra este mensaje\n\n"
@@ -377,15 +378,17 @@ class TelegramCommands:
                 diffs = sync['differences']
                 message += (
                     f"\n⚠️ **Desincronización detectada:**\n"
-                    f"  • Paper Trading: {sync['paper_trades']} trades ✅\n"
-                    f"  • RL Agent: {sync['rl_trades']} trades {'' if diffs['rl_vs_paper'] == 0 else '❌'}\n"
+                    f"  • Paper Trading: {sync['paper_trades']} trades, {sync['paper_win_rate']:.1f}% WR ✅\n"
+                    f"  • RL Agent: {sync['rl_trades']} trades {'' if diffs['rl_vs_paper'] == 0 else '❌'}, {sync['rl_win_rate']:.1f}% WR {'' if sync['win_rate_in_sync'] else '❌'}\n"
                     f"  • Trades Procesados: {sync['processed_trades']} {'' if diffs['processed_vs_paper'] == 0 else '❌'}\n"
                     f"  • Total All Time: {sync['all_time_trades']} {'' if diffs['all_time_vs_paper'] == 0 else '❌'}\n"
-                    f"\n💡 Usa /force_sync para sincronizar todos los contadores\n"
                 )
+                if not sync['win_rate_in_sync']:
+                    message += f"  • Diferencia Win Rate: {diffs['win_rate_diff']:.1f}%\n"
+                message += f"\n💡 Usa /force_sync para sincronizar todos los contadores\n"
             else:
                 message += (
-                    f"  • Todos los contadores sincronizados: {sync['paper_trades']} trades ✅\n"
+                    f"  • Todos los contadores sincronizados: {sync['paper_trades']} trades, {sync['paper_win_rate']:.1f}% WR ✅\n"
                 )
 
             message += "\nUsa /status para ver estado del sistema autónomo"
@@ -692,8 +695,8 @@ class TelegramCommands:
             if sync_status['in_sync']:
                 await update.message.reply_text(
                     "✅ **Todos los Contadores Sincronizados**\n\n"
-                    f"Paper Trading: {sync_status['paper_trades']} trades\n"
-                    f"RL Agent: {sync_status['rl_trades']} trades\n"
+                    f"Paper Trading: {sync_status['paper_trades']} trades, {sync_status['paper_win_rate']:.1f}% WR\n"
+                    f"RL Agent: {sync_status['rl_trades']} trades, {sync_status['rl_win_rate']:.1f}% WR\n"
                     f"Trades Procesados: {sync_status['processed_trades']}\n"
                     f"Total All Time: {sync_status['all_time_trades']}\n\n"
                     "No se requiere acción 👍"
@@ -702,15 +705,15 @@ class TelegramCommands:
 
             # Mostrar estado actual con TODOS los contadores
             diffs = sync_status['differences']
-            await update.message.reply_text(
-                "⚠️ **Desincronización Detectada**\n\n"
-                f"Paper Trading: {sync_status['paper_trades']} trades ✅ (fuente de verdad)\n"
-                f"RL Agent: {sync_status['rl_trades']} trades {'' if diffs['rl_vs_paper'] == 0 else '❌'}\n"
-                f"Trades Procesados: {sync_status['processed_trades']} {'' if diffs['processed_vs_paper'] == 0 else '❌'}\n"
-                f"Total All Time: {sync_status['all_time_trades']} {'' if diffs['all_time_vs_paper'] == 0 else '❌'}\n\n"
-                "🔄 Forzando sincronización de TODOS los contadores...\n"
-                "Usando Paper Trading como fuente de verdad..."
-            )
+            desync_msg = "⚠️ **Desincronización Detectada**\n\n"
+            desync_msg += f"Paper Trading: {sync_status['paper_trades']} trades, {sync_status['paper_win_rate']:.1f}% WR ✅ (fuente de verdad)\n"
+            desync_msg += f"RL Agent: {sync_status['rl_trades']} trades {'' if diffs['rl_vs_paper'] == 0 else '❌'}, {sync_status['rl_win_rate']:.1f}% WR {'' if sync_status['win_rate_in_sync'] else '❌'}\n"
+            desync_msg += f"Trades Procesados: {sync_status['processed_trades']} {'' if diffs['processed_vs_paper'] == 0 else '❌'}\n"
+            desync_msg += f"Total All Time: {sync_status['all_time_trades']} {'' if diffs['all_time_vs_paper'] == 0 else '❌'}\n\n"
+            desync_msg += "🔄 Forzando sincronización de TODOS los contadores...\n"
+            desync_msg += "Usando Paper Trading como fuente de verdad..."
+
+            await update.message.reply_text(desync_msg)
 
             # Ejecutar sincronización forzada
             success = await self.autonomy_controller.force_sync_from_paper()
@@ -719,17 +722,17 @@ class TelegramCommands:
                 # Verificar sincronización post-fix
                 new_sync = self.autonomy_controller.validate_sync()
 
-                await update.message.reply_text(
-                    "✅ **Sincronización Completada**\n\n"
-                    f"Todos los contadores ahora tienen: {new_sync['paper_trades']} trades\n\n"
-                    "📊 **Acciones realizadas:**\n"
-                    f"  • RL Agent: {sync_status['rl_trades']} → {new_sync['rl_trades']}\n"
-                    f"  • Trades Procesados: {sync_status['processed_trades']} → {new_sync['processed_trades']}\n"
-                    f"  • Total All Time: {sync_status['all_time_trades']} → {new_sync['all_time_trades']}\n"
-                    f"  • Win rate recalculado\n"
-                    f"  • Estado guardado automáticamente\n\n"
-                    "💡 Usa /export para crear backup actualizado"
-                )
+                result_msg = "✅ **Sincronización Completada**\n\n"
+                result_msg += f"Todos los contadores ahora tienen: {new_sync['paper_trades']} trades, {new_sync['paper_win_rate']:.1f}% WR\n\n"
+                result_msg += "📊 **Acciones realizadas:**\n"
+                result_msg += f"  • RL Agent trades: {sync_status['rl_trades']} → {new_sync['rl_trades']}\n"
+                result_msg += f"  • RL Agent Win Rate: {sync_status['rl_win_rate']:.1f}% → {new_sync['rl_win_rate']:.1f}%\n"
+                result_msg += f"  • Trades Procesados: {sync_status['processed_trades']} → {new_sync['processed_trades']}\n"
+                result_msg += f"  • Total All Time: {sync_status['all_time_trades']} → {new_sync['all_time_trades']}\n"
+                result_msg += f"  • Estado guardado automáticamente\n\n"
+                result_msg += "💡 Usa /export para crear backup actualizado"
+
+                await update.message.reply_text(result_msg)
             else:
                 await update.message.reply_text(
                     "❌ **Error en Sincronización**\n\n"
