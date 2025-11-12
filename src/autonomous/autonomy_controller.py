@@ -937,12 +937,29 @@ class AutonomyController:
         processed_trades = self.total_trades_processed
         all_time_trades = self.total_trades_all_time
 
-        # Verificar si ya están sincronizados TODOS los contadores
-        if (paper_trades == rl_trades and
-            paper_trades == processed_trades and
-            paper_trades == all_time_trades):
-            logger.info("✅ Ya están sincronizados todos los contadores, no se requiere acción")
+        # Obtener win rates
+        paper_stats = self.paper_trader.portfolio.get_statistics()
+        paper_win_rate = paper_stats['win_rate']
+        rl_win_rate = self.rl_agent.get_success_rate()
+
+        # Verificar si ya están sincronizados TODOS los contadores Y WIN RATE
+        trades_in_sync = (paper_trades == rl_trades and
+                         paper_trades == processed_trades and
+                         paper_trades == all_time_trades)
+        win_rate_in_sync = abs(paper_win_rate - rl_win_rate) < 1.0  # Tolerancia de 1%
+
+        if trades_in_sync and win_rate_in_sync:
+            logger.info(f"✅ Ya están sincronizados todos los contadores y win rate ({paper_win_rate:.1f}%), no se requiere acción")
             return True
+
+        # Si solo los contadores están sincronizados pero no el win rate
+        if trades_in_sync and not win_rate_in_sync:
+            logger.warning(
+                f"⚠️ Contadores sincronizados pero WIN RATE desincronizado:\n"
+                f"   Paper Trading: {paper_trades} trades, {paper_win_rate:.1f}% WR\n"
+                f"   RL Agent: {rl_trades} trades, {rl_win_rate:.1f}% WR\n"
+                f"   FORZANDO SINCRONIZACIÓN DE WIN RATE..."
+            )
 
         logger.warning(
             f"⚠️ FORZANDO SINCRONIZACIÓN COMPLETA:\n"
@@ -962,8 +979,7 @@ class AutonomyController:
         self.rl_agent.total_trades = paper_trades
 
         # 2. Ajustar successful_trades usando SIEMPRE Paper Trading como fuente de verdad
-        paper_stats = self.paper_trader.portfolio.get_statistics()
-        paper_win_rate = paper_stats['win_rate']
+        # paper_stats y paper_win_rate ya calculados arriba en la línea 941-942
         new_successful = int(paper_trades * paper_win_rate / 100)
 
         logger.info(
