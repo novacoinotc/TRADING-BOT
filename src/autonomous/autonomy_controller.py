@@ -991,8 +991,13 @@ class AutonomyController:
 
         # Log warning si no están sincronizados
         if not sync_status['in_sync']:
+            diffs = sync_status['differences']
             logger.warning(
-                f"⚠️ Paper Trading y RL Agent desincronizados por {sync_status['difference']} trades"
+                f"⚠️ Desincronización detectada:\n"
+                f"   RL vs Paper: {diffs['rl_vs_paper']} trades\n"
+                f"   Processed vs Paper: {diffs['processed_vs_paper']} trades\n"
+                f"   All-time vs Paper: {diffs['all_time_vs_paper']} trades\n"
+                f"   Win Rate diff: {diffs['win_rate_diff']:.1f}%"
             )
 
         return {
