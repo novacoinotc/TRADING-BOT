@@ -5,7 +5,13 @@ Monitors cryptocurrency pairs and sends trading signals via Telegram
 import asyncio
 import logging
 import sys
+import warnings
 from pathlib import Path
+
+# Suprimir warnings de NumPy sobre operaciones con NaN
+# Estos son comunes en cálculos de indicadores técnicos y no afectan funcionalidad
+warnings.filterwarnings('ignore', message='invalid value encountered in subtract')
+warnings.filterwarnings('ignore', category=RuntimeWarning, module='numpy')
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
