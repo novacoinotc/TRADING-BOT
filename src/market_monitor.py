@@ -81,6 +81,7 @@ class MarketMonitor:
         self.flash_timeframe = config.FLASH_TIMEFRAME  # 10m for flash signals
         self.check_interval = config.CHECK_INTERVAL
         self.is_running = False
+        self.market_analysis_paused = False  # Pausa análisis pero permite cerrar trades existentes
         self.current_prices = {}  # Store current prices for tracking
         self.enable_flash = config.ENABLE_FLASH_SIGNALS
         self.enable_paper_trading = config.ENABLE_PAPER_TRADING  # New config option
@@ -755,8 +756,8 @@ class MarketMonitor:
                             signals['rl_position_multiplier'] = rl_decision['position_size_multiplier']
                             signals['rl_action'] = rl_decision.get('chosen_action', 'UNKNOWN')
                             # Pasar trade_type y leverage para futuros
-                            signals['trade_type'] = rl_decision.get('trade_type', 'SPOT')
-                            signals['leverage'] = rl_decision.get('leverage', 1)
+                            signals['trade_type'] = rl_decision.get('trade_type', 'FUTURES')  # Default FUTURES
+                            signals['leverage'] = rl_decision.get('leverage', 1)  # 1x = sin apalancamiento
 
                     # Ejecutar trade solo si RL Agent lo aprueba
                     if should_execute_trade:
@@ -1053,11 +1054,15 @@ class MarketMonitor:
                 iteration += 1
                 logger.info(f"=== Iteration {iteration} - {datetime.now()} ===")
 
-                # Analyze all pairs
-                for pair in self.trading_pairs:
-                    await self.analyze_pair(pair)
-                    # Small delay between pairs to avoid rate limits
-                    await asyncio.sleep(2)
+                # Si está pausado, solo actualizar posiciones existentes
+                if self.market_analysis_paused:
+                    logger.info("⏸️  Análisis de mercado PAUSADO - Solo monitoreando trades abiertos")
+                else:
+                    # Analyze all pairs
+                    for pair in self.trading_pairs:
+                        await self.analyze_pair(pair)
+                        # Small delay between pairs to avoid rate limits
+                        await asyncio.sleep(2)
 
                 # 🔥 FIX CRÍTICO: Actualizar TODAS las posiciones abiertas cada ciclo
                 if self.enable_paper_trading and self.ml_system:
@@ -1233,3 +1238,18 @@ class MarketMonitor:
         Stop the market monitor
         """
         self.is_running = False
+
+    def pause_analysis(self):
+        """
+        Pausa el análisis de nuevos pares, pero sigue monitoreando posiciones abiertas
+        Útil antes de hacer export para evitar discrepancias
+        """
+        self.market_analysis_paused = True
+        logger.info("⏸️  Análisis de mercado PAUSADO - Solo monitoreando trades abiertos")
+
+    def resume_analysis(self):
+        """
+        Reanuda el análisis de mercado normal
+        """
+        self.market_analysis_paused = False
+        logger.info("▶️  Análisis de mercado RESUMIDO - Analizando todos los pares")

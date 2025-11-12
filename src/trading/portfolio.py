@@ -58,19 +58,19 @@ class Portfolio:
 
     def open_position(self, pair: str, side: str, entry_price: float,
                      quantity: float, stop_loss: float, take_profit: Dict,
-                     trade_type: str = 'SPOT', leverage: int = 1) -> Dict:
+                     trade_type: str = 'FUTURES', leverage: int = 1) -> Dict:
         """
-        Abre nueva posición (SPOT o FUTURES)
+        Abre nueva posición en FUTURES (permite LONG y SHORT)
 
         Args:
             pair: Par de trading (ej. BTC/USDT)
-            side: 'BUY' o 'SELL'
+            side: 'BUY' (LONG) o 'SELL' (SHORT)
             entry_price: Precio de entrada
             quantity: Cantidad en cripto
             stop_loss: Precio de stop loss
             take_profit: Dict con tp1, tp2, tp3
-            trade_type: 'SPOT' o 'FUTURES'
-            leverage: 1-20x (solo para FUTURES)
+            trade_type: 'FUTURES' (default) - permite LONG y SHORT
+            leverage: 1-20x (default 1x = equivalente a SPOT sin apalancamiento)
 
         Returns:
             Posición creada
@@ -204,7 +204,7 @@ class Portfolio:
             return None
 
         position = self.positions[pair]
-        trade_type = position.get('trade_type', 'SPOT')
+        trade_type = position.get('trade_type', 'FUTURES')  # Default FUTURES
         leverage = position.get('leverage', 1)
         liquidated = position.get('liquidated', False)
 

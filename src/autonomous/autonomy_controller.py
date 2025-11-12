@@ -547,7 +547,7 @@ class AutonomyController:
         - El RL debe aprender por sí mismo que liquidarse es malo
         """
         profit_pct = trade_data.get('profit_pct', 0)
-        trade_type = trade_data.get('trade_type', 'SPOT')
+        trade_type = trade_data.get('trade_type', 'FUTURES')  # Default FUTURES
         leverage = trade_data.get('leverage', 1)
         liquidated = trade_data.get('liquidated', False)
 

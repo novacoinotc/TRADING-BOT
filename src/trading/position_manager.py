@@ -68,7 +68,7 @@ class PositionManager:
 
     def _open_new_position(self, pair: str, signal: Dict, current_price: float) -> Optional[Dict]:
         """
-        Abre nueva posición basada en la señal (SPOT o FUTURES)
+        Abre nueva posición en FUTURES (permite LONG y SHORT)
 
         Args:
             pair: Par de trading
@@ -83,8 +83,8 @@ class PositionManager:
         take_profit = signal.get('take_profit', {})
 
         # Obtener parámetros de futuros de la señal (si vienen del RL Agent)
-        trade_type = signal.get('trade_type', 'SPOT')
-        leverage = signal.get('leverage', 1)
+        trade_type = signal.get('trade_type', 'FUTURES')  # Default FUTURES
+        leverage = signal.get('leverage', 1)  # Default 1x (sin apalancamiento)
 
         # Calcular tamaño de posición
         available_balance = self.portfolio.get_available_balance()

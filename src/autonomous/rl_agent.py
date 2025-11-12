@@ -390,7 +390,8 @@ class RLAgent:
                 'composite_score': composite_score  # Para telemetría/debugging
             }
         else:
-            # Acciones SPOT (OPEN_CONSERVATIVE, OPEN_NORMAL, OPEN_AGGRESSIVE)
+            # Acciones LONG/SHORT conservadoras (OPEN_CONSERVATIVE, OPEN_NORMAL, OPEN_AGGRESSIVE)
+            # Migrado a FUTURES con leverage 1x (equivalente a SPOT pero permite SHORT)
             if chosen_action == 'OPEN_CONSERVATIVE':
                 multiplier = 0.5
             elif chosen_action == 'OPEN_AGGRESSIVE':
@@ -401,9 +402,9 @@ class RLAgent:
             decision = {
                 'should_trade': True,
                 'action': 'OPEN',
-                'trade_type': 'SPOT',
+                'trade_type': 'FUTURES',  # Migrado a FUTURES (permite LONG y SHORT)
                 'position_size_multiplier': multiplier,
-                'leverage': 1,
+                'leverage': 1,  # 1x = sin apalancamiento (equivalente a SPOT)
                 'confidence': self._get_action_confidence(state, chosen_action),
                 'chosen_action': chosen_action,
                 'composite_score': composite_score  # Para telemetría/debugging
