@@ -427,13 +427,22 @@ class AdvancedTechnicalAnalyzer:
         # Use ATR for dynamic stops
         atr_multiplier_sl = 2.0  # Stop loss at 2x ATR
 
+        # MÍNIMO porcentual para SL (protección contra SL = entry_price)
+        min_sl_pct = 0.0015  # 0.15% mínimo de diferencia
+
         # SCALPING: Percentage-based TPs for many small wins
         tp_pct_1 = 0.003  # TP1 at 0.3%
         tp_pct_2 = 0.008  # TP2 at 0.8%
         tp_pct_3 = 0.015  # TP3 at 1.5%
 
         if action == 'BUY':
-            stop_loss = entry_price - (atr * atr_multiplier_sl)
+            # Calcular SL usando ATR
+            stop_loss_atr = entry_price - (atr * atr_multiplier_sl)
+            # Aplicar mínimo porcentual
+            stop_loss_min = entry_price * (1 - min_sl_pct)
+            # Usar el que esté más lejos (más protección)
+            stop_loss = min(stop_loss_atr, stop_loss_min)
+
             # Adjust stop loss if below support
             if levels['nearest_support'] and levels['nearest_support'] < entry_price:
                 stop_loss = max(stop_loss, levels['nearest_support'] * 0.98)
@@ -450,7 +459,13 @@ class AdvancedTechnicalAnalyzer:
                     # Ensure TP3 always > TP2 (maintain proper order: TP1 < TP2 < TP3)
                     tp3 = max(adjusted_tp3, tp2 * 1.001)  # TP3 at least 0.1% above TP2
         else:  # SELL
-            stop_loss = entry_price + (atr * atr_multiplier_sl)
+            # Calcular SL usando ATR
+            stop_loss_atr = entry_price + (atr * atr_multiplier_sl)
+            # Aplicar mínimo porcentual
+            stop_loss_min = entry_price * (1 + min_sl_pct)
+            # Usar el que esté más lejos (más protección)
+            stop_loss = max(stop_loss_atr, stop_loss_min)
+
             # Adjust stop loss if above resistance
             if levels['nearest_resistance'] and levels['nearest_resistance'] > entry_price:
                 stop_loss = min(stop_loss, levels['nearest_resistance'] * 1.02)
@@ -467,20 +482,40 @@ class AdvancedTechnicalAnalyzer:
                     # Ensure TP3 always < TP2 (maintain proper order: TP1 > TP2 > TP3 for SELL)
                     tp3 = min(adjusted_tp3, tp2 * 0.999)  # TP3 at least 0.1% below TP2
 
-        risk = abs(entry_price - stop_loss)
-        reward = abs(tp2 - entry_price)  # Use TP2 for R:R calculation
-        risk_reward = round(reward / risk, 2) if risk > 0 else 0
-
         # Ajustar decimales de redondeo según el precio
         # Para precios bajos (< $1), usar más decimales para evitar que TP = entry_price
         decimals = 4 if entry_price < 1.0 else 2
 
+        # Redondear valores
+        stop_loss_rounded = round(stop_loss, decimals)
+        tp1_rounded = round(tp1, decimals)
+        tp2_rounded = round(tp2, decimals)
+        tp3_rounded = round(tp3, decimals)
+
+        # PROTECCIÓN CRÍTICA: Verificar que SL ≠ entry_price después del redondeo
+        # Si son iguales, forzar al menos 1 tick de diferencia
+        if stop_loss_rounded == entry_price:
+            tick_size = 10 ** (-decimals)  # 1 tick = 0.0001 para 4 decimales
+            if action == 'BUY':
+                stop_loss_rounded = entry_price - tick_size
+            else:  # SELL
+                stop_loss_rounded = entry_price + tick_size
+            logger.warning(
+                f"⚠️ SL igualaba entry price ({entry_price}) después de redondeo. "
+                f"Ajustado a {stop_loss_rounded} ({action})"
+            )
+
+        # Calcular riesgo/recompensa con valores finales
+        risk = abs(entry_price - stop_loss_rounded)
+        reward = abs(tp2_rounded - entry_price)  # Use TP2 for R:R calculation
+        risk_reward = round(reward / risk, 2) if risk > 0 else 0
+
         return {
-            'stop_loss': round(stop_loss, decimals),
+            'stop_loss': stop_loss_rounded,
             'take_profit': {
-                'tp1': round(tp1, decimals),
-                'tp2': round(tp2, decimals),
-                'tp3': round(tp3, decimals)
+                'tp1': tp1_rounded,
+                'tp2': tp2_rounded,
+                'tp3': tp3_rounded
             },
             'risk_reward': risk_reward,
             'risk_amount': round(risk, decimals),
