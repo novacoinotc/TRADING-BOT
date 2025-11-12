@@ -957,14 +957,26 @@ class AutonomyController:
         )
 
         # 1. Ajustar contador del RL Agent
+        old_rl_trades = self.rl_agent.total_trades
+        old_successful = self.rl_agent.successful_trades
         self.rl_agent.total_trades = paper_trades
 
         # 2. Ajustar successful_trades usando SIEMPRE Paper Trading como fuente de verdad
         paper_stats = self.paper_trader.portfolio.get_statistics()
         paper_win_rate = paper_stats['win_rate']
-        self.rl_agent.successful_trades = int(paper_trades * paper_win_rate / 100)
+        new_successful = int(paper_trades * paper_win_rate / 100)
 
-        logger.info(f"🎯 Win rate sincronizado: {paper_win_rate:.1f}% ({self.rl_agent.successful_trades}/{paper_trades} ganadores)")
+        logger.info(
+            f"🔄 Actualizando RL Agent:\n"
+            f"   ANTES: total_trades={old_rl_trades}, successful_trades={old_successful} ({(old_successful/old_rl_trades*100) if old_rl_trades > 0 else 0:.1f}% WR)\n"
+            f"   DESPUÉS: total_trades={paper_trades}, successful_trades={new_successful} ({paper_win_rate:.1f}% WR)"
+        )
+
+        self.rl_agent.successful_trades = new_successful
+
+        # Verificar que se actualizó correctamente
+        actual_wr = self.rl_agent.get_success_rate()
+        logger.info(f"✅ Verificación: RL Agent ahora tiene {self.rl_agent.successful_trades}/{self.rl_agent.total_trades} = {actual_wr:.1f}% WR")
 
         # 3. Ajustar contadores del AutonomyController
         self.total_trades_processed = paper_trades
