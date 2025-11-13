@@ -2,6 +2,7 @@
 Position Manager - Gestiona apertura/cierre de posiciones según señales
 """
 import logging
+import math
 from typing import Dict, Optional
 from src.trading.portfolio import Portfolio
 
@@ -93,9 +94,24 @@ class PositionManager:
         # Usar el menor entre balance disponible y máximo por posición
         position_value = min(available_balance, max_position_value)
 
+        # VALIDACIÓN CRÍTICA: Verificar que current_price es válido ANTES de calcular quantity
+        if current_price is None or current_price <= 0 or math.isnan(current_price) or math.isinf(current_price):
+            logger.error(
+                f"❌ PRECIO INVÁLIDO para {pair}: {current_price}\n"
+                f"   No se puede calcular quantity. Rechazando apertura de posición."
+            )
+            return None
+
         # Para FUTURES, el colateral requerido es menor (position_value / leverage)
         if trade_type == 'FUTURES':
             collateral_required = position_value / leverage
+            # VALIDACIÓN: Verificar que collateral no es inf/NaN
+            if math.isnan(collateral_required) or math.isinf(collateral_required):
+                logger.error(
+                    f"❌ COLATERAL INVÁLIDO para {pair}: {collateral_required}\n"
+                    f"   position_value={position_value}, leverage={leverage}. Rechazando posición."
+                )
+                return None
             if collateral_required < 10:
                 logger.warning(f"Colateral insuficiente para futuros en {pair}: ${collateral_required:.2f}")
                 return None
@@ -106,6 +122,15 @@ class PositionManager:
 
         # Calcular cantidad de cripto a comprar/vender
         quantity = position_value / current_price
+
+        # VALIDACIÓN CRÍTICA: Verificar que quantity no es inf/NaN
+        if math.isnan(quantity) or math.isinf(quantity):
+            logger.error(
+                f"❌ CANTIDAD INVÁLIDA calculada para {pair}: {quantity}\n"
+                f"   position_value={position_value}, current_price={current_price}\n"
+                f"   Esto indica división por cero o valores corruptos. Rechazando posición."
+            )
+            return None
 
         # Abrir posición
         position = self.portfolio.open_position(

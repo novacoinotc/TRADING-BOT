@@ -6,6 +6,7 @@ import ccxt
 import pandas as pd
 import asyncio
 import logging
+import math
 from datetime import datetime
 from typing import Optional, Dict
 from config import config
@@ -288,6 +289,14 @@ class MarketMonitor:
                                     ticker = self.exchange.fetch_ticker(pair)
                                     news_price = ticker['last'] if ticker and 'last' in ticker else 0
 
+                                    # VALIDACIÓN CRÍTICA: Verificar que el precio es válido
+                                    if news_price is None or news_price <= 0 or math.isnan(news_price) or math.isinf(news_price):
+                                        logger.error(
+                                            f"❌ PRECIO INVÁLIDO de Binance para {pair}: {news_price}\n"
+                                            f"   Rechazando trade de news para evitar corrupción del sistema"
+                                        )
+                                        continue  # Skip this news trade
+
                                     if news_price > 0:
                                         # CONSULTAR AL RL AGENT ANTES DE EJECUTAR NEWS TRADE
                                         should_execute_news = True
@@ -400,8 +409,17 @@ class MarketMonitor:
             try:
                 ticker = self.exchange.fetch_ticker(pair)
                 current_price_ticker = ticker['last'] if ticker and 'last' in ticker else 0
+
+                # VALIDACIÓN CRÍTICA: Verificar que el precio es válido
+                if current_price_ticker is None or current_price_ticker <= 0 or math.isnan(current_price_ticker) or math.isinf(current_price_ticker):
+                    logger.error(
+                        f"❌ PRECIO INVÁLIDO de Binance para {pair}: {current_price_ticker}\n"
+                        f"   Saltando análisis de este par para evitar corrupción del sistema"
+                    )
+                    return  # Skip this pair entirely
             except Exception as e:
                 logger.warning(f"No se pudo obtener ticker para {pair}: {e}")
+                return  # Skip this pair if we can't get price
 
             # ANALYZE ORDER BOOK (10 second cache)
             orderbook_analysis = None
