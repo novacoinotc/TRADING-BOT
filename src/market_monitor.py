@@ -1214,18 +1214,19 @@ class MarketMonitor:
                 }
 
             # Preparar datos del trade (incluir campos de futuros)
+            # CRÍTICO: Mapear campos correctos de closed_trade
             trade_data = {
                 'pair': closed_trade.get('pair', 'UNKNOWN'),
-                'action': closed_trade.get('action', 'UNKNOWN'),
+                'action': closed_trade.get('side', 'UNKNOWN'),  # FIX: side, no action
                 'trade_type': closed_trade.get('trade_type', 'SPOT'),
                 'leverage': closed_trade.get('leverage', 1),
                 'liquidated': closed_trade.get('liquidated', False),
                 'entry_price': closed_trade.get('entry_price', 0),
                 'exit_price': closed_trade.get('exit_price', 0),
-                'profit_pct': closed_trade.get('profit_pct', 0),
-                'profit_amount': closed_trade.get('profit', 0),
+                'profit_pct': closed_trade.get('pnl_pct', 0),  # FIX CRÍTICO: pnl_pct, no profit_pct
+                'profit_amount': closed_trade.get('pnl', 0),  # FIX: pnl, no profit
                 'duration': closed_trade.get('duration', 0),
-                'exit_reason': closed_trade.get('exit_reason', 'UNKNOWN')
+                'exit_reason': closed_trade.get('reason', 'UNKNOWN')  # FIX: reason, no exit_reason
             }
 
             # Enviar al autonomy controller

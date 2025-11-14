@@ -476,6 +476,14 @@ class AutonomyController:
         # Calcular reward basado en resultado del trade
         reward = self._calculate_reward(trade_data, portfolio_metrics)
 
+        # LOG CRÍTICO para debugging: Verificar que reward se calcula correctamente
+        logger.info(
+            f"🎓 RL LEARNING: {trade_data.get('pair')} | "
+            f"P&L: {trade_data.get('profit_pct', 0):+.2f}% | "
+            f"Leverage: {trade_data.get('leverage', 1)}x | "
+            f"Reward calculado: {reward:+.3f}"
+        )
+
         # Convertir estado de mercado a representación para RL
         state = self.rl_agent.get_state_representation(market_state)
 
