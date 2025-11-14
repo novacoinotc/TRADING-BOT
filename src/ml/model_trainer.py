@@ -48,8 +48,76 @@ class ModelTrainer:
         self.model_file = self.models_dir / 'xgboost_model.pkl'
         self.metadata_file = self.models_dir / 'model_metadata.json'
 
+        # Mappings para columnas categóricas (usados en train y predict)
+        self.categorical_mappings = {
+            # Funding sentiment: neutral=0, positive=1, negative=-1
+            'sentiment_funding_sentiment': {'neutral': 0, 'positive': 1, 'negative': -1},
+
+            # Liquidation bias: neutral=0, long=1, short=-1
+            'sentiment_liquidation_bias': {'neutral': 0, 'long': 1, 'short': -1},
+
+            # Pattern type: mapear cada patrón a un número único
+            'sentiment_pattern_type': {
+                'NONE': 0,
+                'HEAD_AND_SHOULDERS': 1,
+                'INVERSE_HEAD_AND_SHOULDERS': 2,
+                'DOUBLE_TOP': 3,
+                'DOUBLE_BOTTOM': 4,
+                'TRIANGLE': 5,
+                'WEDGE': 6,
+                'FLAG': 7,
+                'PENNANT': 8
+            }
+        }
+
         # Cargar modelo si existe
         self._load_model()
+
+    def _convert_categorical_to_numeric(self, X: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convierte columnas categóricas (strings) a valores numéricos.
+        XGBoost solo acepta int, float, bool - NO strings.
+
+        Args:
+            X: DataFrame con features (puede contener strings)
+
+        Returns:
+            DataFrame con todas las columnas numéricas
+        """
+        # Aplicar conversiones a columnas categóricas
+        for col, mapping in self.categorical_mappings.items():
+            if col in X.columns:
+                # Convertir valores categóricos a numéricos
+                X[col] = X[col].map(mapping)
+
+                # Rellenar valores desconocidos/NaN con 0
+                X[col] = X[col].fillna(0)
+
+                # Asegurar tipo numérico (int)
+                X[col] = X[col].astype(int)
+
+                logger.debug(f"✅ Columna '{col}' convertida a valores numéricos")
+
+        # VALIDACIÓN: Verificar que NO queden columnas de tipo object (strings)
+        object_columns = X.select_dtypes(include=['object']).columns.tolist()
+        if object_columns:
+            logger.warning(
+                f"⚠️ Columnas con tipo 'object' detectadas: {object_columns}\n"
+                f"   Convirtiendo automáticamente a numérico..."
+            )
+            for col in object_columns:
+                # Intentar conversión numérica directa
+                try:
+                    X[col] = pd.to_numeric(X[col], errors='coerce')
+                    X[col] = X[col].fillna(0)
+                    logger.debug(f"✅ Columna '{col}' convertida a numérico")
+                except Exception as e:
+                    logger.error(f"❌ No se pudo convertir columna '{col}': {e}")
+                    # Última opción: eliminar la columna
+                    X = X.drop(columns=[col])
+                    logger.warning(f"⚠️ Columna '{col}' eliminada")
+
+        return X
 
     def prepare_training_data(self, trades_history: List[Dict],
                             features_list: List[Dict]) -> Tuple[pd.DataFrame, pd.Series]:
@@ -86,7 +154,12 @@ class ModelTrainer:
         X = pd.DataFrame(valid_features)
         y = pd.Series(labels)
 
+        # CONVERSIÓN CRÍTICA: Convertir columnas categóricas (strings) a valores numéricos
+        # XGBoost solo acepta int, float, bool - NO strings
+        X = self._convert_categorical_to_numeric(X)
+
         logger.info(f"📊 Datos preparados: {len(X)} samples | WIN: {sum(labels)} | LOSS: {len(labels) - sum(labels)}")
+        logger.info(f"📊 Features: {len(X.columns)} columnas, tipos: {X.dtypes.value_counts().to_dict()}")
 
         return X, y
 
@@ -224,7 +297,13 @@ class ModelTrainer:
 
         try:
             # Convertir features a DataFrame
-            X = pd.DataFrame([features])[self.feature_names]
+            X = pd.DataFrame([features])
+
+            # CONVERSIÓN CRÍTICA: Convertir columnas categóricas a numéricos (igual que en train)
+            X = self._convert_categorical_to_numeric(X)
+
+            # Asegurar que solo usamos las features del modelo entrenado
+            X = X[self.feature_names]
 
             # Predecir
             prediction = self.model.predict(X)[0]
