@@ -60,6 +60,8 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("params", self.params_command))
             self.application.add_handler(CommandHandler("train_ml", self.train_ml_command))  # Entrenar ML System
             self.application.add_handler(CommandHandler("force_sync", self.force_sync_command))  # Forzar sincronización RL ↔ Paper
+            self.application.add_handler(CommandHandler("pause", self.pause_command))  # Pausar análisis
+            self.application.add_handler(CommandHandler("resume", self.resume_command))  # Resumir análisis
             self.application.add_handler(CommandHandler("help", self.help_command))
 
             # Handler para recibir archivos (documentos)
@@ -441,9 +443,9 @@ class TelegramCommands:
                 portfolio = paper_trader.portfolio
                 closed_trades = portfolio.closed_trades
 
-                # Separar trades SPOT vs FUTURES
-                spot_trades = [t for t in closed_trades if t.get('trade_type', 'SPOT') == 'SPOT']
-                futures_trades = [t for t in closed_trades if t.get('trade_type', 'SPOT') == 'FUTURES']
+                # Todos los trades son FUTURES ahora (migrado desde SPOT)
+                spot_trades = [t for t in closed_trades if t.get('trade_type', 'FUTURES') == 'SPOT']  # Legacy
+                futures_trades = [t for t in closed_trades if t.get('trade_type', 'FUTURES') == 'FUTURES']
 
                 # Calcular liquidaciones
                 liquidations = [t for t in futures_trades if t.get('liquidated', False)]
@@ -934,3 +936,71 @@ class TelegramCommands:
             except Exception as e2:
                 logger.error(f"Error enviando mensaje a Telegram: {e2}")
                 return False
+
+    async def pause_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /pause
+        Pausa el análisis de nuevos pares pero sigue monitoreando trades abiertos
+        Útil antes de hacer export para evitar discrepancias
+        """
+        try:
+            logger.info("⏸️  Comando /pause recibido")
+
+            if not self.market_monitor:
+                await update.message.reply_text(
+                    "❌ Market Monitor no disponible"
+                )
+                return
+
+            # Obtener trades abiertos
+            open_trades_count = 0
+            if self.market_monitor.ml_system and self.market_monitor.ml_system.paper_trader:
+                open_trades_count = len(self.market_monitor.ml_system.paper_trader.portfolio.positions)
+
+            # Pausar análisis
+            self.market_monitor.pause_analysis()
+
+            await update.message.reply_text(
+                f"⏸️ **ANÁLISIS PAUSADO**\n\n"
+                f"✅ El bot dejó de analizar nuevos pares\n"
+                f"✅ Sigue monitoreando {open_trades_count} trade(s) abierto(s)\n"
+                f"✅ Los trades se cerrarán automáticamente si alcanzan TP/SL\n\n"
+                f"💡 Ideal para hacer `/export` sin discrepancias\n"
+                f"▶️ Usa `/resume` para reanudar análisis"
+            )
+
+        except Exception as e:
+            logger.error(f"Error en comando /pause: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ Error pausando análisis: {str(e)}"
+            )
+
+    async def resume_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /resume
+        Reanuda el análisis de mercado normal
+        """
+        try:
+            logger.info("▶️  Comando /resume recibido")
+
+            if not self.market_monitor:
+                await update.message.reply_text(
+                    "❌ Market Monitor no disponible"
+                )
+                return
+
+            # Resumir análisis
+            self.market_monitor.resume_analysis()
+
+            await update.message.reply_text(
+                f"▶️ **ANÁLISIS RESUMIDO**\n\n"
+                f"✅ El bot volvió a analizar todos los pares\n"
+                f"✅ Trading autónomo activo\n\n"
+                f"📊 Monitoreando: {', '.join(self.market_monitor.trading_pairs[:3])} y más..."
+            )
+
+        except Exception as e:
+            logger.error(f"Error en comando /resume: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ Error reanudando análisis: {str(e)}"
+            )

@@ -5,12 +5,32 @@ Guarda y carga TODO el conocimiento adquirido para sobrevivir redeploys
 import json
 import logging
 import gzip
+import numpy as np
 from pathlib import Path
 from typing import Dict, Optional
 from datetime import datetime
 import hashlib
 
 logger = logging.getLogger(__name__)
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """
+    Custom JSON Encoder que convierte tipos de NumPy a tipos nativos de Python.
+    Soluciona: "Object of type bool_ is not JSON serializable"
+    """
+    def default(self, obj):
+        # Convertir tipos de NumPy a tipos nativos de Python
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        elif isinstance(obj, np.bool_):
+            return bool(obj)
+        # Dejar que el encoder por defecto maneje otros tipos
+        return super(NumpyEncoder, self).default(obj)
 
 
 class LearningPersistence:
@@ -46,7 +66,8 @@ class LearningPersistence:
         change_history: Optional[list] = None,
         metadata: Optional[Dict] = None,
         paper_trading: Optional[Dict] = None,
-        ml_training_buffer: Optional[list] = None
+        ml_training_buffer: Optional[list] = None,
+        advanced_modules_state: Optional[Dict] = None
     ) -> bool:
         """
         Guarda estado completo del sistema autónomo
@@ -59,6 +80,7 @@ class LearningPersistence:
             metadata: Información adicional (versión, timestamp, etc.)
             paper_trading: Estado del paper trading (balance, trades, etc.)
             ml_training_buffer: Training buffer del ML System (features para entrenamiento)
+            advanced_modules_state: Estado del arsenal avanzado (correlation, liquidation, funding, etc.)
 
         Returns:
             True si guardado fue exitoso
@@ -72,29 +94,31 @@ class LearningPersistence:
 
             # Construir estado completo
             full_state = {
-                'version': '1.0',
+                'version': '2.0',  # Bumped to 2.0 para soportar arsenal avanzado
                 'timestamp': datetime.now().isoformat(),
                 'rl_agent': rl_agent_state,
                 'parameter_optimizer': optimizer_state,
                 'performance_history': performance_history,
                 'change_history': change_history or [],  # Histórico de cambios con razonamiento
                 'metadata': metadata or {},
-                'paper_trading': paper_trading or {},  # NUEVO: estado de paper trading
-                'ml_training_buffer': ml_training_buffer or []  # NUEVO: training buffer del ML System
+                'paper_trading': paper_trading or {},  # Estado de paper trading
+                'ml_training_buffer': ml_training_buffer or [],  # Training buffer del ML System
+                'advanced_modules': advanced_modules_state or {}  # NUEVO: Estado del arsenal avanzado (7 módulos)
             }
 
             # Calcular checksum para validación
-            state_str = json.dumps(full_state, sort_keys=True)
+            # Usar NumpyEncoder para convertir tipos NumPy (bool_, int64, etc.) a tipos Python
+            state_str = json.dumps(full_state, sort_keys=True, cls=NumpyEncoder)
             checksum = hashlib.sha256(state_str.encode()).hexdigest()
             full_state['checksum'] = checksum
 
             # Guardar comprimido (ahorra espacio)
             with gzip.open(self.main_file, 'wt', encoding='utf-8') as f:
-                json.dump(full_state, f, indent=2)
+                json.dump(full_state, f, indent=2, cls=NumpyEncoder)
 
             # Guardar versión sin comprimir para fácil importación
             with open(self.export_file, 'w', encoding='utf-8') as f:
-                json.dump(full_state, f, indent=2)
+                json.dump(full_state, f, indent=2, cls=NumpyEncoder)
 
             file_size = self.main_file.stat().st_size / 1024  # KB
 
@@ -136,7 +160,7 @@ class LearningPersistence:
             saved_checksum = full_state.pop('checksum', None)
 
             if not force and saved_checksum:
-                state_str = json.dumps(full_state, sort_keys=True)
+                state_str = json.dumps(full_state, sort_keys=True, cls=NumpyEncoder)
                 calculated_checksum = hashlib.sha256(state_str.encode()).hexdigest()
 
                 if saved_checksum != calculated_checksum:
@@ -238,7 +262,7 @@ class LearningPersistence:
             export_path = self.storage_dir / f"intelligence_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
 
             with open(export_path, 'w', encoding='utf-8') as f:
-                json.dump(full_state, f, indent=2)
+                json.dump(full_state, f, indent=2, cls=NumpyEncoder)
 
             file_size = export_path.stat().st_size / 1024  # KB
 
@@ -286,7 +310,7 @@ class LearningPersistence:
                 saved_checksum = full_state.get('checksum')
                 # Crear copia sin checksum para calcular
                 state_for_validation = {k: v for k, v in full_state.items() if k != 'checksum'}
-                state_str = json.dumps(state_for_validation, sort_keys=True)
+                state_str = json.dumps(state_for_validation, sort_keys=True, cls=NumpyEncoder)
                 calculated_checksum = hashlib.sha256(state_str.encode()).hexdigest()
 
                 if saved_checksum != calculated_checksum:
@@ -303,7 +327,7 @@ class LearningPersistence:
 
             # Guardar como archivo principal
             with gzip.open(self.main_file, 'wt', encoding='utf-8') as f:
-                json.dump(full_state, f, indent=2)
+                json.dump(full_state, f, indent=2, cls=NumpyEncoder)
 
             mode_str = " (FORCE MODE)" if force else ""
             logger.info(f"✅ Inteligencia importada exitosamente{mode_str} desde: {file_path}")

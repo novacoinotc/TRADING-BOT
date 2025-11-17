@@ -3,6 +3,7 @@ Portfolio Manager - Gestiona el balance y posiciones del paper trading
 """
 import json
 import logging
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -58,24 +59,46 @@ class Portfolio:
 
     def open_position(self, pair: str, side: str, entry_price: float,
                      quantity: float, stop_loss: float, take_profit: Dict,
-                     trade_type: str = 'SPOT', leverage: int = 1) -> Dict:
+                     trade_type: str = 'FUTURES', leverage: int = 1) -> Dict:
         """
-        Abre nueva posición (SPOT o FUTURES)
+        Abre nueva posición en FUTURES (permite LONG y SHORT)
 
         Args:
             pair: Par de trading (ej. BTC/USDT)
-            side: 'BUY' o 'SELL'
+            side: 'BUY' (LONG) o 'SELL' (SHORT)
             entry_price: Precio de entrada
             quantity: Cantidad en cripto
             stop_loss: Precio de stop loss
             take_profit: Dict con tp1, tp2, tp3
-            trade_type: 'SPOT' o 'FUTURES'
-            leverage: 1-20x (solo para FUTURES)
+            trade_type: 'FUTURES' (default) - permite LONG y SHORT
+            leverage: 1-20x (default 1x = equivalente a SPOT sin apalancamiento)
 
         Returns:
             Posición creada
         """
         position_value = entry_price * quantity
+
+        # VALIDACIÓN CRÍTICA: Verificar que todos los valores numéricos son válidos
+        if entry_price is None or entry_price <= 0 or math.isnan(entry_price) or math.isinf(entry_price):
+            logger.error(
+                f"❌ ENTRY PRICE INVÁLIDO para {pair}: {entry_price}\n"
+                f"   Rechazando apertura de posición para evitar corrupción del sistema"
+            )
+            return None
+
+        if quantity is None or quantity <= 0 or math.isnan(quantity) or math.isinf(quantity):
+            logger.error(
+                f"❌ QUANTITY INVÁLIDA para {pair}: {quantity}\n"
+                f"   Rechazando apertura de posición para evitar corrupción del sistema"
+            )
+            return None
+
+        if position_value is None or position_value <= 0 or math.isnan(position_value) or math.isinf(position_value):
+            logger.error(
+                f"❌ POSITION VALUE INVÁLIDO para {pair}: {position_value}\n"
+                f"   Rechazando apertura de posición para evitar corrupción del sistema"
+            )
+            return None
 
         # Validar leverage para FUTURES
         if trade_type == 'FUTURES':
@@ -90,6 +113,13 @@ class Portfolio:
         # Para FUTURES: solo usa colateral (valor / leverage)
         if trade_type == 'FUTURES':
             collateral = position_value / leverage
+            # VALIDACIÓN: Verificar que collateral no es inf/NaN
+            if math.isnan(collateral) or math.isinf(collateral):
+                logger.error(
+                    f"❌ COLATERAL INVÁLIDO para {pair}: {collateral}\n"
+                    f"   position_value={position_value}, leverage={leverage}. Rechazando posición."
+                )
+                return None
             self.balance -= collateral
         else:
             self.balance -= position_value
@@ -204,9 +234,17 @@ class Portfolio:
             return None
 
         position = self.positions[pair]
-        trade_type = position.get('trade_type', 'SPOT')
+        trade_type = position.get('trade_type', 'FUTURES')  # Default FUTURES
         leverage = position.get('leverage', 1)
         liquidated = position.get('liquidated', False)
+
+        # VALIDACIÓN CRÍTICA: Verificar que exit_price es válido
+        if exit_price is None or exit_price <= 0 or math.isnan(exit_price) or math.isinf(exit_price):
+            logger.error(
+                f"❌ EXIT PRICE INVÁLIDO para {pair}: {exit_price}\n"
+                f"   No se puede cerrar posición. Manteniendo posición abierta."
+            )
+            return None
 
         # Calcular P&L realizado
         if position['side'] == 'BUY':
@@ -216,11 +254,35 @@ class Portfolio:
             pnl = (position['entry_price'] - exit_price) * position['quantity']
             pnl_pct = ((position['entry_price'] / exit_price) - 1) * 100
 
+        # VALIDACIÓN CRÍTICA: Verificar que P&L es válido después del cálculo
+        if math.isnan(pnl) or math.isinf(pnl):
+            logger.error(
+                f"❌ P&L INVÁLIDO calculado para {pair}: {pnl}\n"
+                f"   entry_price={position['entry_price']}, exit_price={exit_price}, quantity={position['quantity']}\n"
+                f"   No se puede cerrar posición correctamente. Manteniendo posición abierta."
+            )
+            return None
+
+        if math.isnan(pnl_pct) or math.isinf(pnl_pct):
+            logger.warning(
+                f"⚠️ P&L% INVÁLIDO calculado para {pair}: {pnl_pct}\n"
+                f"   Forzando pnl_pct = 0 para evitar corrupción"
+            )
+            pnl_pct = 0.0
+
         # Para FUTURES: aplicar leverage al PnL
         exit_value = 0
         if trade_type == 'FUTURES':
             pnl = pnl * leverage
             pnl_pct = pnl_pct * leverage
+
+            # VALIDACIÓN: Verificar que pnl no se corrompió después de aplicar leverage
+            if math.isnan(pnl) or math.isinf(pnl):
+                logger.error(
+                    f"❌ P&L INVÁLIDO después de aplicar leverage para {pair}: {pnl}\n"
+                    f"   Esto indica valores corruptos. Manteniendo posición abierta."
+                )
+                return None
 
             # Para LIQUIDACIÓN: PnL es -100% del colateral
             if reason == 'LIQUIDATION':
@@ -228,25 +290,54 @@ class Portfolio:
                 pnl = -collateral
                 pnl_pct = -100.0
                 exit_value = 0  # Se pierde todo
-                # Devolver 0 (se pierde todo el colateral)
+                # Devolver 0 (se pierde todo el colateral) - NO corrompe balance
                 self.balance += 0
             else:
                 # Devolver colateral + PnL
                 collateral = position.get('collateral', position['position_value'] / leverage)
                 exit_value = collateral + pnl
-                self.balance += exit_value
+
+                # VALIDACIÓN CRÍTICA: Verificar que exit_value es válido ANTES de actualizar balance
+                if math.isnan(exit_value) or math.isinf(exit_value):
+                    logger.error(
+                        f"❌ EXIT VALUE INVÁLIDO para {pair}: {exit_value}\n"
+                        f"   collateral={collateral}, pnl={pnl}\n"
+                        f"   NO SE ACTUALIZARÁ EL BALANCE para evitar corrupción del sistema"
+                    )
+                    # No devolver None aquí porque queremos registrar el trade como cerrado
+                    # pero NO actualizar el balance
+                else:
+                    self.balance += exit_value
         else:
             # SPOT: devolver capital + ganancia/pérdida
             exit_value = exit_price * position['quantity']
-            self.balance += exit_value
+
+            # VALIDACIÓN CRÍTICA: Verificar que exit_value es válido ANTES de actualizar balance
+            if math.isnan(exit_value) or math.isinf(exit_value):
+                logger.error(
+                    f"❌ EXIT VALUE INVÁLIDO para {pair}: {exit_value}\n"
+                    f"   exit_price={exit_price}, quantity={position['quantity']}\n"
+                    f"   NO SE ACTUALIZARÁ EL BALANCE para evitar corrupción del sistema"
+                )
+                # No actualizar balance si exit_value es inválido
+            else:
+                self.balance += exit_value
 
         # Actualizar estadísticas
-        if pnl > 0:
-            self.winning_trades += 1
-            self.total_profit += pnl
+        # VALIDACIÓN CRÍTICA: Verificar que pnl es válido ANTES de marcar win/loss
+        if math.isnan(pnl) or math.isinf(pnl):
+            logger.error(
+                f"❌ P&L INVÁLIDO al actualizar estadísticas para {pair}: {pnl}\n"
+                f"   NO SE ACTUALIZARÁN ESTADÍSTICAS para evitar conteo incorrecto"
+            )
+            # No actualizar estadísticas si pnl es inválido
         else:
-            self.losing_trades += 1
-            self.total_loss += abs(pnl)
+            if pnl > 0:
+                self.winning_trades += 1
+                self.total_profit += pnl
+            else:
+                self.losing_trades += 1
+                self.total_loss += abs(pnl)
 
         # Calcular duración del trade
         duration_minutes = 0

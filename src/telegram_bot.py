@@ -411,7 +411,7 @@ class TelegramNotifier:
             entry_price = trade_data.get('entry_price', 0)
             quantity = trade_data.get('quantity', 0)
             position_value = trade_data.get('position_value', 0)
-            trade_type = trade_data.get('trade_type', 'SPOT')
+            trade_type = trade_data.get('trade_type', 'FUTURES')  # Default FUTURES
             leverage = trade_data.get('leverage', 1)
 
             emoji = "🟢" if side == 'BUY' else "🔴"
@@ -481,6 +481,8 @@ class TelegramNotifier:
             pnl = trade_data.get('pnl', 0)
             pnl_pct = trade_data.get('pnl_pct', 0)
             reason = trade_data.get('reason', 'UNKNOWN')
+            trade_type = trade_data.get('trade_type', 'FUTURES')  # Default FUTURES
+            leverage = trade_data.get('leverage', 1)
 
             # Emoji según resultado
             if pnl > 0:
@@ -490,10 +492,21 @@ class TelegramNotifier:
                 emoji = "❌"
                 result_text = "PÉRDIDA"
 
+            type_emoji = "⚡" if trade_type == 'FUTURES' else "💎"
+
             message = (
                 f"{emoji} <b>TRADE CERRADO - {result_text}</b> {emoji}\n\n"
                 f"📌 <b>Par:</b> {pair}\n"
                 f"📊 <b>Dirección:</b> {side}\n"
+                f"{type_emoji} <b>Tipo:</b> {trade_type}"
+            )
+
+            if trade_type == 'FUTURES' and leverage > 1:
+                message += f" ({leverage}x)\n"
+            else:
+                message += "\n"
+
+            message += (
                 f"💰 <b>Entrada:</b> ${entry_price:,.4f}\n"
                 f"💰 <b>Salida:</b> ${exit_price:,.4f}\n"
                 f"📈 <b>P&L:</b> ${pnl:,.2f} (<b>{pnl_pct:+.2f}%</b>)\n"

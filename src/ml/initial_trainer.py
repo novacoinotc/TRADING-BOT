@@ -248,6 +248,10 @@ class InitialTrainer:
         X = pd.DataFrame(features_list)
         y = pd.Series(targets)
 
+        # CONVERSIÓN CRÍTICA: Convertir columnas categóricas a numéricos
+        # Usar el método del ModelTrainer para mantener consistencia
+        X = self.model_trainer._convert_categorical_to_numeric(X)
+
         # Calcular pesos temporales
         timestamps = pd.to_datetime(df['timestamp'])
         days_ago = (timestamps.max() - timestamps).dt.days

@@ -476,6 +476,14 @@ class AutonomyController:
         # Calcular reward basado en resultado del trade
         reward = self._calculate_reward(trade_data, portfolio_metrics)
 
+        # LOG CRÍTICO para debugging: Verificar que reward se calcula correctamente
+        logger.info(
+            f"🎓 RL LEARNING: {trade_data.get('pair')} | "
+            f"P&L: {trade_data.get('profit_pct', 0):+.2f}% | "
+            f"Leverage: {trade_data.get('leverage', 1)}x | "
+            f"Reward calculado: {reward:+.3f}"
+        )
+
         # Convertir estado de mercado a representación para RL
         state = self.rl_agent.get_state_representation(market_state)
 
@@ -547,7 +555,7 @@ class AutonomyController:
         - El RL debe aprender por sí mismo que liquidarse es malo
         """
         profit_pct = trade_data.get('profit_pct', 0)
-        trade_type = trade_data.get('trade_type', 'SPOT')
+        trade_type = trade_data.get('trade_type', 'FUTURES')  # Default FUTURES
         leverage = trade_data.get('leverage', 1)
         liquidated = trade_data.get('liquidated', False)
 
@@ -937,12 +945,29 @@ class AutonomyController:
         processed_trades = self.total_trades_processed
         all_time_trades = self.total_trades_all_time
 
-        # Verificar si ya están sincronizados TODOS los contadores
-        if (paper_trades == rl_trades and
-            paper_trades == processed_trades and
-            paper_trades == all_time_trades):
-            logger.info("✅ Ya están sincronizados todos los contadores, no se requiere acción")
+        # Obtener win rates
+        paper_stats = self.paper_trader.portfolio.get_statistics()
+        paper_win_rate = paper_stats['win_rate']
+        rl_win_rate = self.rl_agent.get_success_rate()
+
+        # Verificar si ya están sincronizados TODOS los contadores Y WIN RATE
+        trades_in_sync = (paper_trades == rl_trades and
+                         paper_trades == processed_trades and
+                         paper_trades == all_time_trades)
+        win_rate_in_sync = abs(paper_win_rate - rl_win_rate) < 1.0  # Tolerancia de 1%
+
+        if trades_in_sync and win_rate_in_sync:
+            logger.info(f"✅ Ya están sincronizados todos los contadores y win rate ({paper_win_rate:.1f}%), no se requiere acción")
             return True
+
+        # Si solo los contadores están sincronizados pero no el win rate
+        if trades_in_sync and not win_rate_in_sync:
+            logger.warning(
+                f"⚠️ Contadores sincronizados pero WIN RATE desincronizado:\n"
+                f"   Paper Trading: {paper_trades} trades, {paper_win_rate:.1f}% WR\n"
+                f"   RL Agent: {rl_trades} trades, {rl_win_rate:.1f}% WR\n"
+                f"   FORZANDO SINCRONIZACIÓN DE WIN RATE..."
+            )
 
         logger.warning(
             f"⚠️ FORZANDO SINCRONIZACIÓN COMPLETA:\n"
@@ -957,14 +982,25 @@ class AutonomyController:
         )
 
         # 1. Ajustar contador del RL Agent
+        old_rl_trades = self.rl_agent.total_trades
+        old_successful = self.rl_agent.successful_trades
         self.rl_agent.total_trades = paper_trades
 
         # 2. Ajustar successful_trades usando SIEMPRE Paper Trading como fuente de verdad
-        paper_stats = self.paper_trader.portfolio.get_statistics()
-        paper_win_rate = paper_stats['win_rate']
-        self.rl_agent.successful_trades = int(paper_trades * paper_win_rate / 100)
+        # paper_stats y paper_win_rate ya calculados arriba en la línea 941-942
+        new_successful = int(paper_trades * paper_win_rate / 100)
 
-        logger.info(f"🎯 Win rate sincronizado: {paper_win_rate:.1f}% ({self.rl_agent.successful_trades}/{paper_trades} ganadores)")
+        logger.info(
+            f"🔄 Actualizando RL Agent:\n"
+            f"   ANTES: total_trades={old_rl_trades}, successful_trades={old_successful} ({(old_successful/old_rl_trades*100) if old_rl_trades > 0 else 0:.1f}% WR)\n"
+            f"   DESPUÉS: total_trades={paper_trades}, successful_trades={new_successful} ({paper_win_rate:.1f}% WR)"
+        )
+
+        self.rl_agent.successful_trades = new_successful
+
+        # Verificar que se actualizó correctamente
+        actual_wr = self.rl_agent.get_success_rate()
+        logger.info(f"✅ Verificación: RL Agent ahora tiene {self.rl_agent.successful_trades}/{self.rl_agent.total_trades} = {actual_wr:.1f}% WR")
 
         # 3. Ajustar contadores del AutonomyController
         self.total_trades_processed = paper_trades
@@ -991,8 +1027,13 @@ class AutonomyController:
 
         # Log warning si no están sincronizados
         if not sync_status['in_sync']:
+            diffs = sync_status['differences']
             logger.warning(
-                f"⚠️ Paper Trading y RL Agent desincronizados por {sync_status['difference']} trades"
+                f"⚠️ Desincronización detectada:\n"
+                f"   RL vs Paper: {diffs['rl_vs_paper']} trades\n"
+                f"   Processed vs Paper: {diffs['processed_vs_paper']} trades\n"
+                f"   All-time vs Paper: {diffs['all_time_vs_paper']} trades\n"
+                f"   Win Rate diff: {diffs['win_rate_diff']:.1f}%"
             )
 
         return {

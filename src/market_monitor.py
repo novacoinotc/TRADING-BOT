@@ -6,6 +6,7 @@ import ccxt
 import pandas as pd
 import asyncio
 import logging
+import math
 from datetime import datetime
 from typing import Optional, Dict
 from config import config
@@ -18,6 +19,7 @@ from src.ml.ml_integration import MLIntegration
 from src.sentiment.sentiment_integration import SentimentIntegration
 from src.orderbook.orderbook_analyzer import OrderBookAnalyzer
 from src.market_regime.regime_detector import RegimeDetector
+from src.advanced.feature_aggregator import FeatureAggregator
 
 logger = logging.getLogger(__name__)
 
@@ -70,12 +72,17 @@ class MarketMonitor:
         # Initialize Market Regime Detector
         self.regime_detector = RegimeDetector()
 
+        # Initialize Feature Aggregator (Arsenal Avanzado) - Orquesta 7 módulos
+        self.feature_aggregator = FeatureAggregator(config, self.exchange)
+        logger.info("✅ Feature Aggregator initialized: Arsenal Avanzado loaded")
+
         self.trading_pairs = config.TRADING_PAIRS
         self.timeframe = config.TIMEFRAME
         self.timeframes = ['1h', '4h', '1d']  # Multi-timeframe for conservative
         self.flash_timeframe = config.FLASH_TIMEFRAME  # 10m for flash signals
         self.check_interval = config.CHECK_INTERVAL
         self.is_running = False
+        self.market_analysis_paused = False  # Pausa análisis pero permite cerrar trades existentes
         self.current_prices = {}  # Store current prices for tracking
         self.enable_flash = config.ENABLE_FLASH_SIGNALS
         self.enable_paper_trading = config.ENABLE_PAPER_TRADING  # New config option
@@ -282,6 +289,14 @@ class MarketMonitor:
                                     ticker = self.exchange.fetch_ticker(pair)
                                     news_price = ticker['last'] if ticker and 'last' in ticker else 0
 
+                                    # VALIDACIÓN CRÍTICA: Verificar que el precio es válido
+                                    if news_price is None or news_price <= 0 or math.isnan(news_price) or math.isinf(news_price):
+                                        logger.error(
+                                            f"❌ PRECIO INVÁLIDO de Binance para {pair}: {news_price}\n"
+                                            f"   Rechazando trade de news para evitar corrupción del sistema"
+                                        )
+                                        continue  # Skip this news trade
+
                                     if news_price > 0:
                                         # CONSULTAR AL RL AGENT ANTES DE EJECUTAR NEWS TRADE
                                         should_execute_news = True
@@ -394,8 +409,17 @@ class MarketMonitor:
             try:
                 ticker = self.exchange.fetch_ticker(pair)
                 current_price_ticker = ticker['last'] if ticker and 'last' in ticker else 0
+
+                # VALIDACIÓN CRÍTICA: Verificar que el precio es válido
+                if current_price_ticker is None or current_price_ticker <= 0 or math.isnan(current_price_ticker) or math.isinf(current_price_ticker):
+                    logger.error(
+                        f"❌ PRECIO INVÁLIDO de Binance para {pair}: {current_price_ticker}\n"
+                        f"   Saltando análisis de este par para evitar corrupción del sistema"
+                    )
+                    return  # Skip this pair entirely
             except Exception as e:
                 logger.warning(f"No se pudo obtener ticker para {pair}: {e}")
+                return  # Skip this pair if we can't get price
 
             # ANALYZE ORDER BOOK (10 second cache)
             orderbook_analysis = None
@@ -463,6 +487,137 @@ class MarketMonitor:
                 if orderbook_analysis:
                     logger.info(f"  Order Book: {orderbook_analysis['market_pressure']} (imbalance={orderbook_analysis['imbalance']:.2f})")
 
+                # ===== ARSENAL AVANZADO: ANÁLISIS COMPLETO (SIEMPRE) =====
+                # Ejecutar análisis del arsenal SIEMPRE (no solo en BUY/SELL) para logging
+                try:
+                    # Obtener orderbook raw para arsenal
+                    orderbook_raw = None
+                    try:
+                        orderbook_raw = self.exchange.fetch_order_book(pair)
+                    except Exception as e:
+                        logger.debug(f"No se pudo obtener orderbook raw para {pair}: {e}")
+
+                    # Obtener posiciones abiertas
+                    open_positions = []
+                    if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
+                        open_positions = list(self.ml_system.paper_trader.portfolio.positions.keys())
+
+                    # OBTENER ANÁLISIS DEL ARSENAL (preview)
+                    arsenal_ml_features_preview = self.feature_aggregator.get_ml_features(
+                        pair=pair,
+                        current_price=current_price,
+                        base_features={},  # Diccionario vacío para preview
+                        ohlc_data=dfs.get('1h')
+                    )
+                    arsenal_rl_extensions_preview = self.feature_aggregator.get_rl_state_extensions(
+                        pair=pair,
+                        current_price=current_price,
+                        open_positions=open_positions
+                    )
+
+                    # LOG DETALLADO DEL ARSENAL
+                    logger.info(f"  📊 ARSENAL AVANZADO ({pair}):")
+
+                    # Session Trading
+                    session = arsenal_rl_extensions_preview.get('current_session', 'UNKNOWN')
+                    session_mult = arsenal_rl_extensions_preview.get('session_multiplier', 1.0)
+                    logger.info(f"    ⏰ Session: {session} (multiplier={session_mult:.2f}x)")
+
+                    # Order Flow
+                    flow_bias = arsenal_rl_extensions_preview.get('order_flow_bias', 'neutral')
+                    flow_ratio = arsenal_rl_extensions_preview.get('order_flow_ratio', 1.0)
+                    logger.info(f"    💧 Order Flow: {flow_bias} (ratio={flow_ratio:.2f})")
+
+                    # Funding Rate
+                    funding_sentiment = arsenal_ml_features_preview.get('funding_sentiment', 'neutral')
+                    funding_rate = arsenal_ml_features_preview.get('funding_rate', 0)
+                    if funding_rate != 0:
+                        logger.info(f"    💰 Funding Rate: {funding_rate:.4f}% (sentiment={funding_sentiment})")
+
+                    # Liquidation Heatmap
+                    liq_bias = arsenal_ml_features_preview.get('liquidation_bias', 'neutral')
+                    liq_conf = arsenal_ml_features_preview.get('liquidation_confidence', 0)
+                    if liq_conf > 0:
+                        logger.info(f"    🔥 Liquidation: {liq_bias} (confidence={liq_conf:.0%})")
+
+                    # Volume Profile
+                    near_poc = arsenal_ml_features_preview.get('near_poc', False)
+                    in_value = arsenal_ml_features_preview.get('in_value_area', False)
+                    if near_poc or in_value:
+                        logger.info(f"    📈 Volume Profile: POC={near_poc}, ValueArea={in_value}")
+
+                    # Pattern Recognition
+                    pattern_detected = arsenal_ml_features_preview.get('pattern_detected', False)
+                    if pattern_detected:
+                        pattern_type = arsenal_ml_features_preview.get('pattern_type', 'NONE')
+                        logger.info(f"    🎯 Pattern: {pattern_type} detected!")
+
+                    # Correlation Risk
+                    corr_risk = arsenal_rl_extensions_preview.get('correlation_risk', 0)
+                    corr_positions = arsenal_rl_extensions_preview.get('correlated_positions', 0)
+                    if len(open_positions) > 0:
+                        logger.info(f"    🔗 Correlation: {corr_positions} correlated positions (risk={corr_risk:.2f})")
+
+                    # Sentiment completo
+                    if sentiment_features:
+                        fg_index = sentiment_features.get('fear_greed_index', 0.5) * 100
+                        news_sentiment = sentiment_features.get('news_sentiment_overall', 0.5)
+                        social_buzz = sentiment_features.get('social_buzz', 0)
+                        logger.info(f"    📰 Sentiment: F&G={fg_index:.0f}, News={news_sentiment:.2f}, SocialBuzz={social_buzz}")
+
+                    # ML Features TOTAL
+                    total_ml_features = len(sentiment_features or {}) + len(arsenal_ml_features_preview)
+                    logger.info(f"    🧠 ML Features: {total_ml_features} total (Sentiment={len(sentiment_features or {})} + Arsenal={len(arsenal_ml_features_preview)})")
+
+                    # RL State Extensions
+                    logger.info(f"    🤖 RL State: 19 dimensions (12 base + 7 arsenal)")
+
+                except Exception as e:
+                    logger.error(f"  ❌ Error en análisis del arsenal: {e}")
+                # ===== FIN ANÁLISIS ARSENAL =====
+
+                # ===== ARSENAL AVANZADO: ENRICH SIGNAL =====
+                # Aplicar Feature Aggregator ANTES de sentiment (para combinar TODOS los módulos)
+                if signals['action'] != 'HOLD':
+                    try:
+                        # Obtener orderbook raw para arsenal
+                        orderbook_raw = None
+                        try:
+                            orderbook_raw = self.exchange.fetch_order_book(pair)
+                        except Exception as e:
+                            logger.debug(f"No se pudo obtener orderbook raw para {pair}: {e}")
+
+                        # Obtener posiciones abiertas para correlation matrix
+                        open_positions = []
+                        if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
+                            open_positions = list(self.ml_system.paper_trader.portfolio.positions.keys())
+
+                        # ENRIQUECER SEÑAL CON ARSENAL AVANZADO
+                        enriched_signal = self.feature_aggregator.enrich_signal(
+                            pair=pair,
+                            signal=signals,
+                            current_price=current_price,
+                            ohlc_data=dfs.get('1h'),  # Usamos 1h para análisis
+                            orderbook=orderbook_raw,
+                            open_positions=open_positions
+                        )
+
+                        # Aplicar boost/penalty del arsenal
+                        if enriched_signal.get('blocked', False):
+                            logger.warning(f"🚫 Trade bloqueado por Arsenal Avanzado: {enriched_signal.get('block_reason', 'UNKNOWN')}")
+                            return
+
+                        # Actualizar señal con datos del arsenal
+                        signals['confidence'] = enriched_signal.get('final_confidence', signals.get('confidence', 50))
+                        signals['arsenal_boost'] = enriched_signal.get('total_boost', 1.0)
+                        signals['arsenal_analysis'] = enriched_signal.get('analysis', {})
+
+                        logger.info(f"🚀 Arsenal Avanzado aplicado a {pair}: confidence={signals['confidence']:.1f}% (boost={enriched_signal.get('total_boost', 1.0):.2f}x)")
+
+                    except Exception as e:
+                        logger.error(f"Error applying Feature Aggregator to signal: {e}")
+                # ===== FIN ARSENAL AVANZADO =====
+
                 # APPLY SENTIMENT ANALYSIS TO SIGNALS
                 if self.sentiment_system and signals['action'] != 'HOLD':
                     # Check if trade should be blocked by sentiment
@@ -498,7 +653,26 @@ class MarketMonitor:
                             elif pressure == 'SELL_PRESSURE':
                                 orderbook_status = 'SELL_PRESSURE'
 
-                        # Construir market state para RL Agent - INTEGRACIÓN COMPLETA DE LOS 16 SERVICIOS
+                        # ===== ARSENAL AVANZADO: ML FEATURES + RL STATE EXTENSIONS =====
+                        # Obtener features adicionales del arsenal para ML
+                        arsenal_ml_features = {}
+                        arsenal_rl_extensions = {}
+                        try:
+                            arsenal_ml_features = self.feature_aggregator.get_ml_features(
+                                pair=pair,
+                                current_price=current_price,
+                                base_features={},  # Será combinado con sentiment_features después
+                                ohlc_data=dfs.get('1h')
+                            )
+                            arsenal_rl_extensions = self.feature_aggregator.get_rl_state_extensions(
+                                pair=pair,
+                                current_price=current_price,
+                                open_positions=open_positions
+                            )
+                        except Exception as e:
+                            logger.warning(f"No se pudieron obtener features del arsenal: {e}")
+
+                        # Construir market state para RL Agent - INTEGRACIÓN COMPLETA DE 24 SERVICIOS
                         market_state = {
                             # Indicadores técnicos básicos
                             'rsi': analysis['indicators'].get('rsi', 50),
@@ -539,7 +713,37 @@ class MarketMonitor:
                             'regime_confidence': regime_data.get('confidence', 0) if regime_data else 0,
                             'trend_strength': regime_data.get('trend_strength', 0) if regime_data else 0,
                             'volatility_regime': regime_data.get('volatility', 'NORMAL') if regime_data else 'NORMAL',
+
+                            # ===== ARSENAL AVANZADO (8 NUEVOS SERVICIOS) =====
+                            # 17. Correlation Matrix
+                            'correlation_risk': arsenal_rl_extensions.get('correlation_risk', 0),
+                            'correlated_positions': arsenal_rl_extensions.get('correlated_positions', 0),
+
+                            # 18. Liquidation Heatmap
+                            'liquidation_bias': arsenal_rl_extensions.get('liquidation_bias', 'neutral'),
+                            'liquidation_confidence': arsenal_rl_extensions.get('liquidation_confidence', 0),
+
+                            # 19. Funding Rate Analyzer
+                            'funding_sentiment': arsenal_rl_extensions.get('funding_sentiment', 'neutral'),
+                            'funding_rate': arsenal_rl_extensions.get('funding_rate', 0),
+
+                            # 20. Volume Profile & POC
+                            'near_poc': arsenal_rl_extensions.get('near_poc', False),
+                            'in_value_area': arsenal_rl_extensions.get('in_value_area', False),
+
+                            # 21. Pattern Recognition
+                            'pattern_detected': arsenal_rl_extensions.get('pattern_detected', False),
+                            'pattern_type': arsenal_rl_extensions.get('pattern_type', 'NONE'),
+
+                            # 22. Session-Based Trading
+                            'current_session': arsenal_rl_extensions.get('current_session', 'UNKNOWN'),
+                            'session_multiplier': arsenal_rl_extensions.get('session_multiplier', 1.0),
+
+                            # 23. Order Flow Imbalance
+                            'order_flow_bias': arsenal_rl_extensions.get('order_flow_bias', 'neutral'),
+                            'order_flow_ratio': arsenal_rl_extensions.get('order_flow_ratio', 1.0),
                         }
+                        # ===== FIN ARSENAL EXTENSIONS =====
 
                         # Obtener portfolio metrics
                         portfolio_metrics = {}
@@ -570,18 +774,22 @@ class MarketMonitor:
                             signals['rl_position_multiplier'] = rl_decision['position_size_multiplier']
                             signals['rl_action'] = rl_decision.get('chosen_action', 'UNKNOWN')
                             # Pasar trade_type y leverage para futuros
-                            signals['trade_type'] = rl_decision.get('trade_type', 'SPOT')
-                            signals['leverage'] = rl_decision.get('leverage', 1)
+                            signals['trade_type'] = rl_decision.get('trade_type', 'FUTURES')  # Default FUTURES
+                            signals['leverage'] = rl_decision.get('leverage', 1)  # 1x = sin apalancamiento
 
                     # Ejecutar trade solo si RL Agent lo aprueba
                     if should_execute_trade:
+                        # ===== COMBINAR FEATURES: Sentiment + Orderbook + Regime + ARSENAL =====
+                        # Merge arsenal ML features con las existentes
+                        combined_sentiment_features = {**(sentiment_features or {}), **arsenal_ml_features}
+
                         trade_result = self.ml_system.process_signal(
                             pair=pair,
                             signal=signals,
                             indicators=analysis['indicators'],
                             current_price=current_price,
                             mtf_indicators=analysis.get('mtf_indicators'),
-                            sentiment_features=sentiment_features,  # Pass all features to ML
+                            sentiment_features=combined_sentiment_features,  # ARSENAL + Sentiment combined
                             orderbook_features=orderbook_features,
                             regime_features=regime_features
                         )
@@ -637,6 +845,74 @@ class MarketMonitor:
                             f"(Score: {flash_signals.get('score', 0):.1f}/{flash_signals.get('max_score', 10)}) "
                             f"@ ${flash_price:.2f}"
                         )
+
+                        # ===== ARSENAL AVANZADO: ANÁLISIS FLASH (SIEMPRE) =====
+                        try:
+                            # OBTENER ANÁLISIS DEL ARSENAL para flash
+                            arsenal_flash_ml = self.feature_aggregator.get_ml_features(
+                                pair=pair,
+                                current_price=flash_price,
+                                base_features={},  # Preview de flash
+                                ohlc_data=flash_df
+                            )
+                            arsenal_flash_rl = self.feature_aggregator.get_rl_state_extensions(
+                                pair=pair,
+                                current_price=flash_price,
+                                open_positions=open_positions
+                            )
+
+                            # LOG DETALLADO FLASH
+                            logger.info(f"  ⚡ ARSENAL FLASH ({pair}):")
+                            session_f = arsenal_flash_rl.get('current_session', 'UNKNOWN')
+                            session_mult_f = arsenal_flash_rl.get('session_multiplier', 1.0)
+                            flow_bias_f = arsenal_flash_rl.get('order_flow_bias', 'neutral')
+                            flow_ratio_f = arsenal_flash_rl.get('order_flow_ratio', 1.0)
+                            logger.info(f"    ⏰ Session: {session_f} ({session_mult_f:.2f}x) | 💧 Flow: {flow_bias_f} ({flow_ratio_f:.2f})")
+
+                        except Exception as e:
+                            logger.debug(f"  ⚡ Arsenal flash preview error: {e}")
+                        # ===== FIN ANÁLISIS FLASH =====
+
+                        # ===== ARSENAL AVANZADO: ENRICH FLASH SIGNAL =====
+                        if flash_signals['action'] != 'HOLD':
+                            try:
+                                # Obtener orderbook raw para arsenal (reusar si ya se obtuvo)
+                                orderbook_raw_flash = None
+                                try:
+                                    orderbook_raw_flash = self.exchange.fetch_order_book(pair)
+                                except Exception as e:
+                                    logger.debug(f"No se pudo obtener orderbook raw para flash {pair}: {e}")
+
+                                # Obtener posiciones abiertas
+                                open_positions_flash = []
+                                if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
+                                    open_positions_flash = list(self.ml_system.paper_trader.portfolio.positions.keys())
+
+                                # ENRIQUECER FLASH SIGNAL CON ARSENAL
+                                enriched_flash = self.feature_aggregator.enrich_signal(
+                                    pair=pair,
+                                    signal=flash_signals,
+                                    current_price=flash_price,
+                                    ohlc_data=flash_df,  # 10m data para flash
+                                    orderbook=orderbook_raw_flash,
+                                    open_positions=open_positions_flash
+                                )
+
+                                # Aplicar boost/penalty del arsenal
+                                if enriched_flash.get('blocked', False):
+                                    logger.warning(f"🚫 Flash trade bloqueado por Arsenal: {enriched_flash.get('block_reason', 'UNKNOWN')}")
+                                    return
+
+                                # Actualizar flash signal con datos del arsenal
+                                flash_signals['confidence'] = enriched_flash.get('final_confidence', flash_signals.get('confidence', 50))
+                                flash_signals['arsenal_boost'] = enriched_flash.get('total_boost', 1.0)
+                                flash_signals['arsenal_analysis'] = enriched_flash.get('analysis', {})
+
+                                logger.info(f"⚡ Arsenal aplicado a FLASH {pair}: confidence={flash_signals['confidence']:.1f}% (boost={enriched_flash.get('total_boost', 1.0):.2f}x)")
+
+                            except Exception as e:
+                                logger.error(f"Error applying Arsenal to flash signal: {e}")
+                        # ===== FIN ARSENAL FLASH =====
 
                         # APPLY SENTIMENT TO FLASH SIGNALS
                         if self.sentiment_system and flash_signals['action'] != 'HOLD':
@@ -710,13 +986,27 @@ class MarketMonitor:
 
                             # Ejecutar flash trade solo si RL Agent lo aprueba
                             if should_execute_flash:
+                                # ===== COMBINAR FEATURES PARA FLASH: Sentiment + ARSENAL =====
+                                arsenal_ml_features_flash = {}
+                                try:
+                                    arsenal_ml_features_flash = self.feature_aggregator.get_ml_features(
+                                        pair=pair,
+                                        current_price=flash_price,
+                                        base_features={},  # Será combinado con sentiment_features después
+                                        ohlc_data=flash_df
+                                    )
+                                except Exception as e:
+                                    logger.warning(f"No se pudieron obtener arsenal features para flash: {e}")
+
+                                combined_flash_features = {**(sentiment_features or {}), **arsenal_ml_features_flash}
+
                                 flash_trade_result = self.ml_system.process_signal(
                                     pair=pair,
                                     signal=flash_signals,
                                     indicators=flash_analysis['indicators'],
                                     current_price=flash_price,
                                     mtf_indicators=None,  # Flash signals don't use MTF
-                                    sentiment_features=sentiment_features,  # Pass all features to ML
+                                    sentiment_features=combined_flash_features,  # ARSENAL + Sentiment combined
                                     orderbook_features=orderbook_features,
                                     regime_features=regime_features
                                 )
@@ -782,11 +1072,15 @@ class MarketMonitor:
                 iteration += 1
                 logger.info(f"=== Iteration {iteration} - {datetime.now()} ===")
 
-                # Analyze all pairs
-                for pair in self.trading_pairs:
-                    await self.analyze_pair(pair)
-                    # Small delay between pairs to avoid rate limits
-                    await asyncio.sleep(2)
+                # Si está pausado, solo actualizar posiciones existentes
+                if self.market_analysis_paused:
+                    logger.info("⏸️  Análisis de mercado PAUSADO - Solo monitoreando trades abiertos")
+                else:
+                    # Analyze all pairs
+                    for pair in self.trading_pairs:
+                        await self.analyze_pair(pair)
+                        # Small delay between pairs to avoid rate limits
+                        await asyncio.sleep(2)
 
                 # 🔥 FIX CRÍTICO: Actualizar TODAS las posiciones abiertas cada ciclo
                 if self.enable_paper_trading and self.ml_system:
@@ -920,18 +1214,19 @@ class MarketMonitor:
                 }
 
             # Preparar datos del trade (incluir campos de futuros)
+            # CRÍTICO: Mapear campos correctos de closed_trade
             trade_data = {
                 'pair': closed_trade.get('pair', 'UNKNOWN'),
-                'action': closed_trade.get('action', 'UNKNOWN'),
+                'action': closed_trade.get('side', 'UNKNOWN'),  # FIX: side, no action
                 'trade_type': closed_trade.get('trade_type', 'SPOT'),
                 'leverage': closed_trade.get('leverage', 1),
                 'liquidated': closed_trade.get('liquidated', False),
                 'entry_price': closed_trade.get('entry_price', 0),
                 'exit_price': closed_trade.get('exit_price', 0),
-                'profit_pct': closed_trade.get('profit_pct', 0),
-                'profit_amount': closed_trade.get('profit', 0),
+                'profit_pct': closed_trade.get('pnl_pct', 0),  # FIX CRÍTICO: pnl_pct, no profit_pct
+                'profit_amount': closed_trade.get('pnl', 0),  # FIX: pnl, no profit
                 'duration': closed_trade.get('duration', 0),
-                'exit_reason': closed_trade.get('exit_reason', 'UNKNOWN')
+                'exit_reason': closed_trade.get('reason', 'UNKNOWN')  # FIX: reason, no exit_reason
             }
 
             # Enviar al autonomy controller
@@ -962,3 +1257,18 @@ class MarketMonitor:
         Stop the market monitor
         """
         self.is_running = False
+
+    def pause_analysis(self):
+        """
+        Pausa el análisis de nuevos pares, pero sigue monitoreando posiciones abiertas
+        Útil antes de hacer export para evitar discrepancias
+        """
+        self.market_analysis_paused = True
+        logger.info("⏸️  Análisis de mercado PAUSADO - Solo monitoreando trades abiertos")
+
+    def resume_analysis(self):
+        """
+        Reanuda el análisis de mercado normal
+        """
+        self.market_analysis_paused = False
+        logger.info("▶️  Análisis de mercado RESUMIDO - Analizando todos los pares")
