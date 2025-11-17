@@ -355,8 +355,8 @@ class MarketMonitor:
                                     f"📈 Movimiento esperado: {news_signal.get('expected_move', 'N/A')}"
                                 )
 
-                            # Execute news-triggered trade immediately (if paper trading enabled)
-                            if self.enable_paper_trading and self.ml_system:
+                            # Execute news-triggered trade immediately (if auto-trading enabled)
+                            if self.auto_trade and self.futures_trader:
                                 # Get current price for execution
                                 try:
                                     ticker = self.exchange.fetch_ticker(pair)
@@ -423,16 +423,17 @@ class MarketMonitor:
                                                 'volatility_regime': 'HIGH',  # News = high volatility
                                             }
 
-                                            # Obtener portfolio metrics
+                                            # Obtener portfolio metrics (v2.0: desde Binance)
                                             portfolio_metrics_news = {}
-                                            if hasattr(self.ml_system, 'paper_trader'):
-                                                stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                                            if self.position_monitor:
+                                                # TODO: Implementar get_statistics() en PositionMonitor
+                                                # Por ahora, usar valores predeterminados
                                                 portfolio_metrics_news = {
-                                                    'win_rate': stats['win_rate'],
-                                                    'roi': stats['roi'],
-                                                    'max_drawdown': stats['max_drawdown'],
-                                                    'sharpe_ratio': stats.get('sharpe_ratio', 0),
-                                                    'total_trades': stats['total_trades']
+                                                    'win_rate': 0.0,
+                                                    'roi': 0.0,
+                                                    'max_drawdown': 0.0,
+                                                    'sharpe_ratio': 0.0,
+                                                    'total_trades': 0
                                                 }
 
                                             # RL Agent evalúa si ejecutar news trade
@@ -570,10 +571,11 @@ class MarketMonitor:
                     except Exception as e:
                         logger.debug(f"No se pudo obtener orderbook raw para {pair}: {e}")
 
-                    # Obtener posiciones abiertas
+                    # Obtener posiciones abiertas (v2.0: desde Binance)
                     open_positions = []
-                    if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
-                        open_positions = list(self.ml_system.paper_trader.portfolio.positions.keys())
+                    if self.position_monitor:
+                        positions = self.position_monitor.get_open_positions()
+                        open_positions = [p['symbol'] for p in positions]
 
                     # OBTENER ANÁLISIS DEL ARSENAL (preview)
                     arsenal_ml_features_preview = self.feature_aggregator.get_ml_features(
@@ -660,10 +662,11 @@ class MarketMonitor:
                         except Exception as e:
                             logger.debug(f"No se pudo obtener orderbook raw para {pair}: {e}")
 
-                        # Obtener posiciones abiertas para correlation matrix
+                        # Obtener posiciones abiertas para correlation matrix (v2.0: desde Binance)
                         open_positions = []
-                        if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
-                            open_positions = list(self.ml_system.paper_trader.portfolio.positions.keys())
+                        if self.position_monitor:
+                            positions = self.position_monitor.get_open_positions()
+                            open_positions = [p['symbol'] for p in positions]
 
                         # ENRIQUECER SEÑAL CON ARSENAL AVANZADO
                         enriched_signal = self.feature_aggregator.enrich_signal(
@@ -710,8 +713,8 @@ class MarketMonitor:
                 if regime_data:
                     analysis['regime_data'] = regime_data
 
-                # Execute paper trade if enabled
-                if self.enable_paper_trading and self.ml_system and signals['action'] != 'HOLD':
+                # Execute trade with Binance if auto-trading enabled
+                if self.auto_trade and self.futures_trader and signals['action'] != 'HOLD':
                     # CONSULTAR AL RL AGENT ANTES DE ABRIR TRADE
                     should_execute_trade = True
                     rl_decision = None
@@ -818,16 +821,17 @@ class MarketMonitor:
                         }
                         # ===== FIN ARSENAL EXTENSIONS =====
 
-                        # Obtener portfolio metrics
+                        # Obtener portfolio metrics (v2.0: desde Binance)
                         portfolio_metrics = {}
-                        if hasattr(self.ml_system, 'paper_trader'):
-                            stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                        if self.position_monitor:
+                            # TODO: Implementar get_statistics() en PositionMonitor
+                            # Por ahora, usar valores predeterminados
                             portfolio_metrics = {
-                                'win_rate': stats['win_rate'],
-                                'roi': stats['roi'],
-                                'max_drawdown': stats['max_drawdown'],
-                                'sharpe_ratio': stats.get('sharpe_ratio', 0),
-                                'total_trades': stats['total_trades']
+                                'win_rate': 0.0,
+                                'roi': 0.0,
+                                'max_drawdown': 0.0,
+                                'sharpe_ratio': 0.0,
+                                'total_trades': 0
                             }
 
                         # RL Agent evalúa si abrir el trade
@@ -879,21 +883,8 @@ class MarketMonitor:
                     else:
                         logger.info(f"🤖 RL Agent bloqueó trade en {pair}: {rl_decision.get('chosen_action', 'SKIP')}")
 
-                # Update existing positions
-                if self.enable_paper_trading and self.ml_system:
-                    closed_trade = self.ml_system.update_position(pair, current_price)
-                    if closed_trade:
-                        logger.info(f"Position closed for {pair}: {closed_trade}")
-
-                        # Send trade outcome to autonomous controller for learning
-                        if self.autonomy_controller:
-                            await self._process_trade_outcome_autonomous(
-                                closed_trade,
-                                analysis.get('indicators', {}),
-                                sentiment_data,
-                                orderbook_analysis,
-                                regime_data
-                            )
+                # v2.0: Position updates are handled automatically by PositionMonitor
+                # The _on_position_closed callback will be triggered when SL/TP is hit
 
                 # Send signal notification if strong enough (score >= 7)
                 if signals['action'] != 'HOLD':
@@ -956,10 +947,11 @@ class MarketMonitor:
                                 except Exception as e:
                                     logger.debug(f"No se pudo obtener orderbook raw para flash {pair}: {e}")
 
-                                # Obtener posiciones abiertas
+                                # Obtener posiciones abiertas (v2.0: desde Binance)
                                 open_positions_flash = []
-                                if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
-                                    open_positions_flash = list(self.ml_system.paper_trader.portfolio.positions.keys())
+                                if self.position_monitor:
+                                    positions = self.position_monitor.get_open_positions()
+                                    open_positions_flash = [p['symbol'] for p in positions]
 
                                 # ENRIQUECER FLASH SIGNAL CON ARSENAL
                                 enriched_flash = self.feature_aggregator.enrich_signal(
@@ -1005,8 +997,8 @@ class MarketMonitor:
                         if regime_data:
                             flash_analysis['regime_data'] = regime_data
 
-                        # Execute paper trade for flash signal if enabled
-                        if self.enable_paper_trading and self.ml_system and flash_signals['action'] != 'HOLD':
+                        # Execute trade with Binance for flash signal if auto-trading enabled
+                        if self.auto_trade and self.futures_trader and flash_signals['action'] != 'HOLD':
                             # CONSULTAR AL RL AGENT ANTES DE ABRIR FLASH TRADE
                             should_execute_flash = True
                             rl_flash_decision = None
@@ -1030,16 +1022,17 @@ class MarketMonitor:
                                     'volatility': 'high' if flash_analysis['indicators'].get('atr', 0) > flash_price * 0.02 else 'medium'
                                 }
 
-                                # Obtener portfolio metrics
+                                # Obtener portfolio metrics (v2.0: desde Binance)
                                 portfolio_metrics_flash = {}
-                                if hasattr(self.ml_system, 'paper_trader'):
-                                    stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                                if self.position_monitor:
+                                    # TODO: Implementar get_statistics() en PositionMonitor
+                                    # Por ahora, usar valores predeterminados
                                     portfolio_metrics_flash = {
-                                        'win_rate': stats['win_rate'],
-                                        'roi': stats['roi'],
-                                        'max_drawdown': stats['max_drawdown'],
-                                        'sharpe_ratio': stats.get('sharpe_ratio', 0),
-                                        'total_trades': stats['total_trades']
+                                        'win_rate': 0.0,
+                                        'roi': 0.0,
+                                        'max_drawdown': 0.0,
+                                        'sharpe_ratio': 0.0,
+                                        'total_trades': 0
                                     }
 
                                 # RL Agent evalúa si abrir el flash trade
@@ -1118,7 +1111,8 @@ class MarketMonitor:
             pairs_display += f" y {len(display_pairs) - 5} más"
 
         flash_status = "✅ Activas" if self.enable_flash else "❌ Desactivadas"
-        paper_trading_status = "✅ Activo" if self.enable_paper_trading else "❌ Inactivo"
+        auto_trade_status = "✅ Activo" if self.auto_trade else "❌ Inactivo"
+        trading_mode = f"{'🧪 TESTNET' if config.BINANCE_TESTNET else '🔴 LIVE'}"
 
         startup_message = (
             "🤖 <b>Bot de Señales Iniciado</b>\n\n"
@@ -1126,11 +1120,12 @@ class MarketMonitor:
             f"⏱️ Intervalo: {self.check_interval}s\n"
             f"📈 Timeframe conservador: {config.TIMEFRAME} (1h/4h/1d)\n"
             f"⚡ Señales flash: {flash_status} ({self.flash_timeframe})\n"
-            f"💰 Paper Trading: {paper_trading_status}"
+            f"💰 Binance Futures: {trading_mode}\n"
+            f"🔄 Auto-Trading: {auto_trade_status}"
         )
 
-        if self.enable_paper_trading and self.ml_system:
-            startup_message += f" (${config.PAPER_TRADING_INITIAL_BALANCE:,.0f} USDT)\n🧠 Machine Learning: ✅ Activo"
+        if self.ml_system:
+            startup_message += "\n🧠 Machine Learning: ✅ Activo"
 
         startup_message += "\n📍 Reporte diario: 9 PM CDMX"
 
@@ -1155,43 +1150,9 @@ class MarketMonitor:
                         # Small delay between pairs to avoid rate limits
                         await asyncio.sleep(2)
 
-                # 🔥 FIX CRÍTICO: Actualizar TODAS las posiciones abiertas cada ciclo
-                if self.enable_paper_trading and self.ml_system:
-                    paper_trader = self.ml_system.paper_trader
-                    open_positions = list(paper_trader.portfolio.positions.keys())
-
-                    if open_positions:
-                        logger.info(f"🔍 Checking {len(open_positions)} open positions...")
-
-                        for pair in open_positions:
-                            # Get current price from cache or fetch fresh
-                            current_price = self.current_prices.get(pair)
-
-                            if current_price:
-                                closed_trade = self.ml_system.update_position(pair, current_price)
-
-                                if closed_trade:
-                                    logger.info(f"✅ Position auto-closed: {pair} - {closed_trade.get('reason', 'UNKNOWN')}")
-
-                                    # Send trade outcome to autonomous controller
-                                    if self.autonomy_controller:
-                                        # Fetch latest data for closed trade learning
-                                        try:
-                                            df = await self.fetch_ohlcv(pair, '1h')
-                                            if df is not None and len(df) >= 50:
-                                                analysis = self.analyzer.analyze_multi_timeframe({'1h': df})
-                                                if analysis:
-                                                    await self._process_trade_outcome_autonomous(
-                                                        closed_trade,
-                                                        analysis.get('indicators', {}),
-                                                        None,  # sentiment_data
-                                                        None,  # orderbook_analysis
-                                                        None   # regime_data
-                                                    )
-                                        except Exception as e:
-                                            logger.error(f"Error processing trade outcome for {pair}: {e}")
-                            else:
-                                logger.warning(f"⚠️ No current price for {pair}, skipping position check")
+                # v2.0: Position monitoring is handled automatically by PositionMonitor
+                # The _on_position_closed callback will be triggered when SL/TP is hit
+                # No need to manually check positions here
 
                 # Update pending signals with current prices
                 if self.tracker:
@@ -1201,16 +1162,17 @@ class MarketMonitor:
                 if self.reporter:
                     await self.reporter.check_and_send_report()
 
-                # Send paper trading stats every 30 iterations (every hour if interval=120s)
-                if self.enable_paper_trading and self.ml_system:
-                    stats_iteration += 1
-                    if stats_iteration >= 30:  # ~1 hour
-                        try:
-                            stats = self.ml_system.get_comprehensive_stats()
-                            await self.notifier.send_trading_stats(stats)
-                            stats_iteration = 0
-                        except Exception as e:
-                            logger.error(f"Error sending paper trading stats: {e}")
+                # TODO v2.0: Implement trading stats from Binance PositionMonitor
+                # Stats should come from real trade history on Binance
+                # if self.auto_trade and self.position_monitor:
+                #     stats_iteration += 1
+                #     if stats_iteration >= 30:  # ~1 hour
+                #         try:
+                #             stats = self.position_monitor.get_trading_stats()
+                #             await self.notifier.send_trading_stats(stats)
+                #             stats_iteration = 0
+                #         except Exception as e:
+                #             logger.error(f"Error sending trading stats: {e}")
 
                 logger.info(f"Waiting {self.check_interval} seconds until next check...")
                 await asyncio.sleep(self.check_interval)
@@ -1270,20 +1232,21 @@ class MarketMonitor:
                 'drawdown': 0
             }
 
-            # Obtener métricas del portfolio
+            # Obtener métricas del portfolio (v2.0: desde Binance)
             portfolio_metrics = {}
-            if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
-                stats = self.ml_system.paper_trader.portfolio.get_statistics()
-                market_state['win_rate'] = stats['win_rate']
-                market_state['drawdown'] = stats['max_drawdown']
+            if self.position_monitor:
+                # TODO: Implementar get_statistics() en PositionMonitor
+                # Por ahora, usar valores predeterminados
+                market_state['win_rate'] = 0.0
+                market_state['drawdown'] = 0.0
 
                 portfolio_metrics = {
-                    'win_rate': stats['win_rate'],
-                    'roi': stats['roi'],
-                    'max_drawdown': stats['max_drawdown'],
-                    'sharpe_ratio': stats.get('sharpe_ratio', 0),
-                    'profit_factor': stats.get('profit_factor', 1.0),
-                    'total_trades': stats['total_trades']
+                    'win_rate': 0.0,
+                    'roi': 0.0,
+                    'max_drawdown': 0.0,
+                    'sharpe_ratio': 0.0,
+                    'profit_factor': 1.0,
+                    'total_trades': 0
                 }
 
             # Preparar datos del trade (incluir campos de futuros)
