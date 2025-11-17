@@ -246,6 +246,23 @@ class Portfolio:
             )
             return None
 
+        # 🔥 FIX CRÍTICO: VALIDAR QUE HUBO MOVIMIENTO REAL DEL PRECIO
+        # Evitar cerrar trades con entry_price = exit_price (P&L = $0)
+        price_change_abs = abs(exit_price - position['entry_price'])
+        price_change_pct = (price_change_abs / position['entry_price']) * 100
+
+        # Si el cambio es menor a 0.01% (prácticamente sin movimiento)
+        if price_change_pct < 0.01:
+            logger.error(
+                f"❌ BUG ANTI-CORRUPCIÓN: Intento de cerrar {pair} sin movimiento de precio\n"
+                f"   Entry: ${position['entry_price']:.4f}\n"
+                f"   Exit:  ${exit_price:.4f}\n"
+                f"   Change: {price_change_pct:.6f}% (< 0.01% mínimo)\n"
+                f"   Razón: {reason}\n"
+                f"   POSICIÓN NO CERRADA - Esto evita el bug reportado (AXS/USDT, SUI/USDT, etc.)"
+            )
+            return None
+
         # Calcular P&L realizado
         if position['side'] == 'BUY':
             pnl = (exit_price - position['entry_price']) * position['quantity']
