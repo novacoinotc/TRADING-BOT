@@ -54,16 +54,21 @@ async def send_bot_status_message(monitor):
             ml_status = "❌ Inactivo"
 
         sentiment_status = "✅ Activo" if config.ENABLE_SENTIMENT_ANALYSIS else "❌ Inactivo"
-        paper_trading_status = "✅ Activo" if config.ENABLE_PAPER_TRADING else "❌ Inactivo"
+        trading_mode = f"{'🧪 TESTNET' if config.BINANCE_TESTNET else '🔴 LIVE'}"
+        auto_trade_status = "✅ Activo" if config.AUTO_TRADE else "❌ Inactivo"
         flash_signals_status = "✅ Activas" if config.ENABLE_FLASH_SIGNALS else "❌ Inactivas"
         autonomous_status = "✅ MODO AUTÓNOMO ACTIVO" if config.ENABLE_AUTONOMOUS_MODE else "❌ Modo manual"
 
-        # Obtener balance de paper trading
-        balance = "$50,000 USDT"
-        if hasattr(monitor, 'ml_system') and monitor.ml_system:
-            if hasattr(monitor.ml_system, 'paper_trader') and monitor.ml_system.paper_trader:
-                portfolio = monitor.ml_system.paper_trader.portfolio
-                balance = f"${portfolio.get_equity():,.2f} USDT"
+        # Obtener balance real de Binance (v2.0)
+        balance = "Obteniendo..."
+        try:
+            if hasattr(monitor, 'binance_client') and monitor.binance_client:
+                balance_info = monitor.binance_client.get_balance()
+                usdt_balance = next((b for b in balance_info if b['asset'] == 'USDT'), None)
+                if usdt_balance:
+                    balance = f"${float(usdt_balance['availableBalance']):,.2f} USDT"
+        except:
+            balance = "No disponible"
 
         # Contar pares
         total_pairs = len(config.TRADING_PAIRS)
@@ -72,12 +77,13 @@ async def send_bot_status_message(monitor):
 
         # Construir mensaje
         message = (
-            "🤖 **Bot de Señales Iniciado**\n\n"
+            "🤖 **Bot de Trading v2.0 Iniciado**\n\n"
             f"📊 Monitoreando: {main_pairs} y {additional_pairs} más\n"
             f"⏱️ Intervalo: {config.CHECK_INTERVAL}s\n"
             f"📈 Timeframe conservador: {config.TIMEFRAME} (1h/4h/1d)\n"
             f"⚡ Señales flash: {flash_signals_status} ({config.FLASH_TIMEFRAME})\n"
-            f"💰 Paper Trading: {paper_trading_status} ({balance})\n"
+            f"💰 Binance Futures: {trading_mode} | Balance: {balance}\n"
+            f"🔄 Auto-Trading: {auto_trade_status} | Leverage: {config.DEFAULT_LEVERAGE}x\n"
             f"🧠 Machine Learning: {ml_status} ({ml_accuracy} accuracy)\n"
             f"📰 Sentiment Analysis: {sentiment_status}\n"
             f"📚 Order Book: ✅ Activo\n"
@@ -188,7 +194,7 @@ async def run_historical_training(telegram_bot=None):
             logger.info("   (Generando señales y simulando trades...)")
 
             backtester = Backtester(
-                initial_balance=config.PAPER_TRADING_INITIAL_BALANCE,
+                initial_balance=50000.0,  # Balance inicial para backtesting histórico
                 commission_rate=0.001,
                 slippage_rate=0.0005,
                 telegram_bot=telegram_bot  # NUEVO: Para notificaciones
@@ -288,13 +294,16 @@ async def main():
                 min_trades_before_optimization=config.AUTONOMOUS_MIN_TRADES_BEFORE_OPT
             )
 
-            # CRÍTICO: Asignar paper_trader ANTES de initialize()
-            # Esto permite que _restore_from_state() pueda restaurar paper trading correctamente
-            if monitor.ml_system and hasattr(monitor.ml_system, 'paper_trader'):
-                autonomy_controller.paper_trader = monitor.ml_system.paper_trader
-                logger.info("✅ paper_trader asignado al autonomy_controller")
-            else:
-                logger.warning("⚠️ ml_system.paper_trader no disponible - paper trading no se restaurará")
+            # Pass Binance integration to autonomy controller (v2.0)
+            if hasattr(monitor, 'binance_client'):
+                autonomy_controller.binance_client = monitor.binance_client
+                logger.info("✅ Binance client asignado al autonomy_controller")
+            if hasattr(monitor, 'futures_trader'):
+                autonomy_controller.futures_trader = monitor.futures_trader
+                logger.info("✅ Futures trader asignado al autonomy_controller")
+            if hasattr(monitor, 'position_monitor'):
+                autonomy_controller.position_monitor = monitor.position_monitor
+                logger.info("✅ Position monitor asignado al autonomy_controller")
 
             # Pass references ANTES de initialize (para que _restore_from_state tenga acceso)
             monitor.autonomy_controller = autonomy_controller
@@ -316,7 +325,7 @@ async def main():
             logger.info("📱 Telegram Commands activos: /export, /import, /status, /stats, /params, /train_ml")
 
         # Run historical training if enabled (pre-train ML model)
-        if config.ENABLE_PAPER_TRADING:
+        if config.ENABLE_HISTORICAL_TRAINING:
             success = await run_historical_training(telegram_bot=monitor.notifier)
             if not success:
                 logger.warning("Historical training no completado, pero continuando...")

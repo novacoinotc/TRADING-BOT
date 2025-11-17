@@ -21,6 +21,11 @@ from src.orderbook.orderbook_analyzer import OrderBookAnalyzer
 from src.market_regime.regime_detector import RegimeDetector
 from src.advanced.feature_aggregator import FeatureAggregator
 
+# Binance Futures Integration (v2.0)
+from src.binance_integration.binance_client import BinanceClient
+from src.binance_integration.futures_trader import FuturesTrader
+from src.binance_integration.position_monitor import PositionMonitor
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,14 +53,63 @@ class MarketMonitor:
         # Initialize daily reporter
         self.reporter = DailyReporter(self.tracker, self.notifier) if self.tracker else None
 
-        # Initialize ML + Paper Trading system
-        self.ml_system = MLIntegration(
-            initial_balance=config.PAPER_TRADING_INITIAL_BALANCE,
-            enable_ml=True,  # Enable ML predictions
-            telegram_notifier=self.notifier  # Para notificaciones de trades
-        ) if config.ENABLE_PAPER_TRADING else None
+        # ========== BINANCE FUTURES INTEGRATION (v2.0) ==========
+        # Initialize Binance client and trading components
+        self.binance_client = None
+        self.futures_trader = None
+        self.position_monitor = None
 
-        # Auto-entrenar ML si hay suficientes trades históricos (40+)
+        if config.BINANCE_API_KEY and config.BINANCE_API_SECRET:
+            try:
+                # Build proxy config if needed
+                proxies = None
+                if config.USE_PROXY and config.PROXY_HOST and config.PROXY_PORT:
+                    if config.PROXY_USERNAME and config.PROXY_PASSWORD:
+                        proxy_url = f"http://{config.PROXY_USERNAME}:{config.PROXY_PASSWORD}@{config.PROXY_HOST}:{config.PROXY_PORT}"
+                    else:
+                        proxy_url = f"http://{config.PROXY_HOST}:{config.PROXY_PORT}"
+                    proxies = {'http': proxy_url, 'https': proxy_url}
+
+                # Initialize Binance client
+                self.binance_client = BinanceClient(
+                    api_key=config.BINANCE_API_KEY,
+                    api_secret=config.BINANCE_API_SECRET,
+                    base_url=config.BINANCE_BASE_URL,
+                    proxies=proxies
+                )
+                logger.info("✅ Binance Client initialized")
+
+                # Initialize Futures Trader
+                self.futures_trader = FuturesTrader(
+                    client=self.binance_client,
+                    default_leverage=config.DEFAULT_LEVERAGE,
+                    use_isolated_margin=config.USE_ISOLATED_MARGIN
+                )
+                logger.info("✅ Futures Trader initialized")
+
+                # Initialize Position Monitor
+                self.position_monitor = PositionMonitor(
+                    client=self.binance_client,
+                    update_interval=5,  # Update every 5 seconds
+                    on_position_closed=self._on_position_closed
+                )
+                logger.info("✅ Position Monitor initialized")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize Binance integration: {e}")
+                self.binance_client = None
+                self.futures_trader = None
+                self.position_monitor = None
+        else:
+            logger.warning("⚠️ Binance API credentials not configured. Trading disabled.")
+
+        # Initialize ML system (without paper trading)
+        self.ml_system = MLIntegration(
+            enable_ml=config.ENABLE_ML_SYSTEM,
+            telegram_notifier=self.notifier
+        ) if config.ENABLE_ML_SYSTEM else None
+
+        # Auto-train ML if enough historical trades (40+)
         if self.ml_system:
             self._auto_train_ml_if_ready()
 
@@ -85,7 +139,7 @@ class MarketMonitor:
         self.market_analysis_paused = False  # Pausa análisis pero permite cerrar trades existentes
         self.current_prices = {}  # Store current prices for tracking
         self.enable_flash = config.ENABLE_FLASH_SIGNALS
-        self.enable_paper_trading = config.ENABLE_PAPER_TRADING  # New config option
+        self.auto_trade = config.AUTO_TRADE  # v2.0: Auto-trading con Binance
         self.autonomy_controller = None  # Will be set by main.py if autonomous mode enabled
 
     def _initialize_exchange(self) -> ccxt.Exchange:
@@ -131,62 +185,81 @@ class MarketMonitor:
             logger.error(f"Failed to initialize exchange: {e}")
             raise
 
+    def _on_position_closed(self, closed_info: Dict):
+        """
+        Callback cuando se cierra una posición (SL/TP alcanzado)
+
+        Args:
+            closed_info: Información del cierre desde PositionMonitor
+        """
+        try:
+            logger.info(
+                f"\n{'='*60}\n"
+                f"📢 POSITION CLOSED NOTIFICATION\n"
+                f"Symbol: {closed_info['symbol']}\n"
+                f"Side: {closed_info['side']}\n"
+                f"P&L: ${closed_info['realized_pnl']:+.2f} ({closed_info['realized_pnl_pct']:+.2f}%)\n"
+                f"Reason: {closed_info['reason']}\n"
+                f"{'='*60}\n"
+            )
+
+            # Notificar a Telegram
+            if self.notifier:
+                asyncio.create_task(self._notify_trade_closed(closed_info))
+
+            # Actualizar RL Agent si está disponible
+            if self.autonomy_controller:
+                try:
+                    # Calcular reward para RL Agent
+                    reward = closed_info['realized_pnl']
+
+                    # Actualizar agente con resultado
+                    if hasattr(self.autonomy_controller, 'update_from_trade_result'):
+                        self.autonomy_controller.update_from_trade_result(closed_info, reward)
+                except Exception as e:
+                    logger.error(f"❌ Error updating RL Agent: {e}")
+
+        except Exception as e:
+            logger.error(f"❌ Error in _on_position_closed callback: {e}")
+
+    async def _notify_trade_closed(self, closed_info: Dict):
+        """Notifica a Telegram que se cerró un trade"""
+        try:
+            emoji = "✅" if closed_info['realized_pnl'] > 0 else "❌"
+            message = (
+                f"{emoji} **TRADE CERRADO - {'GANANCIA' if closed_info['realized_pnl'] > 0 else 'PÉRDIDA'}**\n\n"
+                f"📌 Par: {closed_info['symbol']}\n"
+                f"📊 Dirección: {closed_info['side']}\n"
+                f"💰 Entrada: ${closed_info['entry_price']:,.2f}\n"
+                f"💰 Salida: ${closed_info['exit_price']:,.2f}\n"
+                f"📈 P&L: ${closed_info['realized_pnl']:+.2f} ({closed_info['realized_pnl_pct']:+.2f}%)\n"
+                f"🔢 Cantidad: {closed_info['quantity']}\n"
+                f"⚡ Leverage: {closed_info['leverage']}x\n"
+                f"🏁 Razón: {closed_info['reason']}\n"
+                f"🔖 Trade ID: {closed_info['trade_id']}"
+            )
+            await self.notifier.send_message(message)
+        except Exception as e:
+            logger.error(f"❌ Error notifying trade closed: {e}")
+
     def _auto_train_ml_if_ready(self):
         """
         Auto-entrena el ML System si hay suficientes trades históricos (40+)
-        Se ejecuta automáticamente al inicializar MarketMonitor
-
-        IMPORTANTE: Usa el paper_trader del autonomy_controller si está disponible
-        (porque ese SÍ se restaura con /import), en lugar del paper_trader interno
-        del ML System que puede estar vacío después de un import.
+        v2.0: Usa historial de trades reales de Binance
         """
         try:
             if not self.ml_system:
                 return
 
-            # Intentar usar el paper_trader del autonomy_controller primero
-            # (porque ese SÍ se restaura en /import)
-            paper_trader = None
-            total_trades = 0
+            # En v2.0, el entrenamiento se hace con datos históricos de Binance
+            # o con el backtester si no hay trades reales todavía
+            logger.debug("📊 ML auto-training en v2.0 se hace con historial de Binance")
 
-            if hasattr(self, 'autonomy_controller') and self.autonomy_controller:
-                if hasattr(self.autonomy_controller, 'paper_trader') and self.autonomy_controller.paper_trader:
-                    paper_trader = self.autonomy_controller.paper_trader
-                    stats = paper_trader.portfolio.get_statistics()
-                    total_trades = stats.get('total_trades', 0)
-                    logger.debug(f"📊 Usando paper_trader del autonomy_controller: {total_trades} trades")
-
-            # Fallback: usar el paper_trader interno del ML System
-            if not paper_trader and hasattr(self.ml_system, 'paper_trader') and self.ml_system.paper_trader:
-                paper_trader = self.ml_system.paper_trader
-                stats = paper_trader.portfolio.get_statistics()
-                total_trades = stats.get('total_trades', 0)
-                logger.debug(f"📊 Usando paper_trader interno del ML System: {total_trades} trades")
-
-            if not paper_trader:
-                logger.debug("📊 No hay paper_trader disponible para auto-entrenamiento")
-                return
-
-            # Verificar si hay suficientes trades para entrenar (40+)
-            if total_trades >= 40:
-                logger.info(f"🤖 Detectados {total_trades} trades históricos - Iniciando auto-entrenamiento ML...")
-
-                # Forzar entrenamiento con threshold reducido (25 samples mínimo)
-                # Pasar el paper_trader que tiene los datos
-                self.ml_system.force_retrain(
-                    min_samples_override=25,
-                    external_paper_trader=paper_trader
-                )
-
-                logger.info("✅ ML System entrenado automáticamente con datos históricos")
-            elif total_trades > 0:
-                logger.info(f"📊 ML System esperando más trades para entrenar: {total_trades}/40")
-            else:
-                logger.info("📊 ML System iniciado - entrenará automáticamente después de 40 trades")
+            # TODO: Implementar obtención de trades históricos de Binance
+            # y usar para entrenar ML
 
         except Exception as e:
-            logger.error(f"Error en auto-entrenamiento ML: {e}")
-            # No es crítico, el sistema puede funcionar sin ML entrenado
+            logger.warning(f"⚠️ Error en auto-entrenamiento ML: {e}")
 
     async def fetch_ohlcv(self, pair: str, timeframe: str = None) -> Optional[pd.DataFrame]:
         """
