@@ -91,6 +91,10 @@ class AutonomyController:
         # Necesaria para acceder a ml_system para export/import de training_buffer
         self.market_monitor = None
 
+        # Deduplicación de trades (para evitar que test_mode y position_monitor notifiquen el mismo trade)
+        # Dict: symbol -> (timestamp, pnl) de los últimos trades procesados
+        self._recently_processed_trades: Dict[str, tuple] = {}
+
         logger.info("🤖 AUTONOMY CONTROLLER INICIALIZADO - MODO: CONTROL ABSOLUTO")
         logger.info(f"   Auto-save: cada {self.auto_save_interval} min")
         logger.info(f"   Optimization check: cada {self.optimization_interval} horas")
@@ -1521,6 +1525,40 @@ class AutonomyController:
             realized_pnl = closed_info.get('realized_pnl', 0)
             realized_pnl_pct = closed_info.get('realized_pnl_pct', 0)
             leverage = closed_info.get('leverage', 1)
+
+            # DEDUPLICACIÓN: Evitar procesar el mismo trade dos veces
+            # (test_mode y position_monitor pueden notificar el mismo cierre)
+            current_time = datetime.now().timestamp()
+
+            # Limpiar trades antiguos (más de 10 segundos)
+            symbols_to_remove = []
+            for sym, (ts, _) in self._recently_processed_trades.items():
+                if current_time - ts > 10:
+                    symbols_to_remove.append(sym)
+            for sym in symbols_to_remove:
+                del self._recently_processed_trades[sym]
+
+            # Verificar si ya procesamos este trade recientemente
+            if symbol in self._recently_processed_trades:
+                prev_ts, prev_pnl = self._recently_processed_trades[symbol]
+                time_diff = current_time - prev_ts
+
+                # Si el P&L es similar (dentro de 5%) y fue hace menos de 10 segundos, es duplicado
+                if time_diff < 10 and abs(prev_pnl - realized_pnl) < abs(prev_pnl * 0.05):
+                    logger.warning(
+                        f"⚠️ Trade duplicado detectado y IGNORADO: {symbol} | "
+                        f"P&L: ${realized_pnl:+.2f} | "
+                        f"Tiempo desde último: {time_diff:.1f}s | "
+                        f"Razón: {closed_info.get('reason', 'N/A')}"
+                    )
+                    return
+
+            # Registrar este trade como procesado
+            self._recently_processed_trades[symbol] = (current_time, realized_pnl)
+
+            # Log de cuál fuente está notificando
+            source = "Test Mode" if "test_" in closed_info.get('trade_id', '') else "Position Monitor"
+            logger.info(f"📥 Trade notification from: {source}")
 
             # Incrementar contador global
             self.total_trades_all_time += 1

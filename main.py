@@ -334,9 +334,10 @@ async def main():
             test_mode = TestMode(
                 futures_trader=monitor.futures_trader if hasattr(monitor, 'futures_trader') else None,
                 position_monitor=monitor.position_monitor if hasattr(monitor, 'position_monitor') else None,
-                notifier=monitor.notifier if hasattr(monitor, 'notifier') else None
+                notifier=monitor.notifier if hasattr(monitor, 'notifier') else None,
+                autonomy_controller=autonomy_controller  # CRÍTICO: Para notificar P&L correcto al RL Agent
             )
-            logger.info("🧪 Test Mode inicializado")
+            logger.info("🧪 Test Mode inicializado (con autonomy_controller para RL Agent)")
 
             # Initialize Telegram Commands Handler
             telegram_commands = TelegramCommands(
