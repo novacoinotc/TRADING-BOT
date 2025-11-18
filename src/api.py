@@ -63,9 +63,16 @@ async def get_status() -> Dict[str, Any]:
         # Posiciones abiertas (consultar directamente de Binance para datos más actualizados)
         open_positions = []
         try:
-            # Intentar obtener directamente de Binance primero
-            raw_positions = _market_monitor.binance_client.get_positions()
-            logger.debug(f"📊 /api/status: Binance retornó {len(raw_positions)} posiciones")
+            # Intentar obtener de PositionMonitor primero (más eficiente, cache local)
+            if hasattr(_market_monitor, 'position_monitor') and _market_monitor.position_monitor:
+                positions_dict = _market_monitor.position_monitor.get_open_positions()
+                # Convertir dict a lista similar a get_position_risk()
+                raw_positions = list(positions_dict.values())
+                logger.debug(f"📊 /api/status: PositionMonitor retornó {len(raw_positions)} posiciones")
+            else:
+                # Fallback: obtener directamente de Binance API
+                raw_positions = _market_monitor.binance_client.get_position_risk()
+                logger.debug(f"📊 /api/status: Binance retornó {len(raw_positions)} posiciones")
 
             for pos in raw_positions:
                 position_amt = float(pos.get('positionAmt', 0))
@@ -184,7 +191,7 @@ async def get_open_positions() -> Dict[str, Any]:
         binance_positions = []
         try:
             if hasattr(_market_monitor, 'binance_client'):
-                raw_positions = _market_monitor.binance_client.get_positions()
+                raw_positions = _market_monitor.binance_client.get_position_risk()
                 logger.info(f"📊 Binance API retornó {len(raw_positions)} posiciones")
 
                 for pos in raw_positions:
