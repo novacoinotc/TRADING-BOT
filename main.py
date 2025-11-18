@@ -321,6 +321,9 @@ async def main():
             if hasattr(monitor, 'position_monitor'):
                 autonomy_controller.position_monitor = monitor.position_monitor
                 logger.info("✅ Position monitor asignado al autonomy_controller")
+                # CRÍTICO: Asignar autonomy_controller a position_monitor para evitar duplicados
+                monitor.position_monitor.autonomy_controller = autonomy_controller
+                logger.info("✅ Autonomy controller asignado al position_monitor (evitar duplicados)")
 
             # Pass references ANTES de initialize (para que _restore_from_state tenga acceso)
             monitor.autonomy_controller = autonomy_controller
