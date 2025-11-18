@@ -39,7 +39,7 @@ class TestMode:
 
         # Configuración
         self.symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']
-        self.trade_amount = 50  # $50 por trade
+        self.trade_amount = 100  # $100 por trade (mínimo de Binance Futures)
         self.trade_interval = 180  # 3 minutos = 180 segundos
         self.hold_time = 30  # Mantener posición 30 segundos
 
