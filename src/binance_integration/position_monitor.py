@@ -54,6 +54,9 @@ class PositionMonitor:
         # Historial de trades cerrados (para el dashboard)
         self.closed_trades: List[Dict] = []
 
+        # Referencia opcional a autonomy_controller (para verificar test_mode_active)
+        self.autonomy_controller = None
+
         logger.info(f"✅ Position Monitor inicializado (update interval: {update_interval}s)")
 
     def get_open_positions(self) -> Dict[str, Dict]:
@@ -249,7 +252,12 @@ class PositionMonitor:
             closed_info = self._get_close_details(symbol, prev_pos)
 
             # CRÍTICO: Guardar en historial para el dashboard
-            if closed_info:
+            # NO guardar si test_mode está activo (test_mode ya guarda con los datos correctos)
+            test_mode_active = (self.autonomy_controller and
+                               hasattr(self.autonomy_controller, 'test_mode_active') and
+                               self.autonomy_controller.test_mode_active)
+
+            if closed_info and not test_mode_active:
                 trade_record = {
                     'id': len(self.closed_trades) + 1,
                     'symbol': closed_info.get('symbol', symbol),
@@ -266,7 +274,9 @@ class PositionMonitor:
                     'trade_id': closed_info.get('trade_id', f"{symbol}_{int(time.time())}")
                 }
                 self.closed_trades.append(trade_record)
-                logger.info(f"💾 Trade guardado en historial (ID: {trade_record['id']})")
+                logger.info(f"💾 Trade guardado en historial por Position Monitor (ID: {trade_record['id']})")
+            elif test_mode_active:
+                logger.debug(f"⏭️ No guardando trade (Test Mode activo, ya lo guardó test_mode)")
 
             # Llamar callback si existe
             if self.on_position_closed and closed_info:

@@ -249,8 +249,16 @@ class FeatureAggregator:
             ml_features['funding_rate'] = 0.0
 
         # Funding sentiment (para logging)
-        sentiment, strength, _ = self.funding_rate_analyzer.get_funding_sentiment(pair)
-        ml_features['funding_sentiment'] = sentiment
+        try:
+            sentiment, strength, _ = self.funding_rate_analyzer.get_funding_sentiment(pair)
+            # Validar tipo
+            if not isinstance(sentiment, str):
+                logger.warning(f"⚠️ FundingRateAnalyzer.get_funding_sentiment devolvió tipo incorrecto para {pair}: {type(sentiment)}")
+                sentiment = 'neutral'
+            ml_features['funding_sentiment'] = sentiment
+        except Exception as e:
+            logger.error(f"❌ Error en FundingRateAnalyzer para {pair}: {e}")
+            ml_features['funding_sentiment'] = 'neutral'
 
         # Liquidation features
         is_near_liq, liq_details = self.liquidation_heatmap.is_near_liquidation_zone(pair, current_price)
@@ -259,9 +267,21 @@ class FeatureAggregator:
             ml_features['liquidation_direction'] = 1.0 if liq_details['direction'] == 'above' else 0.0
 
         # Liquidation bias (para logging)
-        liq_bias, liq_conf = self.liquidation_heatmap.get_liquidation_bias(pair, current_price)
-        ml_features['liquidation_bias'] = liq_bias
-        ml_features['liquidation_confidence'] = liq_conf
+        try:
+            liq_bias, liq_conf = self.liquidation_heatmap.get_liquidation_bias(pair, current_price)
+            # Validar tipos
+            if not isinstance(liq_bias, str):
+                logger.warning(f"⚠️ LiquidationHeatmap.get_liquidation_bias devolvió tipo incorrecto para {pair}: {type(liq_bias)}")
+                liq_bias = 'neutral'
+            if not isinstance(liq_conf, (int, float)):
+                logger.warning(f"⚠️ LiquidationHeatmap.get_liquidation_bias confidence tipo incorrecto para {pair}: {type(liq_conf)}")
+                liq_conf = 0
+            ml_features['liquidation_bias'] = liq_bias
+            ml_features['liquidation_confidence'] = liq_conf
+        except Exception as e:
+            logger.error(f"❌ Error en LiquidationHeatmap para {pair}: {e}")
+            ml_features['liquidation_bias'] = 'neutral'
+            ml_features['liquidation_confidence'] = 0
 
         # Volume profile features
         if ohlc_data is not None and pair in self.volume_profile.volume_profiles:
@@ -331,15 +351,34 @@ class FeatureAggregator:
             state_extensions['correlation_risk'] = 0.0
 
         # Funding sentiment (string para consistencia con ML features)
-        sentiment, strength, _ = self.funding_rate_analyzer.get_funding_sentiment(pair)
-        state_extensions['funding_sentiment'] = sentiment  # String: 'bullish', 'bearish', 'neutral'
-        state_extensions['funding_strength'] = strength
-        state_extensions['funding_rate'] = self.funding_rate_analyzer.fetch_funding_rate(pair) or 0.0
+        try:
+            sentiment, strength, _ = self.funding_rate_analyzer.get_funding_sentiment(pair)
+            # Validar tipos
+            if not isinstance(sentiment, str):
+                logger.warning(f"⚠️ FundingRateAnalyzer.get_funding_sentiment devolvió tipo incorrecto para {pair} en RL: {type(sentiment)}")
+                sentiment = 'neutral'
+            state_extensions['funding_sentiment'] = sentiment  # String: 'bullish', 'bearish', 'neutral'
+            state_extensions['funding_strength'] = strength
+            state_extensions['funding_rate'] = self.funding_rate_analyzer.fetch_funding_rate(pair) or 0.0
+        except Exception as e:
+            logger.error(f"❌ Error en FundingRateAnalyzer para {pair} en RL: {e}")
+            state_extensions['funding_sentiment'] = 'neutral'
+            state_extensions['funding_strength'] = 0
+            state_extensions['funding_rate'] = 0.0
 
         # Liquidation bias (string para consistencia con ML features)
-        bias, confidence = self.liquidation_heatmap.get_liquidation_bias(pair, current_price)
-        state_extensions['liquidation_bias'] = bias  # String: 'bullish', 'bearish', 'neutral'
-        state_extensions['liquidation_confidence'] = confidence
+        try:
+            bias, confidence = self.liquidation_heatmap.get_liquidation_bias(pair, current_price)
+            # Validar tipos
+            if not isinstance(bias, str):
+                logger.warning(f"⚠️ LiquidationHeatmap.get_liquidation_bias devolvió tipo incorrecto para {pair} en RL: {type(bias)}")
+                bias = 'neutral'
+            state_extensions['liquidation_bias'] = bias  # String: 'bullish', 'bearish', 'neutral'
+            state_extensions['liquidation_confidence'] = confidence
+        except Exception as e:
+            logger.error(f"❌ Error en LiquidationHeatmap para {pair} en RL: {e}")
+            state_extensions['liquidation_bias'] = 'neutral'
+            state_extensions['liquidation_confidence'] = 0
 
         # Session info
         session, multiplier = self.session_trading.get_current_session()

@@ -60,25 +60,47 @@ async def get_status() -> Dict[str, Any]:
             balance = 0
             available = 0
 
-        # Posiciones abiertas
+        # Posiciones abiertas (consultar directamente de Binance para datos más actualizados)
+        open_positions = []
         try:
-            positions = _market_monitor.position_monitor.get_open_positions()
-            open_positions = [
-                {
-                    'symbol': pos.get('symbol', 'UNKNOWN'),
-                    'side': 'LONG' if float(pos.get('positionAmt', 0)) > 0 else 'SHORT',
-                    'entry_price': float(pos.get('entryPrice', 0)),
-                    'quantity': abs(float(pos.get('positionAmt', 0))),
-                    'unrealized_pnl': float(pos.get('unRealizedProfit', 0)),
-                    'leverage': int(pos.get('leverage', 1)),
-                    'notional': abs(float(pos.get('positionAmt', 0)) * float(pos.get('entryPrice', 0)))
-                }
-                for pos in positions.values()
-                if float(pos.get('positionAmt', 0)) != 0
-            ]
+            # Intentar obtener directamente de Binance primero
+            raw_positions = _market_monitor.binance_client.get_positions()
+            logger.debug(f"📊 /api/status: Binance retornó {len(raw_positions)} posiciones")
+
+            for pos in raw_positions:
+                position_amt = float(pos.get('positionAmt', 0))
+                if position_amt != 0:
+                    open_positions.append({
+                        'symbol': pos.get('symbol', 'UNKNOWN'),
+                        'side': 'LONG' if position_amt > 0 else 'SHORT',
+                        'entry_price': float(pos.get('entryPrice', 0)),
+                        'quantity': abs(position_amt),
+                        'unrealized_pnl': float(pos.get('unRealizedProfit', 0)),
+                        'leverage': int(pos.get('leverage', 1)),
+                        'notional': abs(position_amt * float(pos.get('entryPrice', 0)))
+                    })
+            logger.debug(f"📊 /api/status: {len(open_positions)} posiciones con positionAmt != 0")
         except Exception as e:
-            logger.error(f"Error getting positions: {e}", exc_info=True)
-            open_positions = []
+            logger.error(f"Error getting positions from Binance: {e}", exc_info=True)
+            # Fallback: intentar desde position_monitor
+            try:
+                positions = _market_monitor.position_monitor.get_open_positions()
+                open_positions = [
+                    {
+                        'symbol': pos.get('symbol', 'UNKNOWN'),
+                        'side': 'LONG' if float(pos.get('positionAmt', 0)) > 0 else 'SHORT',
+                        'entry_price': float(pos.get('entryPrice', 0)),
+                        'quantity': abs(float(pos.get('positionAmt', 0))),
+                        'unrealized_pnl': float(pos.get('unRealizedProfit', 0)),
+                        'leverage': int(pos.get('leverage', 1)),
+                        'notional': abs(float(pos.get('positionAmt', 0)) * float(pos.get('entryPrice', 0)))
+                    }
+                    for pos in positions.values()
+                    if float(pos.get('positionAmt', 0)) != 0
+                ]
+            except Exception as e2:
+                logger.error(f"Error getting positions from monitor: {e2}")
+                open_positions = []
 
         # Stats del RL Agent
         rl_stats = {}
@@ -119,6 +141,96 @@ async def get_status() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error in /api/status: {e}", exc_info=True)
         return {'error': str(e), 'timestamp': datetime.now().isoformat()}
+
+
+@app.get("/api/open_positions")
+async def get_open_positions() -> Dict[str, Any]:
+    """
+    Endpoint dedicado para consultar posiciones abiertas en tiempo real
+    Consulta tanto position_monitor como directamente a Binance
+    """
+    try:
+        if not _market_monitor:
+            return {"error": "Bot not initialized"}
+
+        open_positions = []
+
+        # Método 1: Consultar position_monitor (cache local actualizado cada 5s)
+        try:
+            if hasattr(_market_monitor, 'position_monitor') and _market_monitor.position_monitor:
+                positions = _market_monitor.position_monitor.get_open_positions()
+                logger.info(f"📊 Position Monitor tiene {len(positions)} posiciones en cache")
+
+                for symbol, pos in positions.items():
+                    position_amt = float(pos.get('positionAmt', 0))
+                    if position_amt != 0:
+                        open_positions.append({
+                            'symbol': pos.get('symbol', symbol),
+                            'side': 'LONG' if position_amt > 0 else 'SHORT',
+                            'entry_price': float(pos.get('entryPrice', 0)),
+                            'mark_price': float(pos.get('markPrice', 0)),
+                            'quantity': abs(position_amt),
+                            'unrealized_pnl': float(pos.get('unRealizedProfit', 0)),
+                            'unrealized_pnl_pct': float(pos.get('unrealized_pnl_pct', 0)),
+                            'leverage': int(pos.get('leverage', 1)),
+                            'liquidation_price': float(pos.get('liquidationPrice', 0)),
+                            'notional': abs(position_amt * float(pos.get('entryPrice', 0))),
+                            'source': 'position_monitor'
+                        })
+        except Exception as e:
+            logger.error(f"❌ Error getting positions from monitor: {e}", exc_info=True)
+
+        # Método 2: Consultar directamente a Binance (siempre actualizado)
+        binance_positions = []
+        try:
+            if hasattr(_market_monitor, 'binance_client'):
+                raw_positions = _market_monitor.binance_client.get_positions()
+                logger.info(f"📊 Binance API retornó {len(raw_positions)} posiciones")
+
+                for pos in raw_positions:
+                    position_amt = float(pos.get('positionAmt', 0))
+                    if position_amt != 0:
+                        binance_positions.append({
+                            'symbol': pos.get('symbol', 'UNKNOWN'),
+                            'side': 'LONG' if position_amt > 0 else 'SHORT',
+                            'entry_price': float(pos.get('entryPrice', 0)),
+                            'mark_price': float(pos.get('markPrice', 0)),
+                            'quantity': abs(position_amt),
+                            'unrealized_pnl': float(pos.get('unRealizedProfit', 0)),
+                            'leverage': int(pos.get('leverage', 1)),
+                            'liquidation_price': float(pos.get('liquidationPrice', 0)),
+                            'notional': abs(position_amt * float(pos.get('entryPrice', 0))),
+                            'source': 'binance_direct'
+                        })
+        except Exception as e:
+            logger.error(f"❌ Error getting positions from Binance: {e}", exc_info=True)
+
+        # Usar posiciones de Binance si están disponibles, sino usar del monitor
+        final_positions = binance_positions if binance_positions else open_positions
+
+        total_unrealized_pnl = sum(pos.get('unrealized_pnl', 0) for pos in final_positions)
+
+        return {
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'count': len(final_positions),
+            'total_unrealized_pnl': round(total_unrealized_pnl, 2),
+            'positions': final_positions,
+            'sources': {
+                'monitor': len(open_positions),
+                'binance_direct': len(binance_positions),
+                'using': 'binance_direct' if binance_positions else 'position_monitor'
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Error in /api/open_positions: {e}", exc_info=True)
+        return {
+            'error': str(e),
+            'timestamp': datetime.now().isoformat(),
+            'count': 0,
+            'positions': []
+        }
 
 
 @app.get("/portfolio")
