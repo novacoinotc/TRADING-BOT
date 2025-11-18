@@ -700,16 +700,19 @@ class MarketMonitor:
                     if len(open_positions) > 0:
                         logger.info(f"    🔗 Correlation: {corr_positions} correlated positions (risk={corr_risk:.2f})")
 
-                    # Sentiment completo
-                    if sentiment_features:
+                    # Sentiment completo (VALIDAR que es dict antes de acceder)
+                    if sentiment_features and isinstance(sentiment_features, dict):
                         fg_index = sentiment_features.get('fear_greed_index', 0.5) * 100
                         news_sentiment = sentiment_features.get('news_sentiment_overall', 0.5)
                         social_buzz = sentiment_features.get('social_buzz', 0)
                         logger.info(f"    📰 Sentiment: F&G={fg_index:.0f}, News={news_sentiment:.2f}, SocialBuzz={social_buzz}")
+                    elif sentiment_features and not isinstance(sentiment_features, dict):
+                        logger.warning(f"    ⚠️ sentiment_features no es dict: {type(sentiment_features)} - Valor: {sentiment_features}")
 
-                    # ML Features TOTAL
-                    total_ml_features = len(sentiment_features or {}) + len(arsenal_ml_features_preview)
-                    logger.info(f"    🧠 ML Features: {total_ml_features} total (Sentiment={len(sentiment_features or {})} + Arsenal={len(arsenal_ml_features_preview)})")
+                    # ML Features TOTAL (VALIDAR tipo antes de len)
+                    sentiment_count = len(sentiment_features) if isinstance(sentiment_features, dict) else 0
+                    total_ml_features = sentiment_count + len(arsenal_ml_features_preview)
+                    logger.info(f"    🧠 ML Features: {total_ml_features} total (Sentiment={sentiment_count} + Arsenal={len(arsenal_ml_features_preview)})")
 
                     # RL State Extensions
                     logger.info(f"    🤖 RL State: 19 dimensions (12 base + 7 arsenal)")
