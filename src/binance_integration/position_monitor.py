@@ -101,11 +101,15 @@ class PositionMonitor:
             for pos in all_positions:
                 position_amt = float(pos['positionAmt'])
                 if position_amt != 0:  # Tiene posición abierta
+                    # Debug: Log available fields
+                    logger.debug(f"Position fields available: {list(pos.keys())}")
+
                     # Enriquecer con datos calculados
                     entry_price = float(pos['entryPrice'])
                     mark_price = float(pos['markPrice'])
                     unrealized_pnl = float(pos['unRealizedProfit'])
-                    leverage = int(pos['leverage'])
+                    # Intentar obtener leverage de diferentes campos posibles
+                    leverage = int(pos.get('leverage', pos.get('leverageBracket', 1)))
 
                     # Calcular P&L%
                     if entry_price > 0:
@@ -174,10 +178,10 @@ class PositionMonitor:
             # Log si es nueva posición
             if symbol not in previous_symbols:
                 logger.info(
-                    f"📈 New position detected: {symbol} {pos['side']}\n"
-                    f"   Entry: ${pos['entry_price']:,.2f}\n"
-                    f"   Quantity: {pos['position_amt']}\n"
-                    f"   Leverage: {pos['leverage']}x"
+                    f"📈 New position detected: {symbol} {pos.get('side', 'UNKNOWN')}\n"
+                    f"   Entry: ${pos.get('entry_price', 0):,.2f}\n"
+                    f"   Quantity: {pos.get('position_amt', 0)}\n"
+                    f"   Leverage: {pos.get('leverage', 1)}x"
                 )
 
         # Detectar posiciones cerradas
@@ -254,13 +258,13 @@ class PositionMonitor:
             # Construir info del cierre
             close_info = {
                 'symbol': symbol,
-                'side': position['side'],
-                'quantity': abs(position['position_amt']),
-                'entry_price': position['entry_price'],
+                'side': position.get('side', 'UNKNOWN'),
+                'quantity': abs(position.get('position_amt', 0)),
+                'entry_price': position.get('entry_price', 0),
                 'exit_price': float(last_trade['price']),
                 'realized_pnl': realized_pnl,
-                'realized_pnl_pct': (realized_pnl / (position['entry_price'] * abs(position['position_amt']))) * 100,
-                'leverage': position['leverage'],
+                'realized_pnl_pct': (realized_pnl / (position.get('entry_price', 1) * abs(position.get('position_amt', 1)))) * 100,
+                'leverage': position.get('leverage', 1),
                 'reason': reason,
                 'trade_id': last_trade['id'],
                 'timestamp': trade_time,
@@ -323,14 +327,14 @@ class PositionMonitor:
         logger.info(f"\n{'='*80}\n📊 OPEN POSITIONS STATUS\n{'='*80}")
 
         for symbol, pos in self._positions.items():
-            emoji = "📈" if pos['unrealized_pnl'] >= 0 else "📉"
+            emoji = "📈" if pos.get('unrealized_pnl', 0) >= 0 else "📉"
             logger.info(
-                f"{emoji} {symbol} - {pos['side']}\n"
-                f"   Entry: ${pos['entry_price']:,.2f} | "
-                f"Mark: ${pos['mark_price']:,.2f} | "
-                f"Leverage: {pos['leverage']}x\n"
-                f"   P&L: ${pos['unrealized_pnl']:+.2f} ({pos['unrealized_pnl_pct']:+.2f}%)\n"
-                f"   Liquidation: ${pos['liquidation_price']:,.2f}"
+                f"{emoji} {symbol} - {pos.get('side', 'UNKNOWN')}\n"
+                f"   Entry: ${pos.get('entry_price', 0):,.2f} | "
+                f"Mark: ${pos.get('mark_price', 0):,.2f} | "
+                f"Leverage: {pos.get('leverage', 1)}x\n"
+                f"   P&L: ${pos.get('unrealized_pnl', 0):+.2f} ({pos.get('unrealized_pnl_pct', 0):+.2f}%)\n"
+                f"   Liquidation: ${pos.get('liquidation_price', 0):,.2f}"
             )
 
         summary = self.get_positions_summary()
