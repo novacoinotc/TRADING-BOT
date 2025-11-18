@@ -92,7 +92,7 @@ TRADING_PAIRS = [
     'AXS/USDT',    # Axie Infinity - $100M+ volumen
 
     # Altcoins Volátiles
-    'FTM/USDT',    # Fantom - $150M+ volumen
+    # 'FTM/USDT',    # Fantom - DESHABILITADO: Order book vacío en Binance
     'TIA/USDT',    # Celestia - $200M+ volumen, modular blockchain
     'SEI/USDT',    # Sei - $150M+ volumen, Layer 1
     'ALGO/USDT',   # Algorand - $100M+ volumen
