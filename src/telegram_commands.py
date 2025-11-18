@@ -203,11 +203,13 @@ class TelegramCommands:
             backup_active = "✅" if backup_status['running'] else "⚠️"
             services_status.append(f"{backup_active} 5. Git Backup: {'Activo' if backup_status['running'] else 'Inactivo'}")
 
-            # 6. Paper Trader (si está disponible)
-            if hasattr(self.autonomy_controller, 'paper_trader') and self.autonomy_controller.paper_trader:
-                services_status.append("✅ 6. Paper Trading: Activo")
+            # 6. Binance Futures (v2.0)
+            if hasattr(self.market_monitor, 'position_monitor') and self.market_monitor.position_monitor:
+                services_status.append("✅ 6. Binance Futures: Conectado")
+            elif hasattr(self.autonomy_controller, 'paper_trader') and self.autonomy_controller.paper_trader:
+                services_status.append("✅ 6. Paper Trading: Activo (modo legacy)")
             else:
-                services_status.append("⚠️ 6. Paper Trading: No disponible directamente")
+                services_status.append("⚠️ 6. Trading: No disponible")
 
             # Construir mensaje completo
             services_text = "\n".join(services_status)
@@ -286,8 +288,8 @@ class TelegramCommands:
                 "  ├─ Requiere mínimo 25 trades\n"
                 "  └─ Habilita predicciones ML automáticas\n\n"
                 "/force_sync\n"
-                "  ├─ Fuerza sincronización COMPLETA de todos los contadores\n"
-                "  ├─ Usa Paper Trading como fuente de verdad\n"
+                "  ├─ Fuerza sincronización de contadores (legacy)\n"
+                "  ├─ v2.0: Sincroniza contadores del RL Agent\n"
                 "  ├─ Sincroniza: trades, win rate, procesados, all-time\n"
                 "  ├─ Ajusta RL Agent automáticamente\n"
                 "  └─ Útil si /stats muestra desincronización ⚠️\n\n"
@@ -306,16 +308,42 @@ class TelegramCommands:
     async def stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Comando /stats
-        Muestra estadísticas de trading y performance
+        Muestra estadísticas de trading y performance (v2.0: Binance Futures)
         """
         try:
             logger.info("📈 Comando /stats recibido")
 
+            # v2.0: Intentar obtener stats de Binance primero
+            if self.market_monitor and hasattr(self.market_monitor, 'position_monitor') and self.market_monitor.position_monitor:
+                # TODO: Implementar get_statistics() en PositionMonitor
+                message = "📊 **Estadísticas de Trading - Binance Futures v2.0**\n\n"
+                message += "**💰 Trading Real:**\n"
+                message += f"  • Modo: {'🧪 TESTNET' if self.market_monitor.binance_client else '🔴 LIVE'}\n"
+
+                # Obtener posiciones abiertas
+                try:
+                    open_positions = self.market_monitor.position_monitor.get_open_positions()
+                    message += f"  • Posiciones abiertas: {len(open_positions)}\n"
+                except Exception as e:
+                    message += f"  • Posiciones abiertas: Error ({e})\n"
+
+                if self.autonomy_controller:
+                    message += f"\n**📈 Aprendizaje:**\n"
+                    message += f"  • Total trades experiencia: {self.autonomy_controller.total_trades_all_time}\n"
+                    message += f"  • Win rate RL: {self.autonomy_controller.rl_agent.success_rate:.1f}%\n"
+                    message += f"  • Estados aprendidos: {len(self.autonomy_controller.rl_agent.q_table)}\n"
+
+                message += f"\n⚠️ Stats completas de Binance en desarrollo (TODO)\n"
+                message += f"📱 Usa /futures_stats para más detalles\n"
+
+                await update.message.reply_text(message)
+                return
+
+            # Fallback: Paper trader legacy (si existe)
             if not self.autonomy_controller:
                 await update.message.reply_text("⚠️ Sistema autónomo no disponible")
                 return
 
-            # Obtener estadísticas de paper trading
             paper_trader = self.autonomy_controller.paper_trader if hasattr(self.autonomy_controller, 'paper_trader') else None
 
             if not paper_trader or not hasattr(paper_trader, 'portfolio'):
@@ -327,10 +355,9 @@ class TelegramCommands:
                     message += f"  • Total trades: {self.autonomy_controller.total_trades_all_time}\n"
                     message += f"  • Win rate RL: {self.autonomy_controller.rl_agent.success_rate:.1f}%\n"
                     message += f"  • Estados aprendidos: {len(self.autonomy_controller.rl_agent.q_table)}\n\n"
-                    message += f"**💰 Paper Trading:**\n"
-                    message += f"  • Estado: Inicializándose...\n"
-                    message += f"  • Balance inicial: $50,000\n"
-                    message += f"  • Se activará con el primer trade\n"
+                    message += f"**💰 Trading:**\n"
+                    message += f"  • Estado: v2.0 - Binance Futures\n"
+                    message += f"  • Paper Trading: No disponible en v2.0\n"
                 else:
                     message = "⚠️ Sistema no disponible"
 
@@ -577,7 +604,7 @@ class TelegramCommands:
     async def train_ml_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Comando /train_ml
-        Entrena el ML System con los datos disponibles del Paper Trading
+        Entrena el ML System con trades históricos (v2.0: Binance o Paper Trading)
         """
         try:
             logger.info("🤖 Comando /train_ml recibido")
@@ -601,26 +628,31 @@ class TelegramCommands:
             if not hasattr(self.market_monitor, 'ml_system') or not self.market_monitor.ml_system:
                 await update.message.reply_text(
                     "⚠️ **ML System no disponible**\n\n"
-                    "Verifica que ENABLE_PAPER_TRADING esté en True en config.py"
+                    "Verifica que ENABLE_ML_SYSTEM esté en True en config.py"
                 )
                 return
 
             ml_system = self.market_monitor.ml_system
+
+            # v2.0: Intentar obtener trades de Binance primero
+            # TODO: Implementar obtención de trades históricos de Binance
+            # Por ahora, fallback a paper_trader si existe
 
             # USAR EL PORTFOLIO DEL AUTONOMY CONTROLLER (que SÍ se restaura en /import)
             # en lugar del portfolio interno del ML System
             if not hasattr(self, 'autonomy_controller') or not self.autonomy_controller:
                 await update.message.reply_text(
                     "⚠️ **Autonomy Controller no disponible**\n\n"
-                    "No se puede acceder al portfolio."
+                    "No se puede acceder a los datos de trading."
                 )
                 return
 
-            paper_trader = self.autonomy_controller.paper_trader
+            paper_trader = self.autonomy_controller.paper_trader if hasattr(self.autonomy_controller, 'paper_trader') else None
             if not paper_trader or not hasattr(paper_trader, 'portfolio'):
                 await update.message.reply_text(
-                    "⚠️ **Paper Trader no disponible**\n\n"
-                    "No hay datos para entrenar."
+                    "⚠️ **No hay datos históricos para entrenar**\n\n"
+                    "En v2.0 se necesitan trades de Binance.\n"
+                    "TODO: Implementar obtención de trades de Binance API"
                 )
                 return
 
@@ -682,7 +714,7 @@ class TelegramCommands:
     async def force_sync_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """
         Comando /force_sync
-        Fuerza sincronización entre Paper Trading y RL Agent
+        Fuerza sincronización entre contadores de trading y RL Agent (v2.0: legacy)
         """
         try:
             logger.info("🔄 Comando /force_sync recibido")
