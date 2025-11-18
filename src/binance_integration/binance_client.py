@@ -50,7 +50,7 @@ class BinanceClient:
         self,
         api_key: str,
         api_secret: str,
-        base_url: str = "https://testnet.binancefuture.com",
+        base_url: str = "https://fapi.binance.com",
         timeout: int = 10,
         proxies: Optional[Dict] = None
     ):
@@ -58,7 +58,7 @@ class BinanceClient:
         Args:
             api_key: Binance API Key
             api_secret: Binance API Secret
-            base_url: Base URL de la API (testnet o live)
+            base_url: Base URL de la API (producción por defecto, testnet opcional)
             timeout: Timeout de requests en segundos
             proxies: Proxies opcionales para requests
         """

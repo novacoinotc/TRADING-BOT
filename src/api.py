@@ -140,7 +140,7 @@ async def get_status() -> Dict[str, Any]:
             },
             'rl_agent': rl_stats,
             'system': {
-                'mode': 'Binance Testnet',
+                'mode': 'Binance LIVE' if not getattr(_market_monitor.binance_client, 'base_url', '').find('testnet') >= 0 else 'Binance Testnet',
                 'leverage': 3
             }
         }
