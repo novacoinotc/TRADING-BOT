@@ -388,6 +388,15 @@ class TelegramNotifier:
         except TelegramError as e:
             logger.error(f"Failed to send status message: {e}")
 
+    async def send_message(self, message: str):
+        """
+        Send generic message (alias for send_status_message)
+
+        Args:
+            message: Message to send
+        """
+        await self.send_status_message(message)
+
     async def send_error_message(self, error: str):
         """
         Send error notification

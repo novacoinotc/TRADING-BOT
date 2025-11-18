@@ -324,21 +324,16 @@ class FeatureAggregator:
             state_extensions['correlated_positions'] = 0
             state_extensions['correlation_risk'] = 0.0
 
-        # Funding sentiment
+        # Funding sentiment (string para consistencia con ML features)
         sentiment, strength, _ = self.funding_rate_analyzer.get_funding_sentiment(pair)
-        state_extensions['funding_sentiment'] = {
-            'bullish': 1.0 if sentiment == 'bullish' else 0.0,
-            'bearish': 1.0 if sentiment == 'bearish' else 0.0,
-            'strength': strength
-        }
+        state_extensions['funding_sentiment'] = sentiment  # String: 'bullish', 'bearish', 'neutral'
+        state_extensions['funding_strength'] = strength
+        state_extensions['funding_rate'] = self.funding_rate_analyzer.fetch_funding_rate(pair) or 0.0
 
-        # Liquidation bias
+        # Liquidation bias (string para consistencia con ML features)
         bias, confidence = self.liquidation_heatmap.get_liquidation_bias(pair, current_price)
-        state_extensions['liquidation_bias'] = {
-            'bullish': 1.0 if bias == 'bullish' else 0.0,
-            'bearish': 1.0 if bias == 'bearish' else 0.0,
-            'confidence': confidence
-        }
+        state_extensions['liquidation_bias'] = bias  # String: 'bullish', 'bearish', 'neutral'
+        state_extensions['liquidation_confidence'] = confidence
 
         # Session info
         session, multiplier = self.session_trading.get_current_session()
