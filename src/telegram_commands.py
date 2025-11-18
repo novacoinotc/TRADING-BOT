@@ -360,7 +360,12 @@ class TelegramCommands:
                 if self.autonomy_controller:
                     message += f"\n**📈 Aprendizaje:**\n"
                     message += f"  • Total trades experiencia: {self.autonomy_controller.total_trades_all_time}\n"
-                    message += f"  • Win rate RL: {self.autonomy_controller.rl_agent.success_rate:.1f}%\n"
+                    try:
+                        win_rate_rl = self.autonomy_controller.rl_agent.get_success_rate()
+                        message += f"  • Win rate RL: {win_rate_rl:.1f}%\n"
+                    except Exception as e:
+                        logger.warning(f"Error obteniendo win rate RL: {e}")
+                        message += f"  • Win rate RL: N/A\n"
                     message += f"  • Estados aprendidos: {len(self.autonomy_controller.rl_agent.q_table)}\n"
 
                 message += f"\n⚠️ Stats completas de Binance en desarrollo (TODO)\n"
@@ -383,7 +388,12 @@ class TelegramCommands:
                 if self.autonomy_controller:
                     message += f"**📈 Historial:**\n"
                     message += f"  • Total trades: {self.autonomy_controller.total_trades_all_time}\n"
-                    message += f"  • Win rate RL: {self.autonomy_controller.rl_agent.success_rate:.1f}%\n"
+                    try:
+                        win_rate_rl = self.autonomy_controller.rl_agent.get_success_rate()
+                        message += f"  • Win rate RL: {win_rate_rl:.1f}%\n"
+                    except Exception as e:
+                        logger.warning(f"Error obteniendo win rate RL: {e}")
+                        message += f"  • Win rate RL: N/A\n"
                     message += f"  • Estados aprendidos: {len(self.autonomy_controller.rl_agent.q_table)}\n\n"
                     message += f"**💰 Trading:**\n"
                     message += f"  • Estado: v2.0 - Binance Futures\n"
