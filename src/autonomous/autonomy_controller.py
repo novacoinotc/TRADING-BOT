@@ -228,15 +228,14 @@ class AutonomyController:
             if paper_trading_to_restore:
                 logger.info("🔄 Intentando restaurar paper trading desde export...")
 
-                # VERIFICAR que paper_trader existe
+                # VERIFICAR que paper_trader existe (v2.0: opcional)
                 if not hasattr(self, 'paper_trader'):
-                    logger.error("❌ CRÍTICO: self.paper_trader NO EXISTE")
-                    logger.error("   El paper_trader debe inicializarse ANTES de importar")
-                    logger.error("   Continuando sin restaurar paper trading...")
+                    logger.warning("⚠️ v2.0: self.paper_trader NO EXISTE (modo Binance)")
+                    logger.info("   Continuando sin restaurar paper trading (normal en v2.0)...")
                 elif not self.paper_trader:
-                    logger.error("❌ CRÍTICO: self.paper_trader es None")
+                    logger.warning("⚠️ v2.0: self.paper_trader es None (modo Binance)")
                 elif not hasattr(self.paper_trader, 'portfolio'):
-                    logger.error("❌ CRÍTICO: paper_trader.portfolio NO EXISTE")
+                    logger.warning("⚠️ paper_trader.portfolio NO EXISTE")
                 else:
                     # TODO LISTO - Restaurar
                     logger.info("✅ paper_trader existe - ejecutando restore_from_state()...")
