@@ -287,6 +287,12 @@ class FeatureAggregator:
 
         logger.debug(f"📊 ML features generados para {pair}: {len(ml_features)} features totales")
 
+        # VALIDACIÓN FINAL: Asegurar que siempre devolvemos un dict
+        if not isinstance(ml_features, dict):
+            logger.error(f"❌ CRÍTICO: ml_features no es dict para {pair}: {type(ml_features)}")
+            logger.error(f"   Valor: {ml_features}")
+            return {}  # Devolver dict vacío como fallback
+
         return ml_features
 
     def get_rl_state_extensions(
@@ -345,6 +351,12 @@ class FeatureAggregator:
         state_extensions['order_flow_ratio'] = 1.0
 
         logger.debug(f"🤖 RL state extensions generados para {pair}")
+
+        # VALIDACIÓN FINAL: Asegurar que siempre devolvemos un dict
+        if not isinstance(state_extensions, dict):
+            logger.error(f"❌ CRÍTICO: state_extensions no es dict para {pair}: {type(state_extensions)}")
+            logger.error(f"   Valor: {state_extensions}")
+            return {}  # Devolver dict vacío como fallback
 
         return state_extensions
 

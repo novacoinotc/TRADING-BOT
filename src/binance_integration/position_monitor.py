@@ -51,6 +51,9 @@ class PositionMonitor:
         # Tracking de posiciones cerradas
         self._closed_positions_ids = set()  # Para no reprocesar
 
+        # Historial de trades cerrados (para el dashboard)
+        self.closed_trades: List[Dict] = []
+
         logger.info(f"✅ Position Monitor inicializado (update interval: {update_interval}s)")
 
     def get_open_positions(self) -> Dict[str, Dict]:
@@ -244,6 +247,26 @@ class PositionMonitor:
 
             # Obtener detalles del cierre desde historial de trades
             closed_info = self._get_close_details(symbol, prev_pos)
+
+            # CRÍTICO: Guardar en historial para el dashboard
+            if closed_info:
+                trade_record = {
+                    'id': len(self.closed_trades) + 1,
+                    'symbol': closed_info.get('symbol', symbol),
+                    'side': closed_info.get('side', 'UNKNOWN'),
+                    'leverage': closed_info.get('leverage', 1),
+                    'entry_price': closed_info.get('entry_price', 0),
+                    'exit_price': closed_info.get('exit_price', 0),
+                    'quantity': closed_info.get('quantity', 0),
+                    'realized_pnl': closed_info.get('realized_pnl', 0),
+                    'realized_pnl_pct': closed_info.get('realized_pnl_pct', 0),
+                    'reason': closed_info.get('reason', 'Unknown'),
+                    'open_time': prev_pos.get('open_time', datetime.now().isoformat()),
+                    'close_time': datetime.now().isoformat(),
+                    'trade_id': closed_info.get('trade_id', f"{symbol}_{int(time.time())}")
+                }
+                self.closed_trades.append(trade_record)
+                logger.info(f"💾 Trade guardado en historial (ID: {trade_record['id']})")
 
             # Llamar callback si existe
             if self.on_position_closed and closed_info:
