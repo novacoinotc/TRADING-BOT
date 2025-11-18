@@ -68,6 +68,11 @@ class TestMode:
         self.running = True
         self.start_time = datetime.now()
 
+        # CRÍTICO: Activar flag en autonomy_controller para ignorar Position Monitor
+        if self.autonomy_controller:
+            self.autonomy_controller.test_mode_active = True
+            logger.info("🔒 Autonomy Controller: Test Mode activo (ignorará Position Monitor)")
+
         logger.info("🟢 Test Mode INICIADO")
         logger.info(f"⚙️ Config: ${self.trade_amount} cada {self.trade_interval}s")
 
@@ -98,6 +103,11 @@ class TestMode:
             return False
 
         self.running = False
+
+        # CRÍTICO: Desactivar flag en autonomy_controller
+        if self.autonomy_controller:
+            self.autonomy_controller.test_mode_active = False
+            logger.info("🔓 Autonomy Controller: Test Mode desactivado (Position Monitor activo nuevamente)")
 
         if self.task:
             self.task.cancel()
@@ -259,6 +269,29 @@ class TestMode:
                         logger.info(f"✅ RL Agent notificado con P&L CORRECTO: ${realized_pnl:+.2f}")
                     except Exception as e:
                         logger.error(f"❌ Error notificando RL Agent: {e}", exc_info=True)
+
+                # CRÍTICO: Guardar en historial del position_monitor para el dashboard
+                if self.position_monitor:
+                    try:
+                        trade_record = {
+                            'id': len(self.position_monitor.closed_trades) + 1,
+                            'symbol': symbol,
+                            'side': 'LONG' if side == 'BUY' else 'SHORT',
+                            'leverage': leverage,
+                            'entry_price': entry_price,
+                            'exit_price': exit_price,
+                            'quantity': quantity,
+                            'realized_pnl': realized_pnl,
+                            'realized_pnl_pct': close_result.get('pnl_pct', 0),
+                            'reason': 'Test mode auto-close',
+                            'open_time': datetime.now().isoformat(),  # Aproximado
+                            'close_time': datetime.now().isoformat(),
+                            'trade_id': f"test_{self.total_trades + 1}"
+                        }
+                        self.position_monitor.closed_trades.append(trade_record)
+                        logger.info(f"💾 Trade guardado en historial del dashboard (ID: {trade_record['id']})")
+                    except Exception as e:
+                        logger.error(f"❌ Error guardando en historial: {e}", exc_info=True)
 
                 # 5. Actualizar estadísticas
                 self.total_trades += 1

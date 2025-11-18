@@ -95,6 +95,9 @@ class AutonomyController:
         # Dict: symbol -> (timestamp, pnl) de los últimos trades procesados
         self._recently_processed_trades: Dict[str, tuple] = {}
 
+        # Flag para indicar si Test Mode está activo (para ignorar Position Monitor cuando test activo)
+        self.test_mode_active = False
+
         logger.info("🤖 AUTONOMY CONTROLLER INICIALIZADO - MODO: CONTROL ABSOLUTO")
         logger.info(f"   Auto-save: cada {self.auto_save_interval} min")
         logger.info(f"   Optimization check: cada {self.optimization_interval} horas")
@@ -1560,6 +1563,12 @@ class AutonomyController:
             trade_id = str(closed_info.get('trade_id', ''))
             source = "Test Mode" if "test_" in trade_id else "Position Monitor"
             logger.info(f"📥 Trade notification from: {source}")
+
+            # CRÍTICO: Ignorar Position Monitor cuando Test Mode está activo
+            # (Test Mode ya notificó con el P&L correcto, Position Monitor tendría P&L diferente)
+            if source == "Position Monitor" and self.test_mode_active:
+                logger.info(f"⏭️ Ignorando notificación de Position Monitor (Test Mode activo)")
+                return  # No procesar esta notificación duplicada
 
             # Incrementar contador global
             self.total_trades_all_time += 1
