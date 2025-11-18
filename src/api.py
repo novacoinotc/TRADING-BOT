@@ -65,19 +65,19 @@ async def get_status() -> Dict[str, Any]:
             positions = _market_monitor.position_monitor.get_open_positions()
             open_positions = [
                 {
-                    'symbol': pos['symbol'],
-                    'side': 'LONG' if float(pos['positionAmt']) > 0 else 'SHORT',
-                    'entry_price': float(pos['entryPrice']),
-                    'quantity': abs(float(pos['positionAmt'])),
-                    'unrealized_pnl': float(pos['unRealizedProfit']),
-                    'leverage': int(pos['leverage']),
-                    'notional': abs(float(pos['positionAmt']) * float(pos['entryPrice']))
+                    'symbol': pos.get('symbol', 'UNKNOWN'),
+                    'side': 'LONG' if float(pos.get('positionAmt', 0)) > 0 else 'SHORT',
+                    'entry_price': float(pos.get('entryPrice', 0)),
+                    'quantity': abs(float(pos.get('positionAmt', 0))),
+                    'unrealized_pnl': float(pos.get('unRealizedProfit', 0)),
+                    'leverage': int(pos.get('leverage', 1)),
+                    'notional': abs(float(pos.get('positionAmt', 0)) * float(pos.get('entryPrice', 0)))
                 }
                 for pos in positions.values()
                 if float(pos.get('positionAmt', 0)) != 0
             ]
         except Exception as e:
-            logger.error(f"Error getting positions: {e}")
+            logger.error(f"Error getting positions: {e}", exc_info=True)
             open_positions = []
 
         # Stats del RL Agent
