@@ -86,6 +86,48 @@ class PositionMonitor:
         """
         return symbol in self._positions
 
+    def _get_real_leverage(self, symbol: str, position_data: Dict) -> int:
+        """
+        Obtiene el leverage real para un símbolo.
+        Si position_data tiene leverage=1, consulta account info para verificar.
+
+        Args:
+            symbol: Símbolo
+            position_data: Datos de posición desde positionRisk
+
+        Returns:
+            int: Leverage real
+        """
+        # Intentar obtener leverage del position data primero
+        leverage_from_pos = int(position_data.get('leverage', 1))
+
+        # Si es 1, podría ser incorrecto - verificar con órdenes abiertas
+        if leverage_from_pos == 1:
+            try:
+                # Consultar órdenes abiertas (SL/TP) que contienen leverage info
+                open_orders = self.client.get_open_orders(symbol)
+                if open_orders:
+                    # Las órdenes de SL/TP tienen metadata del leverage usado
+                    # Revisar si alguna orden tiene info de leverage
+                    for order in open_orders:
+                        # Binance no devuelve leverage en órdenes, así que usamos account info
+                        pass
+
+                # Consultar account info que tiene leverage por símbolo
+                account_info = self.client.get_account_info()
+                if 'positions' in account_info:
+                    for pos in account_info['positions']:
+                        if pos.get('symbol') == symbol:
+                            leverage_from_account = int(pos.get('leverage', 1))
+                            if leverage_from_account > 1:
+                                logger.debug(f"Leverage corregido para {symbol}: {leverage_from_account}x (era 1x)")
+                                return leverage_from_account
+
+            except Exception as e:
+                logger.debug(f"No se pudo verificar leverage real para {symbol}: {e}")
+
+        return leverage_from_pos
+
     def _fetch_positions_from_binance(self) -> List[Dict]:
         """
         Consulta posiciones desde Binance API
@@ -111,8 +153,8 @@ class PositionMonitor:
                     mark_price = float(pos.get('markPrice', 0))
                     unrealized_pnl = float(pos.get('unRealizedProfit', 0))
 
-                    # Intentar obtener leverage de diferentes campos posibles
-                    leverage = int(pos.get('leverage', pos.get('leverageBracket', 1)))
+                    # Obtener leverage real (verifica con account info si es necesario)
+                    leverage = self._get_real_leverage(pos.get('symbol', 'UNKNOWN'), pos)
 
                     # Calcular P&L%
                     if entry_price > 0:
