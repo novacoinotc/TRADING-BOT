@@ -488,7 +488,29 @@ class FuturesTrader:
                 reduce_only=True
             )
 
+            # Obtener precio de salida (avgPrice puede ser 0 inmediatamente después de MARKET order)
             exit_price = float(close_order.get('avgPrice', 0))
+
+            # Si avgPrice es 0, intentar obtener de la orden actualizada
+            if exit_price == 0:
+                try:
+                    order_id = close_order.get('orderId')
+                    if order_id:
+                        # Consultar la orden para obtener avgPrice actualizado
+                        updated_order = self.client.get_order(symbol=symbol, order_id=order_id)
+                        exit_price = float(updated_order.get('avgPrice', 0))
+                        logger.debug(f"📊 avgPrice obtenido de orden actualizada: ${exit_price:,.2f}")
+                except Exception as e:
+                    logger.warning(f"⚠️ No se pudo obtener avgPrice actualizado: {e}")
+
+            # Si aún es 0, usar precio actual del mercado como fallback
+            if exit_price == 0:
+                try:
+                    ticker = self.client.get_ticker(symbol=symbol)
+                    exit_price = float(ticker.get('lastPrice', 0))
+                    logger.debug(f"📊 Usando precio actual del mercado como exit_price: ${exit_price:,.2f}")
+                except Exception as e:
+                    logger.warning(f"⚠️ No se pudo obtener precio del mercado: {e}")
 
             logger.info(
                 f"✅ Position closed!\n"
