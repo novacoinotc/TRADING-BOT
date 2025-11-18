@@ -5,6 +5,7 @@ Maneja apertura/cierre de posiciones con SL y TP
 
 import logging
 import math
+import time
 from typing import Dict, Optional, Tuple, List
 from decimal import Decimal
 
@@ -438,7 +439,7 @@ class FuturesTrader:
             positions = self.client.get_position_risk(symbol=symbol)
             position = None
             for p in positions:
-                if p['symbol'] == symbol and float(p['positionAmt']) != 0:
+                if p.get('symbol') == symbol and float(p.get('positionAmt', 0)) != 0:
                     position = p
                     break
 
@@ -447,7 +448,7 @@ class FuturesTrader:
                 return None
 
             # Determinar cantidad a cerrar
-            position_amt = abs(float(position['positionAmt']))
+            position_amt = abs(float(position.get('positionAmt', 0)))
             if quantity is None:
                 quantity = position_amt
             else:
@@ -461,7 +462,7 @@ class FuturesTrader:
                 return None
 
             # Determinar side opuesto
-            current_side = 'LONG' if float(position['positionAmt']) > 0 else 'SHORT'
+            current_side = 'LONG' if float(position.get('positionAmt', 0)) > 0 else 'SHORT'
             close_side = 'SELL' if current_side == 'LONG' else 'BUY'
 
             logger.info(
@@ -491,20 +492,20 @@ class FuturesTrader:
 
             logger.info(
                 f"✅ Position closed!\n"
-                f"   Order ID: {close_order['orderId']}\n"
+                f"   Order ID: {close_order.get('orderId', 'N/A')}\n"
                 f"   Exit Price: ${exit_price:,.2f}\n"
-                f"   Status: {close_order['status']}"
+                f"   Status: {close_order.get('status', 'UNKNOWN')}"
             )
 
             # Calcular P&L
-            entry_price = float(position['entryPrice'])
+            entry_price = float(position.get('entryPrice', 0))
             if current_side == 'LONG':
                 pnl = (exit_price - entry_price) * quantity
             else:  # SHORT
                 pnl = (entry_price - exit_price) * quantity
 
-            # Aplicar leverage
-            leverage = int(position['leverage'])
+            # Aplicar leverage (intentar ambos campos posibles)
+            leverage = int(position.get('leverage', position.get('leverageBracket', 1)))
             pnl_leveraged = pnl * leverage
 
             close_info = {
@@ -514,11 +515,11 @@ class FuturesTrader:
                 'entry_price': entry_price,
                 'exit_price': exit_price,
                 'pnl': pnl_leveraged,
-                'pnl_pct': (pnl / entry_price) * 100 * leverage,
+                'pnl_pct': (pnl / entry_price) * 100 * leverage if entry_price > 0 else 0,
                 'leverage': leverage,
-                'order_id': close_order['orderId'],
+                'order_id': close_order.get('orderId', 0),
                 'reason': reason,
-                'timestamp': close_order['updateTime']
+                'timestamp': close_order.get('updateTime', int(time.time() * 1000))
             }
 
             logger.info(
