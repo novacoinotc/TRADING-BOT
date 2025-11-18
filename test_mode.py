@@ -189,14 +189,15 @@ class TestMode:
                     take_profit_pct=3.0  # 3% TP
                 )
 
-                if not result or not result.get('success'):
+                # Verificar éxito: futures_trader devuelve dict con 'market_order_id' si exitoso
+                if not result or (not result.get('success') and not result.get('market_order_id')):
                     error_msg = result.get('error', 'Unknown error') if result else 'No result'
                     logger.error(f"❌ Error abriendo posición: {error_msg}")
                     return
 
                 entry_price = result.get('entry_price', 0)
                 quantity = result.get('quantity', 0)
-                order_id = result.get('order_id', 'N/A')
+                order_id = result.get('market_order_id', result.get('order_id', 'N/A'))
 
                 logger.info(f"✅ Posición abierta: {quantity} @ ${entry_price:,.2f} (ID: {order_id})")
 
@@ -217,7 +218,8 @@ class TestMode:
                     reason="Test mode auto-close"
                 )
 
-                if not close_result or not close_result.get('success'):
+                # Verificar éxito: futures_trader devuelve dict con datos si exitoso
+                if not close_result or (not close_result.get('success') and not close_result.get('exit_price')):
                     error_msg = close_result.get('error', 'Unknown error') if close_result else 'No result'
                     logger.error(f"❌ Error cerrando posición: {error_msg}")
                     return

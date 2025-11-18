@@ -617,17 +617,37 @@ class MarketMonitor:
                         open_positions = [p['symbol'] for p in positions]
 
                     # OBTENER ANÁLISIS DEL ARSENAL (preview)
-                    arsenal_ml_features_preview = self.feature_aggregator.get_ml_features(
-                        pair=pair,
-                        current_price=current_price,
-                        base_features={},  # Diccionario vacío para preview
-                        ohlc_data=dfs.get('1h')
-                    )
-                    arsenal_rl_extensions_preview = self.feature_aggregator.get_rl_state_extensions(
-                        pair=pair,
-                        current_price=current_price,
-                        open_positions=open_positions
-                    )
+                    arsenal_ml_features_preview = {}
+                    arsenal_rl_extensions_preview = {}
+
+                    try:
+                        arsenal_ml_features_preview = self.feature_aggregator.get_ml_features(
+                            pair=pair,
+                            current_price=current_price,
+                            base_features={},  # Diccionario vacío para preview
+                            ohlc_data=dfs.get('1h')
+                        )
+                        # Verificar que es un diccionario
+                        if not isinstance(arsenal_ml_features_preview, dict):
+                            logger.warning(f"arsenal_ml_features_preview no es dict: {type(arsenal_ml_features_preview)}")
+                            arsenal_ml_features_preview = {}
+                    except Exception as e:
+                        logger.warning(f"Error obteniendo ML features del arsenal: {e}")
+                        arsenal_ml_features_preview = {}
+
+                    try:
+                        arsenal_rl_extensions_preview = self.feature_aggregator.get_rl_state_extensions(
+                            pair=pair,
+                            current_price=current_price,
+                            open_positions=open_positions
+                        )
+                        # Verificar que es un diccionario
+                        if not isinstance(arsenal_rl_extensions_preview, dict):
+                            logger.warning(f"arsenal_rl_extensions_preview no es dict: {type(arsenal_rl_extensions_preview)}")
+                            arsenal_rl_extensions_preview = {}
+                    except Exception as e:
+                        logger.warning(f"Error obteniendo RL extensions del arsenal: {e}")
+                        arsenal_rl_extensions_preview = {}
 
                     # LOG DETALLADO DEL ARSENAL
                     logger.info(f"  📊 ARSENAL AVANZADO ({pair}):")
@@ -779,13 +799,22 @@ class MarketMonitor:
                                 base_features={},  # Será combinado con sentiment_features después
                                 ohlc_data=dfs.get('1h')
                             )
+                            if not isinstance(arsenal_ml_features, dict):
+                                logger.warning(f"arsenal_ml_features no es dict: {type(arsenal_ml_features)}")
+                                arsenal_ml_features = {}
+
                             arsenal_rl_extensions = self.feature_aggregator.get_rl_state_extensions(
                                 pair=pair,
                                 current_price=current_price,
                                 open_positions=open_positions
                             )
+                            if not isinstance(arsenal_rl_extensions, dict):
+                                logger.warning(f"arsenal_rl_extensions no es dict: {type(arsenal_rl_extensions)}")
+                                arsenal_rl_extensions = {}
                         except Exception as e:
                             logger.warning(f"No se pudieron obtener features del arsenal: {e}")
+                            arsenal_ml_features = {}
+                            arsenal_rl_extensions = {}
 
                         # Construir market state para RL Agent - INTEGRACIÓN COMPLETA DE 24 SERVICIOS
                         market_state = {
@@ -1046,6 +1075,8 @@ class MarketMonitor:
                         )
 
                         # ===== ARSENAL AVANZADO: ANÁLISIS FLASH (SIEMPRE) =====
+                        arsenal_flash_ml = {}
+                        arsenal_flash_rl = {}
                         try:
                             # OBTENER ANÁLISIS DEL ARSENAL para flash
                             arsenal_flash_ml = self.feature_aggregator.get_ml_features(
@@ -1054,11 +1085,18 @@ class MarketMonitor:
                                 base_features={},  # Preview de flash
                                 ohlc_data=flash_df
                             )
+                            if not isinstance(arsenal_flash_ml, dict):
+                                logger.warning(f"arsenal_flash_ml no es dict: {type(arsenal_flash_ml)}")
+                                arsenal_flash_ml = {}
+
                             arsenal_flash_rl = self.feature_aggregator.get_rl_state_extensions(
                                 pair=pair,
                                 current_price=flash_price,
                                 open_positions=open_positions
                             )
+                            if not isinstance(arsenal_flash_rl, dict):
+                                logger.warning(f"arsenal_flash_rl no es dict: {type(arsenal_flash_rl)}")
+                                arsenal_flash_rl = {}
 
                             # LOG DETALLADO FLASH
                             logger.info(f"  ⚡ ARSENAL FLASH ({pair}):")
@@ -1196,8 +1234,12 @@ class MarketMonitor:
                                         base_features={},  # Será combinado con sentiment_features después
                                         ohlc_data=flash_df
                                     )
+                                    if not isinstance(arsenal_ml_features_flash, dict):
+                                        logger.warning(f"arsenal_ml_features_flash no es dict: {type(arsenal_ml_features_flash)}")
+                                        arsenal_ml_features_flash = {}
                                 except Exception as e:
                                     logger.warning(f"No se pudieron obtener arsenal features para flash: {e}")
+                                    arsenal_ml_features_flash = {}
 
                                 combined_flash_features = {**(sentiment_features or {}), **arsenal_ml_features_flash}
 
