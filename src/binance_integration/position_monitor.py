@@ -356,6 +356,17 @@ class PositionMonitor:
         self._running = True
         logger.info("🟢 Starting position monitor...")
 
+        # Cargar posiciones existentes ANTES del loop (crítico si reinició)
+        try:
+            initial_positions = self.update_positions()
+            num_open = len([p for p in initial_positions.values() if float(p.get('positionAmt', 0)) != 0])
+            if num_open > 0:
+                logger.info(f"🔄 Position monitor: Encontradas {num_open} posiciones abiertas al iniciar")
+            else:
+                logger.info("📊 Position monitor: Sin posiciones abiertas")
+        except Exception as init_error:
+            logger.error(f"⚠️ Error cargando posiciones iniciales: {init_error}")
+
         while self._running:
             try:
                 # Actualizar posiciones

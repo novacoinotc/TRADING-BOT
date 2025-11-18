@@ -1497,3 +1497,74 @@ class AutonomyController:
         # ===== FIN AUTO-ENTRENAMIENTO ML =====
 
         return True
+
+    def update_from_trade_result(self, closed_info: Dict, reward: float):
+        """
+        Actualiza RL Agent con resultado de trade cerrado (v2.0 Binance)
+        Método simplificado que toma closed_info de PositionMonitor
+
+        Args:
+            closed_info: Información del trade cerrado desde Binance
+                - symbol: Par (ej: BTCUSDT)
+                - side: LONG o SHORT
+                - realized_pnl: P&L en USDT
+                - realized_pnl_pct: P&L en porcentaje
+                - leverage: Apalancamiento usado
+                - entry_price: Precio de entrada
+                - exit_price: Precio de salida
+            reward: Reward calculado (usualmente el realized_pnl)
+        """
+        try:
+            # Extraer datos del trade
+            symbol = closed_info.get('symbol', 'UNKNOWN')
+            side = closed_info.get('side', 'LONG')
+            realized_pnl = closed_info.get('realized_pnl', 0)
+            realized_pnl_pct = closed_info.get('realized_pnl_pct', 0)
+            leverage = closed_info.get('leverage', 1)
+
+            # Incrementar contador global
+            self.total_trades_all_time += 1
+
+            # Crear state simplificado para RL Agent
+            # (el state completo se creará internamente en learn_from_trade)
+            state_dict = {
+                'symbol': symbol,
+                'side': side,
+                'leverage': leverage,
+                'rsi': 50,  # Valores default (el RL usa el next_state principalmente)
+                'regime': 'SIDEWAYS',
+                'orderbook': 'NEUTRAL',
+                'volatility': 'medium'
+            }
+
+            state = self.rl_agent.get_state_representation(state_dict)
+
+            # Normalizar reward (P&L en porcentaje es más útil que absoluto)
+            normalized_reward = realized_pnl_pct / 100.0  # -10% → -0.1, +5% → 0.05
+
+            # RL Agent aprende del trade
+            done = abs(realized_pnl_pct) > 15  # Episodio termina en grandes wins/losses
+            self.rl_agent.learn_from_trade(
+                reward=normalized_reward,
+                next_state=state,
+                done=done
+            )
+
+            # Log de aprendizaje
+            emoji = "✅" if realized_pnl > 0 else "❌"
+            logger.info(
+                f"{emoji} RL LEARNING: {symbol} {side} | "
+                f"P&L: {realized_pnl_pct:+.2f}% | "
+                f"Leverage: {leverage}x | "
+                f"Reward: {normalized_reward:+.3f} | "
+                f"Total trades: {self.total_trades_all_time}"
+            )
+
+            # Experience Replay periódico
+            if self.rl_agent.total_trades % 10 == 0:
+                self.rl_agent.replay_experience(batch_size=32)
+                logger.debug(f"🔄 Experience replay ejecutado ({self.rl_agent.total_trades} trades)")
+
+        except Exception as e:
+            logger.error(f"❌ Error in update_from_trade_result: {e}", exc_info=True)
+
