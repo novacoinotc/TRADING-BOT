@@ -21,6 +21,11 @@ from src.orderbook.orderbook_analyzer import OrderBookAnalyzer
 from src.market_regime.regime_detector import RegimeDetector
 from src.advanced.feature_aggregator import FeatureAggregator
 
+# Binance Futures Integration (v2.0)
+from src.binance_integration.binance_client import BinanceClient
+from src.binance_integration.futures_trader import FuturesTrader
+from src.binance_integration.position_monitor import PositionMonitor
+
 logger = logging.getLogger(__name__)
 
 
@@ -48,14 +53,78 @@ class MarketMonitor:
         # Initialize daily reporter
         self.reporter = DailyReporter(self.tracker, self.notifier) if self.tracker else None
 
-        # Initialize ML + Paper Trading system
-        self.ml_system = MLIntegration(
-            initial_balance=config.PAPER_TRADING_INITIAL_BALANCE,
-            enable_ml=True,  # Enable ML predictions
-            telegram_notifier=self.notifier  # Para notificaciones de trades
-        ) if config.ENABLE_PAPER_TRADING else None
+        # ========== BINANCE FUTURES INTEGRATION (v2.0) ==========
+        # Initialize Binance client and trading components
+        self.binance_client = None
+        self.futures_trader = None
+        self.position_monitor = None
 
-        # Auto-entrenar ML si hay suficientes trades históricos (40+)
+        if config.BINANCE_API_KEY and config.BINANCE_API_SECRET:
+            try:
+                # Build proxy config if needed
+                proxies = None
+                if config.USE_PROXY and config.PROXY_HOST and config.PROXY_PORT:
+                    if config.PROXY_USERNAME and config.PROXY_PASSWORD:
+                        proxy_url = f"http://{config.PROXY_USERNAME}:{config.PROXY_PASSWORD}@{config.PROXY_HOST}:{config.PROXY_PORT}"
+                    else:
+                        proxy_url = f"http://{config.PROXY_HOST}:{config.PROXY_PORT}"
+                    proxies = {'http': proxy_url, 'https': proxy_url}
+
+                # Initialize Binance client
+                self.binance_client = BinanceClient(
+                    api_key=config.BINANCE_API_KEY,
+                    api_secret=config.BINANCE_API_SECRET,
+                    base_url=config.BINANCE_BASE_URL,
+                    proxies=proxies
+                )
+                logger.info("✅ Binance Client initialized")
+
+                # Initialize Futures Trader
+                self.futures_trader = FuturesTrader(
+                    client=self.binance_client,
+                    default_leverage=config.DEFAULT_LEVERAGE,
+                    use_isolated_margin=config.USE_ISOLATED_MARGIN
+                )
+                logger.info("✅ Futures Trader initialized")
+
+                # Initialize Position Monitor
+                self.position_monitor = PositionMonitor(
+                    client=self.binance_client,
+                    update_interval=5,  # Update every 5 seconds
+                    on_position_closed=self._on_position_closed
+                )
+                logger.info("✅ Position Monitor initialized")
+
+                # Recuperar posiciones abiertas de Binance (si reinició)
+                try:
+                    open_positions = self.position_monitor.update_positions()
+                    num_positions = len([p for p in open_positions.values() if float(p.get('positionAmt', 0)) != 0])
+                    if num_positions > 0:
+                        logger.info(f"🔄 Recuperadas {num_positions} posiciones abiertas de Binance al iniciar")
+                        for symbol, pos in open_positions.items():
+                            amt = float(pos.get('positionAmt', 0))
+                            if amt != 0:
+                                logger.info(f"   - {symbol}: {amt:+.4f} @ ${float(pos.get('entryPrice', 0)):,.2f}")
+                    else:
+                        logger.info("📊 No hay posiciones abiertas en Binance")
+                except Exception as recover_error:
+                    logger.error(f"⚠️ Error recuperando posiciones al iniciar: {recover_error}")
+
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize Binance integration: {e}")
+                self.binance_client = None
+                self.futures_trader = None
+                self.position_monitor = None
+        else:
+            logger.warning("⚠️ Binance API credentials not configured. Trading disabled.")
+
+        # Initialize ML system (without paper trading)
+        self.ml_system = MLIntegration(
+            enable_ml=config.ENABLE_ML_SYSTEM,
+            telegram_notifier=self.notifier
+        ) if config.ENABLE_ML_SYSTEM else None
+
+        # Auto-train ML if enough historical trades (40+)
         if self.ml_system:
             self._auto_train_ml_if_ready()
 
@@ -85,7 +154,7 @@ class MarketMonitor:
         self.market_analysis_paused = False  # Pausa análisis pero permite cerrar trades existentes
         self.current_prices = {}  # Store current prices for tracking
         self.enable_flash = config.ENABLE_FLASH_SIGNALS
-        self.enable_paper_trading = config.ENABLE_PAPER_TRADING  # New config option
+        self.auto_trade = config.AUTO_TRADE  # v2.0: Auto-trading con Binance
         self.autonomy_controller = None  # Will be set by main.py if autonomous mode enabled
 
     def _initialize_exchange(self) -> ccxt.Exchange:
@@ -131,62 +200,105 @@ class MarketMonitor:
             logger.error(f"Failed to initialize exchange: {e}")
             raise
 
+    def _on_position_closed(self, closed_info: Dict):
+        """
+        Callback cuando se cierra una posición (SL/TP alcanzado)
+
+        Args:
+            closed_info: Información del cierre desde PositionMonitor
+        """
+        try:
+            logger.info(
+                f"\n{'='*60}\n"
+                f"📢 POSITION CLOSED NOTIFICATION\n"
+                f"Symbol: {closed_info['symbol']}\n"
+                f"Side: {closed_info['side']}\n"
+                f"P&L: ${closed_info['realized_pnl']:+.2f} ({closed_info['realized_pnl_pct']:+.2f}%)\n"
+                f"Reason: {closed_info['reason']}\n"
+                f"{'='*60}\n"
+            )
+
+            # Notificar a Telegram
+            if self.notifier:
+                asyncio.create_task(self._notify_trade_closed(closed_info))
+
+            # Actualizar RL Agent si está disponible
+            if self.autonomy_controller:
+                try:
+                    # Calcular reward para RL Agent
+                    reward = closed_info['realized_pnl']
+
+                    # Actualizar agente con resultado
+                    if hasattr(self.autonomy_controller, 'update_from_trade_result'):
+                        self.autonomy_controller.update_from_trade_result(closed_info, reward)
+                except Exception as e:
+                    logger.error(f"❌ Error updating RL Agent: {e}")
+
+        except Exception as e:
+            logger.error(f"❌ Error in _on_position_closed callback: {e}")
+
+    async def _notify_trade_closed(self, closed_info: Dict):
+        """Notifica a Telegram que se cerró un trade"""
+        try:
+            emoji = "✅" if closed_info['realized_pnl'] > 0 else "❌"
+            message = (
+                f"{emoji} **TRADE CERRADO - {'GANANCIA' if closed_info['realized_pnl'] > 0 else 'PÉRDIDA'}**\n\n"
+                f"📌 Par: {closed_info['symbol']}\n"
+                f"📊 Dirección: {closed_info['side']}\n"
+                f"💰 Entrada: ${closed_info['entry_price']:,.2f}\n"
+                f"💰 Salida: ${closed_info['exit_price']:,.2f}\n"
+                f"📈 P&L: ${closed_info['realized_pnl']:+.2f} ({closed_info['realized_pnl_pct']:+.2f}%)\n"
+                f"🔢 Cantidad: {closed_info['quantity']}\n"
+                f"⚡ Leverage: {closed_info['leverage']}x\n"
+                f"🏁 Razón: {closed_info['reason']}\n"
+                f"🔖 Trade ID: {closed_info['trade_id']}"
+            )
+            await self.notifier.send_message(message)
+        except Exception as e:
+            logger.error(f"❌ Error notifying trade closed: {e}")
+
+    async def _notify_trade_opened(self, trade_info: Dict):
+        """Notifica a Telegram que se abrió un trade"""
+        try:
+            # Detectar si es flash trade
+            is_flash = trade_info.get('is_flash', False)
+            emoji = "⚡" if is_flash else "🟢"
+            trade_type = "FLASH " if is_flash else ""
+
+            message = (
+                f"{emoji} **TRADE {trade_type}ABIERTO - Binance Futures**\n\n"
+                f"📌 Par: {trade_info['symbol']}\n"
+                f"📊 Dirección: {trade_info['side']}\n"
+                f"⚡ Leverage: {trade_info['leverage']}x\n"
+                f"💰 Entrada: ${trade_info['entry_price']:,.2f}\n"
+                f"📊 Cantidad: {trade_info['quantity']}\n"
+                f"🎯 Take Profit: ${trade_info['take_profit']:,.2f}\n"
+                f"🛡️ Stop Loss: ${trade_info['stop_loss']:,.2f}\n"
+                f"💵 USDT usado: ${trade_info['usdt_amount']:.2f}\n"
+                f"🔖 Order ID: {trade_info['market_order_id']}"
+            )
+            await self.notifier.send_message(message)
+        except Exception as e:
+            logger.error(f"❌ Error notifying trade abierto: {e}")
+
     def _auto_train_ml_if_ready(self):
         """
         Auto-entrena el ML System si hay suficientes trades históricos (40+)
-        Se ejecuta automáticamente al inicializar MarketMonitor
-
-        IMPORTANTE: Usa el paper_trader del autonomy_controller si está disponible
-        (porque ese SÍ se restaura con /import), en lugar del paper_trader interno
-        del ML System que puede estar vacío después de un import.
+        v2.0: Usa historial de trades reales de Binance
         """
         try:
             if not self.ml_system:
                 return
 
-            # Intentar usar el paper_trader del autonomy_controller primero
-            # (porque ese SÍ se restaura en /import)
-            paper_trader = None
-            total_trades = 0
+            # En v2.0, el entrenamiento se hace con datos históricos de Binance
+            # o con el backtester si no hay trades reales todavía
+            logger.debug("📊 ML auto-training en v2.0 se hace con historial de Binance")
 
-            if hasattr(self, 'autonomy_controller') and self.autonomy_controller:
-                if hasattr(self.autonomy_controller, 'paper_trader') and self.autonomy_controller.paper_trader:
-                    paper_trader = self.autonomy_controller.paper_trader
-                    stats = paper_trader.portfolio.get_statistics()
-                    total_trades = stats.get('total_trades', 0)
-                    logger.debug(f"📊 Usando paper_trader del autonomy_controller: {total_trades} trades")
-
-            # Fallback: usar el paper_trader interno del ML System
-            if not paper_trader and hasattr(self.ml_system, 'paper_trader') and self.ml_system.paper_trader:
-                paper_trader = self.ml_system.paper_trader
-                stats = paper_trader.portfolio.get_statistics()
-                total_trades = stats.get('total_trades', 0)
-                logger.debug(f"📊 Usando paper_trader interno del ML System: {total_trades} trades")
-
-            if not paper_trader:
-                logger.debug("📊 No hay paper_trader disponible para auto-entrenamiento")
-                return
-
-            # Verificar si hay suficientes trades para entrenar (40+)
-            if total_trades >= 40:
-                logger.info(f"🤖 Detectados {total_trades} trades históricos - Iniciando auto-entrenamiento ML...")
-
-                # Forzar entrenamiento con threshold reducido (25 samples mínimo)
-                # Pasar el paper_trader que tiene los datos
-                self.ml_system.force_retrain(
-                    min_samples_override=25,
-                    external_paper_trader=paper_trader
-                )
-
-                logger.info("✅ ML System entrenado automáticamente con datos históricos")
-            elif total_trades > 0:
-                logger.info(f"📊 ML System esperando más trades para entrenar: {total_trades}/40")
-            else:
-                logger.info("📊 ML System iniciado - entrenará automáticamente después de 40 trades")
+            # TODO: Implementar obtención de trades históricos de Binance
+            # y usar para entrenar ML
 
         except Exception as e:
-            logger.error(f"Error en auto-entrenamiento ML: {e}")
-            # No es crítico, el sistema puede funcionar sin ML entrenado
+            logger.warning(f"⚠️ Error en auto-entrenamiento ML: {e}")
 
     async def fetch_ohlcv(self, pair: str, timeframe: str = None) -> Optional[pd.DataFrame]:
         """
@@ -282,8 +394,8 @@ class MarketMonitor:
                                     f"📈 Movimiento esperado: {news_signal.get('expected_move', 'N/A')}"
                                 )
 
-                            # Execute news-triggered trade immediately (if paper trading enabled)
-                            if self.enable_paper_trading and self.ml_system:
+                            # Execute news-triggered trade immediately (if auto-trading enabled)
+                            if self.auto_trade and self.futures_trader:
                                 # Get current price for execution
                                 try:
                                     ticker = self.exchange.fetch_ticker(pair)
@@ -350,16 +462,17 @@ class MarketMonitor:
                                                 'volatility_regime': 'HIGH',  # News = high volatility
                                             }
 
-                                            # Obtener portfolio metrics
+                                            # Obtener portfolio metrics (v2.0: desde Binance)
                                             portfolio_metrics_news = {}
-                                            if hasattr(self.ml_system, 'paper_trader'):
-                                                stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                                            if self.position_monitor:
+                                                # TODO: Implementar get_statistics() en PositionMonitor
+                                                # Por ahora, usar valores predeterminados
                                                 portfolio_metrics_news = {
-                                                    'win_rate': stats['win_rate'],
-                                                    'roi': stats['roi'],
-                                                    'max_drawdown': stats['max_drawdown'],
-                                                    'sharpe_ratio': stats.get('sharpe_ratio', 0),
-                                                    'total_trades': stats['total_trades']
+                                                    'win_rate': 0.0,
+                                                    'roi': 0.0,
+                                                    'max_drawdown': 0.0,
+                                                    'sharpe_ratio': 0.0,
+                                                    'total_trades': 0
                                                 }
 
                                             # RL Agent evalúa si ejecutar news trade
@@ -497,10 +610,11 @@ class MarketMonitor:
                     except Exception as e:
                         logger.debug(f"No se pudo obtener orderbook raw para {pair}: {e}")
 
-                    # Obtener posiciones abiertas
+                    # Obtener posiciones abiertas (v2.0: desde Binance)
                     open_positions = []
-                    if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
-                        open_positions = list(self.ml_system.paper_trader.portfolio.positions.keys())
+                    if self.position_monitor:
+                        positions = self.position_monitor.get_open_positions()
+                        open_positions = [p['symbol'] for p in positions]
 
                     # OBTENER ANÁLISIS DEL ARSENAL (preview)
                     arsenal_ml_features_preview = self.feature_aggregator.get_ml_features(
@@ -587,10 +701,11 @@ class MarketMonitor:
                         except Exception as e:
                             logger.debug(f"No se pudo obtener orderbook raw para {pair}: {e}")
 
-                        # Obtener posiciones abiertas para correlation matrix
+                        # Obtener posiciones abiertas para correlation matrix (v2.0: desde Binance)
                         open_positions = []
-                        if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
-                            open_positions = list(self.ml_system.paper_trader.portfolio.positions.keys())
+                        if self.position_monitor:
+                            positions = self.position_monitor.get_open_positions()
+                            open_positions = [p['symbol'] for p in positions]
 
                         # ENRIQUECER SEÑAL CON ARSENAL AVANZADO
                         enriched_signal = self.feature_aggregator.enrich_signal(
@@ -637,8 +752,8 @@ class MarketMonitor:
                 if regime_data:
                     analysis['regime_data'] = regime_data
 
-                # Execute paper trade if enabled
-                if self.enable_paper_trading and self.ml_system and signals['action'] != 'HOLD':
+                # Execute trade with Binance if auto-trading enabled
+                if self.auto_trade and self.futures_trader and signals['action'] != 'HOLD':
                     # CONSULTAR AL RL AGENT ANTES DE ABRIR TRADE
                     should_execute_trade = True
                     rl_decision = None
@@ -745,16 +860,17 @@ class MarketMonitor:
                         }
                         # ===== FIN ARSENAL EXTENSIONS =====
 
-                        # Obtener portfolio metrics
+                        # Obtener portfolio metrics (v2.0: desde Binance)
                         portfolio_metrics = {}
-                        if hasattr(self.ml_system, 'paper_trader'):
-                            stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                        if self.position_monitor:
+                            # TODO: Implementar get_statistics() en PositionMonitor
+                            # Por ahora, usar valores predeterminados
                             portfolio_metrics = {
-                                'win_rate': stats['win_rate'],
-                                'roi': stats['roi'],
-                                'max_drawdown': stats['max_drawdown'],
-                                'sharpe_ratio': stats.get('sharpe_ratio', 0),
-                                'total_trades': stats['total_trades']
+                                'win_rate': 0.0,
+                                'roi': 0.0,
+                                'max_drawdown': 0.0,
+                                'sharpe_ratio': 0.0,
+                                'total_trades': 0
                             }
 
                         # RL Agent evalúa si abrir el trade
@@ -803,24 +919,107 @@ class MarketMonitor:
                             # Add RL decision data
                             if rl_decision:
                                 analysis['rl_decision'] = rl_decision
+
+                        # ===== v2.0: EJECUTAR TRADE EN BINANCE FUTURES =====
+                        try:
+                            # Convertir símbolo para Binance (BTC/USDT → BTCUSDT)
+                            binance_symbol = pair.replace('/', '')
+
+                            # VALIDACIÓN: Verificar que no haya posición abierta en este par
+                            if self.position_monitor.has_position(binance_symbol):
+                                logger.warning(
+                                    f"⚠️ Ya hay posición abierta en {binance_symbol}, "
+                                    f"no abrir duplicada. Omitiendo señal {signals['action']}."
+                                )
+                                # Continuar al siguiente análisis sin ejecutar trade
+                                pass  # El código continúa normalmente sin abrir trade
+                            else:
+                                # No hay posición abierta, proceder con el trade
+                                # Determinar cantidad en USDT por trade
+                                usdt_amount = getattr(config, 'TRADE_AMOUNT_USDT', 100.0)  # Default $100
+
+                                # Calcular stop loss y take profit desde signals
+                                stop_loss_pct = 2.0  # Default 2%
+                                take_profit_pct = 3.0  # Default 3%
+
+                                if 'stop_loss' in signals and signals['stop_loss']:
+                                    # Calcular % desde el precio actual
+                                    sl_price = signals['stop_loss']
+                                    stop_loss_pct = abs((sl_price - current_price) / current_price * 100)
+
+                                if 'take_profit' in signals and signals['take_profit']:
+                                    tp_price = signals['take_profit']
+                                    take_profit_pct = abs((tp_price - current_price) / current_price * 100)
+
+                                # Determinar leverage desde signals o usar default
+                                leverage = signals.get('leverage', config.DEFAULT_LEVERAGE)
+
+                                # Aplicar multiplicador de RL Agent si está disponible
+                                if 'rl_position_multiplier' in signals:
+                                    usdt_amount *= signals['rl_position_multiplier']
+
+                                # VALIDACIÓN: Verificar cantidad mínima después de multiplicador
+                                if usdt_amount < 10.0:
+                                    logger.warning(
+                                        f"⚠️ Cantidad muy pequeña después de multiplicador RL: "
+                                        f"${usdt_amount:.2f} (mínimo: $10), omitiendo trade"
+                                    )
+                                else:
+                                    logger.info(
+                                        f"🚀 Ejecutando trade Binance: {pair} {signals['action']}\n"
+                                        f"   USDT: ${usdt_amount:.2f} | Leverage: {leverage}x\n"
+                                        f"   SL: {stop_loss_pct:.2f}% | TP: {take_profit_pct:.2f}%"
+                                    )
+
+                                    # Ejecutar trade con Binance Futures
+                                    binance_result = self.futures_trader.open_position(
+                                        symbol=binance_symbol,
+                                        side=signals['action'],  # 'BUY' o 'SELL'
+                                        usdt_amount=usdt_amount,
+                                        stop_loss_pct=stop_loss_pct,
+                                        take_profit_pct=take_profit_pct,
+                                        leverage=leverage,
+                                        current_price=current_price
+                                    )
+
+                                    if binance_result:
+                                        logger.info(f"✅ Trade ejecutado en Binance: {binance_result['market_order_id']}")
+
+                                        # Notificar a Telegram
+                                        if self.notifier:
+                                            await self._notify_trade_opened(binance_result)
+
+                                        # Añadir resultado de Binance al analysis
+                                        analysis['binance_trade'] = binance_result
+
+                                        # Registrar en RL Agent para aprendizaje futuro
+                                        if self.autonomy_controller:
+                                            try:
+                                                # El RL Agent aprenderá cuando se cierre (vía _on_position_closed)
+                                                logger.debug(f"📝 Trade registrado - aprendizaje al cerrar posición")
+                                            except Exception as e:
+                                                logger.error(f"❌ Error registrando trade en RL Agent: {e}")
+                                    else:
+                                        logger.error(
+                                            f"❌ No se pudo ejecutar trade en Binance: "
+                                            f"{binance_symbol} {signals['action']} ${usdt_amount:.2f}"
+                                        )
+
+                        except Exception as e:
+                            symbol_attempted = pair.replace('/', '')
+                            side_attempted = signals.get('action', 'UNKNOWN')
+                            amount_attempted = getattr(config, 'TRADE_AMOUNT_USDT', 100.0)
+                            logger.error(
+                                f"❌ Error ejecutando trade Binance: "
+                                f"{symbol_attempted} {side_attempted} ${amount_attempted:.2f} - {str(e)}",
+                                exc_info=True
+                            )
+                        # ===== FIN EJECUCIÓN BINANCE =====
                     else:
                         logger.info(f"🤖 RL Agent bloqueó trade en {pair}: {rl_decision.get('chosen_action', 'SKIP')}")
 
-                # Update existing positions
-                if self.enable_paper_trading and self.ml_system:
-                    closed_trade = self.ml_system.update_position(pair, current_price)
-                    if closed_trade:
-                        logger.info(f"Position closed for {pair}: {closed_trade}")
-
-                        # Send trade outcome to autonomous controller for learning
-                        if self.autonomy_controller:
-                            await self._process_trade_outcome_autonomous(
-                                closed_trade,
-                                analysis.get('indicators', {}),
-                                sentiment_data,
-                                orderbook_analysis,
-                                regime_data
-                            )
+                # v2.0: Position updates are handled automatically by PositionMonitor
+                # The _on_position_closed callback will be triggered when SL/TP is hit
 
                 # Send signal notification if strong enough (score >= 7)
                 if signals['action'] != 'HOLD':
@@ -883,10 +1082,11 @@ class MarketMonitor:
                                 except Exception as e:
                                     logger.debug(f"No se pudo obtener orderbook raw para flash {pair}: {e}")
 
-                                # Obtener posiciones abiertas
+                                # Obtener posiciones abiertas (v2.0: desde Binance)
                                 open_positions_flash = []
-                                if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
-                                    open_positions_flash = list(self.ml_system.paper_trader.portfolio.positions.keys())
+                                if self.position_monitor:
+                                    positions = self.position_monitor.get_open_positions()
+                                    open_positions_flash = [p['symbol'] for p in positions]
 
                                 # ENRIQUECER FLASH SIGNAL CON ARSENAL
                                 enriched_flash = self.feature_aggregator.enrich_signal(
@@ -932,8 +1132,8 @@ class MarketMonitor:
                         if regime_data:
                             flash_analysis['regime_data'] = regime_data
 
-                        # Execute paper trade for flash signal if enabled
-                        if self.enable_paper_trading and self.ml_system and flash_signals['action'] != 'HOLD':
+                        # Execute trade with Binance for flash signal if auto-trading enabled
+                        if self.auto_trade and self.futures_trader and flash_signals['action'] != 'HOLD':
                             # CONSULTAR AL RL AGENT ANTES DE ABRIR FLASH TRADE
                             should_execute_flash = True
                             rl_flash_decision = None
@@ -957,16 +1157,17 @@ class MarketMonitor:
                                     'volatility': 'high' if flash_analysis['indicators'].get('atr', 0) > flash_price * 0.02 else 'medium'
                                 }
 
-                                # Obtener portfolio metrics
+                                # Obtener portfolio metrics (v2.0: desde Binance)
                                 portfolio_metrics_flash = {}
-                                if hasattr(self.ml_system, 'paper_trader'):
-                                    stats = self.ml_system.paper_trader.portfolio.get_statistics()
+                                if self.position_monitor:
+                                    # TODO: Implementar get_statistics() en PositionMonitor
+                                    # Por ahora, usar valores predeterminados
                                     portfolio_metrics_flash = {
-                                        'win_rate': stats['win_rate'],
-                                        'roi': stats['roi'],
-                                        'max_drawdown': stats['max_drawdown'],
-                                        'sharpe_ratio': stats.get('sharpe_ratio', 0),
-                                        'total_trades': stats['total_trades']
+                                        'win_rate': 0.0,
+                                        'roi': 0.0,
+                                        'max_drawdown': 0.0,
+                                        'sharpe_ratio': 0.0,
+                                        'total_trades': 0
                                     }
 
                                 # RL Agent evalúa si abrir el flash trade
@@ -1020,6 +1221,92 @@ class MarketMonitor:
                                     # Add RL decision data
                                     if rl_flash_decision:
                                         flash_analysis['rl_decision'] = rl_flash_decision
+
+                                # ===== v2.0: EJECUTAR FLASH TRADE EN BINANCE FUTURES =====
+                                try:
+                                    # Convertir símbolo para Binance
+                                    flash_binance_symbol = pair.replace('/', '')
+
+                                    # VALIDACIÓN: Verificar que no haya posición abierta en este par
+                                    if self.position_monitor.has_position(flash_binance_symbol):
+                                        logger.warning(
+                                            f"⚠️ Ya hay posición abierta en {flash_binance_symbol}, "
+                                            f"no abrir flash duplicada. Omitiendo señal {flash_signals['action']}."
+                                        )
+                                    else:
+                                        # No hay posición, proceder con flash trade
+                                        # Determinar cantidad en USDT (flash signals suelen usar menos)
+                                        usdt_amount = getattr(config, 'FLASH_TRADE_AMOUNT_USDT', 50.0)  # Default $50 para flash
+
+                                        # Calcular stop loss y take profit
+                                        stop_loss_pct = 2.5  # Flash = SL más amplio
+                                        take_profit_pct = 2.0  # Flash = TP más cercano
+
+                                        if 'stop_loss' in flash_signals and flash_signals['stop_loss']:
+                                            sl_price = flash_signals['stop_loss']
+                                            stop_loss_pct = abs((sl_price - flash_price) / flash_price * 100)
+
+                                        if 'take_profit' in flash_signals and flash_signals['take_profit']:
+                                            tp_price = flash_signals['take_profit']
+                                            take_profit_pct = abs((tp_price - flash_price) / flash_price * 100)
+
+                                        # Leverage para flash (menor que señales normales)
+                                        leverage = flash_signals.get('leverage', max(1, config.DEFAULT_LEVERAGE - 1))
+
+                                        # Aplicar multiplicador de RL Agent
+                                        if 'rl_position_multiplier' in flash_signals:
+                                            usdt_amount *= flash_signals['rl_position_multiplier']
+
+                                        # VALIDACIÓN: Verificar cantidad mínima
+                                        if usdt_amount < 10.0:
+                                            logger.warning(
+                                                f"⚠️ Flash trade: cantidad muy pequeña después de multiplicador RL: "
+                                                f"${usdt_amount:.2f} (mínimo: $10), omitiendo trade"
+                                            )
+                                        else:
+                                            logger.info(
+                                                f"⚡ Ejecutando FLASH trade Binance: {pair} {flash_signals['action']}\n"
+                                                f"   USDT: ${usdt_amount:.2f} | Leverage: {leverage}x\n"
+                                                f"   SL: {stop_loss_pct:.2f}% | TP: {take_profit_pct:.2f}%"
+                                            )
+
+                                            # Ejecutar trade con Binance Futures
+                                            flash_binance_result = self.futures_trader.open_position(
+                                                symbol=flash_binance_symbol,
+                                                side=flash_signals['action'],
+                                                usdt_amount=usdt_amount,
+                                                stop_loss_pct=stop_loss_pct,
+                                                take_profit_pct=take_profit_pct,
+                                                leverage=leverage,
+                                                current_price=flash_price
+                                            )
+
+                                            if flash_binance_result:
+                                                logger.info(f"✅ Flash trade ejecutado: {flash_binance_result['market_order_id']}")
+
+                                                # Notificar a Telegram con tag de FLASH
+                                                if self.notifier:
+                                                    flash_binance_result['is_flash'] = True
+                                                    await self._notify_trade_opened(flash_binance_result)
+
+                                                # Añadir resultado al analysis
+                                                flash_analysis['binance_trade'] = flash_binance_result
+                                            else:
+                                                logger.error(
+                                                    f"❌ No se pudo ejecutar flash trade en Binance: "
+                                                    f"{flash_binance_symbol} {flash_signals['action']} ${usdt_amount:.2f}"
+                                                )
+
+                                except Exception as e:
+                                    flash_symbol_attempted = pair.replace('/', '')
+                                    flash_side_attempted = flash_signals.get('action', 'UNKNOWN')
+                                    flash_amount_attempted = getattr(config, 'FLASH_TRADE_AMOUNT_USDT', 50.0)
+                                    logger.error(
+                                        f"❌ Error ejecutando flash trade Binance: "
+                                        f"{flash_symbol_attempted} {flash_side_attempted} ${flash_amount_attempted:.2f} - {str(e)}",
+                                        exc_info=True
+                                    )
+                                # ===== FIN EJECUCIÓN FLASH BINANCE =====
                             else:
                                 logger.info(f"🤖 RL Agent bloqueó flash trade en {pair}: {rl_flash_decision.get('chosen_action', 'SKIP')}")
 
@@ -1045,7 +1332,8 @@ class MarketMonitor:
             pairs_display += f" y {len(display_pairs) - 5} más"
 
         flash_status = "✅ Activas" if self.enable_flash else "❌ Desactivadas"
-        paper_trading_status = "✅ Activo" if self.enable_paper_trading else "❌ Inactivo"
+        auto_trade_status = "✅ Activo" if self.auto_trade else "❌ Inactivo"
+        trading_mode = f"{'🧪 TESTNET' if config.BINANCE_TESTNET else '🔴 LIVE'}"
 
         startup_message = (
             "🤖 <b>Bot de Señales Iniciado</b>\n\n"
@@ -1053,11 +1341,12 @@ class MarketMonitor:
             f"⏱️ Intervalo: {self.check_interval}s\n"
             f"📈 Timeframe conservador: {config.TIMEFRAME} (1h/4h/1d)\n"
             f"⚡ Señales flash: {flash_status} ({self.flash_timeframe})\n"
-            f"💰 Paper Trading: {paper_trading_status}"
+            f"💰 Binance Futures: {trading_mode}\n"
+            f"🔄 Auto-Trading: {auto_trade_status}"
         )
 
-        if self.enable_paper_trading and self.ml_system:
-            startup_message += f" (${config.PAPER_TRADING_INITIAL_BALANCE:,.0f} USDT)\n🧠 Machine Learning: ✅ Activo"
+        if self.ml_system:
+            startup_message += "\n🧠 Machine Learning: ✅ Activo"
 
         startup_message += "\n📍 Reporte diario: 9 PM CDMX"
 
@@ -1082,43 +1371,9 @@ class MarketMonitor:
                         # Small delay between pairs to avoid rate limits
                         await asyncio.sleep(2)
 
-                # 🔥 FIX CRÍTICO: Actualizar TODAS las posiciones abiertas cada ciclo
-                if self.enable_paper_trading and self.ml_system:
-                    paper_trader = self.ml_system.paper_trader
-                    open_positions = list(paper_trader.portfolio.positions.keys())
-
-                    if open_positions:
-                        logger.info(f"🔍 Checking {len(open_positions)} open positions...")
-
-                        for pair in open_positions:
-                            # Get current price from cache or fetch fresh
-                            current_price = self.current_prices.get(pair)
-
-                            if current_price:
-                                closed_trade = self.ml_system.update_position(pair, current_price)
-
-                                if closed_trade:
-                                    logger.info(f"✅ Position auto-closed: {pair} - {closed_trade.get('reason', 'UNKNOWN')}")
-
-                                    # Send trade outcome to autonomous controller
-                                    if self.autonomy_controller:
-                                        # Fetch latest data for closed trade learning
-                                        try:
-                                            df = await self.fetch_ohlcv(pair, '1h')
-                                            if df is not None and len(df) >= 50:
-                                                analysis = self.analyzer.analyze_multi_timeframe({'1h': df})
-                                                if analysis:
-                                                    await self._process_trade_outcome_autonomous(
-                                                        closed_trade,
-                                                        analysis.get('indicators', {}),
-                                                        None,  # sentiment_data
-                                                        None,  # orderbook_analysis
-                                                        None   # regime_data
-                                                    )
-                                        except Exception as e:
-                                            logger.error(f"Error processing trade outcome for {pair}: {e}")
-                            else:
-                                logger.warning(f"⚠️ No current price for {pair}, skipping position check")
+                # v2.0: Position monitoring is handled automatically by PositionMonitor
+                # The _on_position_closed callback will be triggered when SL/TP is hit
+                # No need to manually check positions here
 
                 # Update pending signals with current prices
                 if self.tracker:
@@ -1128,16 +1383,17 @@ class MarketMonitor:
                 if self.reporter:
                     await self.reporter.check_and_send_report()
 
-                # Send paper trading stats every 30 iterations (every hour if interval=120s)
-                if self.enable_paper_trading and self.ml_system:
-                    stats_iteration += 1
-                    if stats_iteration >= 30:  # ~1 hour
-                        try:
-                            stats = self.ml_system.get_comprehensive_stats()
-                            await self.notifier.send_trading_stats(stats)
-                            stats_iteration = 0
-                        except Exception as e:
-                            logger.error(f"Error sending paper trading stats: {e}")
+                # TODO v2.0: Implement trading stats from Binance PositionMonitor
+                # Stats should come from real trade history on Binance
+                # if self.auto_trade and self.position_monitor:
+                #     stats_iteration += 1
+                #     if stats_iteration >= 30:  # ~1 hour
+                #         try:
+                #             stats = self.position_monitor.get_trading_stats()
+                #             await self.notifier.send_trading_stats(stats)
+                #             stats_iteration = 0
+                #         except Exception as e:
+                #             logger.error(f"Error sending trading stats: {e}")
 
                 logger.info(f"Waiting {self.check_interval} seconds until next check...")
                 await asyncio.sleep(self.check_interval)
@@ -1197,20 +1453,21 @@ class MarketMonitor:
                 'drawdown': 0
             }
 
-            # Obtener métricas del portfolio
+            # Obtener métricas del portfolio (v2.0: desde Binance)
             portfolio_metrics = {}
-            if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
-                stats = self.ml_system.paper_trader.portfolio.get_statistics()
-                market_state['win_rate'] = stats['win_rate']
-                market_state['drawdown'] = stats['max_drawdown']
+            if self.position_monitor:
+                # TODO: Implementar get_statistics() en PositionMonitor
+                # Por ahora, usar valores predeterminados
+                market_state['win_rate'] = 0.0
+                market_state['drawdown'] = 0.0
 
                 portfolio_metrics = {
-                    'win_rate': stats['win_rate'],
-                    'roi': stats['roi'],
-                    'max_drawdown': stats['max_drawdown'],
-                    'sharpe_ratio': stats.get('sharpe_ratio', 0),
-                    'profit_factor': stats.get('profit_factor', 1.0),
-                    'total_trades': stats['total_trades']
+                    'win_rate': 0.0,
+                    'roi': 0.0,
+                    'max_drawdown': 0.0,
+                    'sharpe_ratio': 0.0,
+                    'profit_factor': 1.0,
+                    'total_trades': 0
                 }
 
             # Preparar datos del trade (incluir campos de futuros)

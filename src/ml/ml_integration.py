@@ -12,24 +12,24 @@ from src.ml.predictor import MLPredictor
 from src.ml.model_trainer import ModelTrainer
 from src.ml.feature_engineer import FeatureEngineer
 from src.ml.optimizer import AutoOptimizer
-from src.trading.paper_trader import PaperTrader
 
 logger = logging.getLogger(__name__)
 
 
 class MLIntegration:
     """
-    Sistema completo de ML + Paper Trading
+    Sistema completo de ML (v2.0: con o sin Paper Trading)
     - Predice señales con ML
-    - Ejecuta trades en paper trading
+    - Mejora/valida señales con ML Predictor
+    - v2.0: Ejecuta trades en Binance Futures (o Paper Trading si initial_balance != None)
     - Entrena modelos automáticamente
     - Optimiza parámetros continuamente
     """
 
-    def __init__(self, initial_balance: float = 50000.0, enable_ml: bool = True, telegram_notifier=None):
+    def __init__(self, initial_balance: float = None, enable_ml: bool = True, telegram_notifier=None):
         """
         Args:
-            initial_balance: Balance inicial en USDT
+            initial_balance: Balance inicial en USDT (None = sin paper trading, solo ML en v2.0)
             enable_ml: Habilitar predicciones ML (False = solo paper trading sin ML)
             telegram_notifier: Notificador de Telegram para enviar alertas de trades
         """
@@ -39,8 +39,18 @@ class MLIntegration:
         self.feature_engineer = FeatureEngineer()
         self.optimizer = AutoOptimizer()
 
-        # Paper Trading
-        self.paper_trader = PaperTrader(initial_balance=initial_balance)
+        # Paper Trading (opcional en v2.0 - import condicional)
+        if initial_balance is not None:
+            try:
+                from src.trading.paper_trader import PaperTrader
+                self.paper_trader = PaperTrader(initial_balance=initial_balance)
+                logger.info(f"   Paper Trading habilitado: ${initial_balance:,.2f} USDT")
+            except ImportError:
+                logger.warning("⚠️ PaperTrader no disponible (eliminado en v2.0), usando solo Binance")
+                self.paper_trader = None
+        else:
+            self.paper_trader = None
+            logger.info("   Paper Trading deshabilitado (v2.0: usando Binance real)")
 
         # Telegram notifier para alertas de trades
         self.telegram_notifier = telegram_notifier
@@ -64,7 +74,6 @@ class MLIntegration:
 
         logger.info("🚀 ML Integration System inicializado")
         logger.info(f"   ML Enabled: {enable_ml}")
-        logger.info(f"   Initial Balance: ${initial_balance:,.2f} USDT")
 
     def process_signal(
         self,
@@ -115,12 +124,18 @@ class MLIntegration:
         optimized_params = self.optimizer.get_current_params()
         enhanced_signal['optimized_params'] = optimized_params
 
-        # 3. Ejecutar en paper trading
-        trade_result = self.paper_trader.process_signal(
-            pair=pair,
-            signal=enhanced_signal,
-            current_price=current_price
-        )
+        # 3. Ejecutar en paper trading (v2.0: solo si paper_trader está disponible)
+        trade_result = None
+        if self.paper_trader:
+            trade_result = self.paper_trader.process_signal(
+                pair=pair,
+                signal=enhanced_signal,
+                current_price=current_price
+            )
+        else:
+            # v2.0: Sin paper trader, retornar señal mejorada para que market_monitor
+            # la ejecute con Futures Trader
+            logger.debug(f"📊 ML enhanced signal for {pair} (no paper trading)")
 
         # 4. Si se abrió un trade, guardar features para entrenamiento futuro
         if trade_result and trade_result.get('status') == 'OPEN':
@@ -178,7 +193,7 @@ class MLIntegration:
 
     def update_position(self, pair: str, current_price: float) -> Optional[Dict]:
         """
-        Actualiza posición existente
+        Actualiza posición existente (v2.0: solo si paper_trader está disponible)
 
         Args:
             pair: Par de trading
@@ -187,6 +202,10 @@ class MLIntegration:
         Returns:
             Trade cerrado si alcanzó SL/TP, None otherwise
         """
+        if not self.paper_trader:
+            # v2.0: Sin paper trader, las posiciones son manejadas por PositionMonitor
+            return None
+
         result = self.paper_trader.update_position(pair, current_price)
 
         # Si se cerró trade, incrementar contadores
@@ -273,8 +292,12 @@ class MLIntegration:
             logger.error(f"Error reentrenando modelo: {e}")
 
     def _optimize_parameters(self):
-        """Optimiza parámetros del bot"""
+        """Optimiza parámetros del bot (v2.0: requiere stats externos si no hay paper_trader)"""
         try:
+            if not self.paper_trader:
+                logger.warning("⚠️ No se puede optimizar sin paper_trader (TODO: usar stats de Binance)")
+                return
+
             stats = self.paper_trader.get_statistics()
 
             adjustments = self.optimizer.optimize(stats)
@@ -436,9 +459,21 @@ class MLIntegration:
             logger.error(f"Error cargando buffer: {e}")
 
     def get_comprehensive_stats(self) -> Dict:
-        """Retorna estadísticas completas del sistema"""
-        # Stats de paper trading
-        trading_stats = self.paper_trader.get_statistics()
+        """Retorna estadísticas completas del sistema (v2.0: stats mínimas si no hay paper_trader)"""
+        # Stats de paper trading (si está disponible)
+        trading_stats = {}
+        if self.paper_trader:
+            trading_stats = self.paper_trader.get_statistics()
+        else:
+            # v2.0: Stats placeholder (TODO: obtener de Binance PositionMonitor)
+            trading_stats = {
+                'total_trades': 0,
+                'win_rate': 0.0,
+                'roi': 0.0,
+                'net_pnl': 0.0,
+                'current_balance': 0.0,
+                'initial_balance': 0.0
+            }
 
         # Stats de ML
         model_info = self.trainer.get_model_info()

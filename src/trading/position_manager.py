@@ -9,6 +9,36 @@ from src.trading.portfolio import Portfolio
 logger = logging.getLogger(__name__)
 
 
+def get_validated_current_price(price: float, symbol: str) -> Optional[float]:
+    """
+    Valida que el precio actual es válido antes de usarlo en operaciones
+
+    Args:
+        price: Precio a validar
+        symbol: Símbolo del par (para logging)
+
+    Returns:
+        float: Precio validado
+        None: Si el precio es inválido
+    """
+    # Validar que no es None
+    if price is None:
+        logger.error(f"❌ PRECIO NONE para {symbol} - NO se puede operar")
+        return None
+
+    # Validar que no es NaN o Inf
+    if math.isnan(price) or math.isinf(price):
+        logger.error(f"❌ PRECIO NaN/Inf para {symbol}: {price} - NO se puede operar")
+        return None
+
+    # Validar que es positivo
+    if price <= 0:
+        logger.error(f"❌ PRECIO <= 0 para {symbol}: {price} - NO se puede operar")
+        return None
+
+    return price
+
+
 class PositionManager:
     """
     Gestiona el ciclo de vida de las posiciones:
@@ -181,18 +211,81 @@ class PositionManager:
         if not position:
             return None
 
+        # 🔥 FIX CRÍTICO 1: VALIDAR PRECIO ACTUAL ANTES DE OPERAR
+        validated_price = get_validated_current_price(current_price, pair)
+        if validated_price is None:
+            logger.warning(
+                f"⚠️ Precio inválido para {pair}: {current_price} - "
+                f"NO se verificarán condiciones de salida"
+            )
+            return None
+        current_price = validated_price
+
         side = position['side']
         entry_price = position['entry_price']
         stop_loss = position.get('stop_loss')
         take_profit = position.get('take_profit', {})
 
+        # 🔥 FIX CRÍTICO 2: VALIDAR QUE HAY MOVIMIENTO REAL
+        # No cerrar si el precio prácticamente no cambió
+        price_change_pct = abs(current_price - entry_price) / entry_price * 100
+        min_movement_pct = 0.01  # 0.01% mínimo
+
+        if price_change_pct < min_movement_pct:
+            logger.debug(
+                f"📊 {pair}: Sin movimiento significativo "
+                f"(Entry: ${entry_price:.4f}, Current: ${current_price:.4f}, "
+                f"Change: {price_change_pct:.4f}%)"
+            )
+            # No retornar aquí - permitir verificación de TP/SL para detectar configuraciones erróneas
+
+        # 🔥 FIX CRÍTICO 3: LOG DETALLADO PARA DEBUGGING
+        sl_str = f"${stop_loss:.4f}" if stop_loss else "None"
+        tp_str = str(take_profit) if take_profit else "None"
+        logger.debug(
+            f"🔍 Checking exit conditions for {pair}:\n"
+            f"   Side: {side}\n"
+            f"   Entry: ${entry_price:.4f}\n"
+            f"   Current: ${current_price:.4f}\n"
+            f"   Change: {price_change_pct:+.4f}%\n"
+            f"   SL: {sl_str}\n"
+            f"   TP: {tp_str}"
+        )
+
         # Verificar Stop Loss
         if stop_loss:
+            # 🔥 FIX CRÍTICO 4: VALIDAR QUE SL ES DIFERENTE DEL ENTRY
+            if abs(stop_loss - entry_price) / entry_price < 0.0001:  # < 0.01%
+                logger.error(
+                    f"❌ CONFIGURACIÓN ERRÓNEA: Stop Loss = Entry Price en {pair}\n"
+                    f"   Entry: ${entry_price:.4f}, SL: ${stop_loss:.4f}\n"
+                    f"   NO se cerrará posición - revisar cálculo de SL"
+                )
+                return None
+
             if side == 'BUY' and current_price <= stop_loss:
+                # Verificar movimiento antes de cerrar
+                if price_change_pct < min_movement_pct:
+                    logger.error(
+                        f"❌ BUG DETECTADO: SL alcanzado sin movimiento en {pair}\n"
+                        f"   Entry: ${entry_price:.4f}, Current: ${current_price:.4f}, SL: ${stop_loss:.4f}\n"
+                        f"   Esto indica SL mal configurado - NO se cerrará"
+                    )
+                    return None
+
                 logger.info(f"🛑 Stop Loss alcanzado en {pair}: ${current_price:.2f} <= ${stop_loss:.2f}")
                 return self.portfolio.close_position(pair, current_price, reason='STOP_LOSS')
 
             elif side == 'SELL' and current_price >= stop_loss:
+                # Verificar movimiento antes de cerrar
+                if price_change_pct < min_movement_pct:
+                    logger.error(
+                        f"❌ BUG DETECTADO: SL alcanzado sin movimiento en {pair}\n"
+                        f"   Entry: ${entry_price:.4f}, Current: ${current_price:.4f}, SL: ${stop_loss:.4f}\n"
+                        f"   Esto indica SL mal configurado - NO se cerrará"
+                    )
+                    return None
+
                 logger.info(f"🛑 Stop Loss alcanzado en {pair}: ${current_price:.2f} >= ${stop_loss:.2f}")
                 return self.portfolio.close_position(pair, current_price, reason='STOP_LOSS')
 
@@ -208,11 +301,42 @@ class PositionManager:
                 tp_levels.append(('TP3', take_profit['tp3']))
 
             for tp_name, tp_price in tp_levels:
+                # 🔥 FIX CRÍTICO 5: VALIDAR QUE TP ES VÁLIDO Y DIFERENTE DEL ENTRY
+                if tp_price is None or tp_price <= 0:
+                    logger.warning(f"⚠️ {tp_name} inválido para {pair}: {tp_price} - Ignorando")
+                    continue
+
+                if abs(tp_price - entry_price) / entry_price < 0.0001:  # < 0.01%
+                    logger.error(
+                        f"❌ CONFIGURACIÓN ERRÓNEA: {tp_name} = Entry Price en {pair}\n"
+                        f"   Entry: ${entry_price:.4f}, {tp_name}: ${tp_price:.4f}\n"
+                        f"   NO se cerrará posición - revisar cálculo de TP"
+                    )
+                    continue
+
                 if side == 'BUY' and current_price >= tp_price:
+                    # Verificar movimiento antes de cerrar
+                    if price_change_pct < min_movement_pct:
+                        logger.error(
+                            f"❌ BUG DETECTADO: {tp_name} alcanzado sin movimiento en {pair}\n"
+                            f"   Entry: ${entry_price:.4f}, Current: ${current_price:.4f}, {tp_name}: ${tp_price:.4f}\n"
+                            f"   Esto indica TP mal configurado - NO se cerrará"
+                        )
+                        continue
+
                     logger.info(f"🎯 {tp_name} alcanzado en {pair}: ${current_price:.2f} >= ${tp_price:.2f}")
                     return self.portfolio.close_position(pair, current_price, reason=tp_name)
 
                 elif side == 'SELL' and current_price <= tp_price:
+                    # Verificar movimiento antes de cerrar
+                    if price_change_pct < min_movement_pct:
+                        logger.error(
+                            f"❌ BUG DETECTADO: {tp_name} alcanzado sin movimiento en {pair}\n"
+                            f"   Entry: ${entry_price:.4f}, Current: ${current_price:.4f}, {tp_name}: ${tp_price:.4f}\n"
+                            f"   Esto indica TP mal configurado - NO se cerrará"
+                        )
+                        continue
+
                     logger.info(f"🎯 {tp_name} alcanzado en {pair}: ${current_price:.2f} <= ${tp_price:.2f}")
                     return self.portfolio.close_position(pair, current_price, reason=tp_name)
 

@@ -16,6 +16,23 @@ EXCHANGE_NAME = os.getenv('EXCHANGE_NAME', 'binance')
 EXCHANGE_API_KEY = os.getenv('EXCHANGE_API_KEY', '')
 EXCHANGE_API_SECRET = os.getenv('EXCHANGE_API_SECRET', '')
 
+# Binance Futures API Configuration (v2.0 - Real Trading)
+BINANCE_API_KEY = os.getenv('BINANCE_API_KEY', '')
+BINANCE_API_SECRET = os.getenv('BINANCE_API_SECRET', '')
+BINANCE_TESTNET = os.getenv('BINANCE_TESTNET', 'true').lower() == 'true'
+BINANCE_BASE_URL = os.getenv('BINANCE_BASE_URL', 'https://testnet.binancefuture.com' if os.getenv('BINANCE_TESTNET', 'true').lower() == 'true' else 'https://fapi.binance.com')
+BINANCE_WS_URL = os.getenv('BINANCE_WS_URL', 'wss://stream.binancefuture.com' if os.getenv('BINANCE_TESTNET', 'true').lower() == 'true' else 'wss://fstream.binance.com')
+
+# Trading Mode Configuration
+TRADING_MODE = os.getenv('TRADING_MODE', 'testnet')  # 'testnet' or 'live'
+AUTO_TRADE = os.getenv('AUTO_TRADE', 'true').lower() == 'true'  # Enable/disable automatic trading
+DEFAULT_LEVERAGE = int(os.getenv('DEFAULT_LEVERAGE', '3'))  # Default leverage for futures (1-125x)
+USE_ISOLATED_MARGIN = os.getenv('USE_ISOLATED_MARGIN', 'true').lower() == 'true'  # Use isolated margin (recommended)
+
+# Trade Amounts (USDT)
+TRADE_AMOUNT_USDT = float(os.getenv('TRADE_AMOUNT_USDT', '100.0'))  # Amount in USDT per regular trade
+FLASH_TRADE_AMOUNT_USDT = float(os.getenv('FLASH_TRADE_AMOUNT_USDT', '50.0'))  # Amount for flash trades
+
 # Proxy Configuration (Required for Binance on Railway/datacenter IPs)
 # Get proxy from: Webshare.io, Smartproxy, Bright Data, etc.
 USE_PROXY = os.getenv('USE_PROXY', 'true').lower() == 'true'
@@ -102,11 +119,7 @@ TRACK_SIGNALS = True
 TRACKING_FILE = 'logs/signal_tracking.json'
 PROFIT_THRESHOLD = 1.5  # 1.5% profit to consider signal successful - OPTIMIZADO (antes 2.0%, más realista)
 
-# Paper Trading + ML Configuration
-ENABLE_PAPER_TRADING = os.getenv('ENABLE_PAPER_TRADING', 'true').lower() == 'true'
-PAPER_TRADING_INITIAL_BALANCE = float(os.getenv('PAPER_TRADING_INITIAL_BALANCE', '50000.0'))  # $50,000 USDT
-
-# Historical Training Configuration (Pre-entrenar modelo con datos pasados)
+# ML Configuration + Historical Training (Pre-entrenar modelo con datos pasados)
 ENABLE_HISTORICAL_TRAINING = os.getenv('ENABLE_HISTORICAL_TRAINING', 'true').lower() == 'true'
 HISTORICAL_START_DATE = os.getenv('HISTORICAL_START_DATE', '2025-01-01')  # Solo 2025 (10 meses = más rápido y datos recientes)
 HISTORICAL_END_DATE = os.getenv('HISTORICAL_END_DATE', '2025-11-01')  # Hasta hoy
@@ -151,6 +164,7 @@ LOG_FILE = 'logs/trading_bot.log'
 # Autonomous AI System Configuration - CONTROL ABSOLUTO
 # La IA tiene poder total para modificar TODOS los parámetros sin limitaciones
 ENABLE_AUTONOMOUS_MODE = os.getenv('ENABLE_AUTONOMOUS_MODE', 'true').lower() == 'true'
+ENABLE_ML_SYSTEM = os.getenv('ENABLE_ML_SYSTEM', 'true').lower() == 'true'  # Machine Learning predictions (v2.0)
 AUTONOMOUS_AUTO_SAVE_INTERVAL = int(os.getenv('AUTONOMOUS_AUTO_SAVE_INTERVAL', '30'))  # Minutos entre auto-saves
 AUTONOMOUS_OPTIMIZATION_INTERVAL = float(os.getenv('AUTONOMOUS_OPTIMIZATION_INTERVAL', '2.0'))  # Horas entre optimizaciones
 AUTONOMOUS_MIN_TRADES_BEFORE_OPT = int(os.getenv('AUTONOMOUS_MIN_TRADES_BEFORE_OPT', '20'))  # Mínimo trades antes de optimizar
