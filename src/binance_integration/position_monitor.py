@@ -99,15 +99,18 @@ class PositionMonitor:
             # Filtrar solo posiciones abiertas
             open_positions = []
             for pos in all_positions:
-                position_amt = float(pos['positionAmt'])
-                if position_amt != 0:  # Tiene posición abierta
-                    # Debug: Log available fields
-                    logger.debug(f"Position fields available: {list(pos.keys())}")
+                # Debug: Log raw data para ver qué campos vienen de Binance
+                logger.debug(f"Raw position data: {pos}")
+                logger.debug(f"Position fields available: {list(pos.keys())}")
 
-                    # Enriquecer con datos calculados
-                    entry_price = float(pos['entryPrice'])
-                    mark_price = float(pos['markPrice'])
-                    unrealized_pnl = float(pos['unRealizedProfit'])
+                # Usar .get() para todos los campos (algunos pueden no existir)
+                position_amt = float(pos.get('positionAmt', 0))
+                if position_amt != 0:  # Tiene posición abierta
+                    # Enriquecer con datos calculados (todos con defaults seguros)
+                    entry_price = float(pos.get('entryPrice', 0))
+                    mark_price = float(pos.get('markPrice', 0))
+                    unrealized_pnl = float(pos.get('unRealizedProfit', 0))
+
                     # Intentar obtener leverage de diferentes campos posibles
                     leverage = int(pos.get('leverage', pos.get('leverageBracket', 1)))
 
@@ -120,17 +123,22 @@ class PositionMonitor:
                     else:
                         pnl_pct = 0
 
+                    # Determinar margin type (puede ser boolean 'isolated' o string 'marginType')
+                    margin_type = pos.get('marginType', 'ISOLATED')
+                    if 'isolated' in pos:
+                        margin_type = 'ISOLATED' if pos['isolated'] else 'CROSS'
+
                     enriched = {
-                        'symbol': pos['symbol'],
+                        'symbol': pos.get('symbol', 'UNKNOWN'),
                         'position_amt': position_amt,
                         'entry_price': entry_price,
                         'mark_price': mark_price,
                         'unrealized_pnl': unrealized_pnl,
                         'unrealized_pnl_pct': pnl_pct,
                         'leverage': leverage,
-                        'liquidation_price': float(pos['liquidationPrice']),
-                        'margin_type': pos['marginType'],
-                        'position_side': pos['positionSide'],
+                        'liquidation_price': float(pos.get('liquidationPrice', 0)),
+                        'margin_type': margin_type,
+                        'position_side': pos.get('positionSide', 'BOTH'),
                         'side': 'LONG' if position_amt > 0 else 'SHORT',
                         'update_time': datetime.now().isoformat(),
                         'raw_data': pos
@@ -171,7 +179,7 @@ class PositionMonitor:
         current_symbols = set()
 
         for pos in current_positions:
-            symbol = pos['symbol']
+            symbol = pos.get('symbol', 'UNKNOWN')
             current_symbols.add(symbol)
             new_positions[symbol] = pos
 
@@ -232,7 +240,7 @@ class PositionMonitor:
 
             # El trade más reciente debería ser el cierre
             last_trade = recent_trades[-1]
-            trade_time = last_trade['time']
+            trade_time = last_trade.get('time', int(time.time() * 1000))
 
             # Verificar que es reciente (últimos 10 segundos)
             current_time = int(time.time() * 1000)
@@ -261,15 +269,15 @@ class PositionMonitor:
                 'side': position.get('side', 'UNKNOWN'),
                 'quantity': abs(position.get('position_amt', 0)),
                 'entry_price': position.get('entry_price', 0),
-                'exit_price': float(last_trade['price']),
+                'exit_price': float(last_trade.get('price', 0)),
                 'realized_pnl': realized_pnl,
                 'realized_pnl_pct': (realized_pnl / (position.get('entry_price', 1) * abs(position.get('position_amt', 1)))) * 100,
                 'leverage': position.get('leverage', 1),
                 'reason': reason,
-                'trade_id': last_trade['id'],
+                'trade_id': last_trade.get('id', 0),
                 'timestamp': trade_time,
-                'commission': float(last_trade['commission']),
-                'commission_asset': last_trade['commissionAsset']
+                'commission': float(last_trade.get('commission', 0)),
+                'commission_asset': last_trade.get('commissionAsset', 'USDT')
             }
 
             return close_info
@@ -305,10 +313,10 @@ class PositionMonitor:
                 'total_unrealized_pnl_pct': 0
             }
 
-        long_positions = [p for p in positions if p['side'] == 'LONG']
-        short_positions = [p for p in positions if p['side'] == 'SHORT']
+        long_positions = [p for p in positions if p.get('side') == 'LONG']
+        short_positions = [p for p in positions if p.get('side') == 'SHORT']
 
-        total_pnl = sum(p['unrealized_pnl'] for p in positions)
+        total_pnl = sum(p.get('unrealized_pnl', 0) for p in positions)
 
         return {
             'total_positions': len(positions),
