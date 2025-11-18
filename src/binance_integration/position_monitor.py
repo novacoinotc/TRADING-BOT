@@ -156,14 +156,11 @@ class PositionMonitor:
                     # Obtener leverage real (verifica con account info si es necesario)
                     leverage = self._get_real_leverage(pos.get('symbol', 'UNKNOWN'), pos)
 
-                    # Calcular P&L%
-                    if entry_price > 0:
-                        if position_amt > 0:  # LONG
-                            pnl_pct = ((mark_price - entry_price) / entry_price) * 100 * leverage
-                        else:  # SHORT
-                            pnl_pct = ((entry_price - mark_price) / entry_price) * 100 * leverage
-                    else:
-                        pnl_pct = 0
+                    # Calcular ROE% (Return on Equity) - NO multiplicar P&L por leverage
+                    # El unrealized_pnl ya viene correcto de Binance en USDT
+                    # ROE% = (P&L / Margen Inicial) * 100
+                    initial_margin = (entry_price * abs(position_amt)) / leverage if leverage > 0 else entry_price * abs(position_amt)
+                    roe_pct = (unrealized_pnl / initial_margin) * 100 if initial_margin > 0 else 0
 
                     # Determinar margin type (puede ser boolean 'isolated' o string 'marginType')
                     margin_type = pos.get('marginType', 'ISOLATED')
@@ -175,8 +172,8 @@ class PositionMonitor:
                         'position_amt': position_amt,
                         'entry_price': entry_price,
                         'mark_price': mark_price,
-                        'unrealized_pnl': unrealized_pnl,
-                        'unrealized_pnl_pct': pnl_pct,
+                        'unrealized_pnl': unrealized_pnl,  # P&L en USDT (absoluto, de Binance)
+                        'unrealized_pnl_pct': roe_pct,  # ROE% (retorno sobre margen inicial)
                         'leverage': leverage,
                         'liquidation_price': float(pos.get('liquidationPrice', 0)),
                         'margin_type': margin_type,
@@ -306,15 +303,23 @@ class PositionMonitor:
             reason = 'AUTO_CLOSE'  # Por defecto
 
             # Construir info del cierre
+            entry_price = position.get('entry_price', 1)
+            quantity = abs(position.get('position_amt', 1))
+            leverage = position.get('leverage', 1)
+
+            # Calcular ROE% correctamente (P&L / Margen Inicial)
+            initial_margin = (entry_price * quantity) / leverage if leverage > 0 else entry_price * quantity
+            roe_pct = (realized_pnl / initial_margin) * 100 if initial_margin > 0 else 0
+
             close_info = {
                 'symbol': symbol,
                 'side': position.get('side', 'UNKNOWN'),
-                'quantity': abs(position.get('position_amt', 0)),
-                'entry_price': position.get('entry_price', 0),
+                'quantity': quantity,
+                'entry_price': entry_price,
                 'exit_price': float(last_trade.get('price', 0)),
-                'realized_pnl': realized_pnl,
-                'realized_pnl_pct': (realized_pnl / (position.get('entry_price', 1) * abs(position.get('position_amt', 1)))) * 100,
-                'leverage': position.get('leverage', 1),
+                'realized_pnl': realized_pnl,  # P&L en USDT (absoluto, de Binance)
+                'realized_pnl_pct': roe_pct,  # ROE% (retorno sobre margen inicial)
+                'leverage': leverage,
                 'reason': reason,
                 'trade_id': last_trade.get('id', 0),
                 'timestamp': trade_time,

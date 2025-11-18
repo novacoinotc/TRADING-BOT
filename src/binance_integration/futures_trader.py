@@ -497,16 +497,19 @@ class FuturesTrader:
                 f"   Status: {close_order.get('status', 'UNKNOWN')}"
             )
 
-            # Calcular P&L
+            # Calcular P&L (NO multiplicar por leverage según docs oficiales Binance)
             entry_price = float(position.get('entryPrice', 0))
             if current_side == 'LONG':
                 pnl = (exit_price - entry_price) * quantity
             else:  # SHORT
                 pnl = (entry_price - exit_price) * quantity
 
-            # Aplicar leverage (intentar ambos campos posibles)
-            leverage = int(position.get('leverage', position.get('leverageBracket', 1)))
-            pnl_leveraged = pnl * leverage
+            # Obtener leverage (solo para calcular ROE%)
+            leverage = int(position.get('leverage', 1))
+
+            # Calcular ROE% (Return on Equity) - el leverage SÍ afecta esto
+            initial_margin = (entry_price * quantity) / leverage if leverage > 0 else entry_price * quantity
+            roe_pct = (pnl / initial_margin) * 100 if initial_margin > 0 else 0
 
             close_info = {
                 'symbol': symbol,
@@ -514,8 +517,8 @@ class FuturesTrader:
                 'quantity': quantity,
                 'entry_price': entry_price,
                 'exit_price': exit_price,
-                'pnl': pnl_leveraged,
-                'pnl_pct': (pnl / entry_price) * 100 * leverage if entry_price > 0 else 0,
+                'pnl': pnl,  # P&L en USDT (absoluto, SIN multiplicar por leverage)
+                'pnl_pct': roe_pct,  # ROE% (retorno sobre margen inicial)
                 'leverage': leverage,
                 'order_id': close_order.get('orderId', 0),
                 'reason': reason,
@@ -525,7 +528,7 @@ class FuturesTrader:
             logger.info(
                 f"\n{'='*60}\n"
                 f"✅ POSITION CLOSED\n"
-                f"P&L: ${pnl_leveraged:+.2f} ({close_info['pnl_pct']:+.2f}%)\n"
+                f"P&L: ${pnl:+.2f} | ROE: {roe_pct:+.2f}% ({leverage}x leverage)\n"
                 f"{'='*60}\n"
             )
 
