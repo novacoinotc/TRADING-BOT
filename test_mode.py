@@ -22,16 +22,18 @@ class TestMode:
     - RL Agent aprende de los trades
     """
 
-    def __init__(self, futures_trader=None, position_monitor=None, notifier=None):
+    def __init__(self, futures_trader=None, position_monitor=None, notifier=None, autonomy_controller=None):
         """
         Args:
             futures_trader: Instancia de FuturesTrader
             position_monitor: Instancia de PositionMonitor
             notifier: Instancia de TelegramNotifier
+            autonomy_controller: Instancia de AutonomyController (para notificar P&L correcto al RL Agent)
         """
         self.futures_trader = futures_trader
         self.position_monitor = position_monitor
         self.notifier = notifier
+        self.autonomy_controller = autonomy_controller
 
         # Estado del modo de prueba
         self.running = False
@@ -229,6 +231,34 @@ class TestMode:
 
                 logger.info(f"✅ Posición cerrada @ ${exit_price:,.2f}")
                 logger.info(f"💰 P&L: ${realized_pnl:+.2f}")
+
+                # CRÍTICO: Notificar autonomy_controller DIRECTAMENTE con el P&L CORRECTO
+                # Esto evita que el RL Agent aprenda el P&L incorrecto del position_monitor
+                if self.autonomy_controller:
+                    try:
+                        # Construir closed_info con el P&L REAL del test
+                        test_closed_info = {
+                            'symbol': symbol,
+                            'side': 'LONG' if side == 'BUY' else 'SHORT',
+                            'realized_pnl': realized_pnl,  # P&L REAL del test
+                            'realized_pnl_pct': close_result.get('pnl_pct', 0),  # ROE%
+                            'leverage': leverage,
+                            'entry_price': entry_price,
+                            'exit_price': exit_price,
+                            'quantity': quantity,
+                            'reason': 'Test mode auto-close',
+                            'trade_id': f"test_{self.total_trades + 1}"
+                        }
+
+                        # Calcular reward (P&L en USDT)
+                        reward = realized_pnl
+
+                        # Notificar directamente al RL Agent
+                        self.autonomy_controller.update_from_trade_result(test_closed_info, reward)
+
+                        logger.info(f"✅ RL Agent notificado con P&L CORRECTO: ${realized_pnl:+.2f}")
+                    except Exception as e:
+                        logger.error(f"❌ Error notificando RL Agent: {e}", exc_info=True)
 
                 # 5. Actualizar estadísticas
                 self.total_trades += 1
