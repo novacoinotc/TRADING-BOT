@@ -189,9 +189,9 @@ class TestMode:
                     take_profit_pct=3.0  # 3% TP
                 )
 
-                # Verificar éxito: futures_trader devuelve dict con 'market_order_id' si exitoso
-                if not result or (not result.get('success') and not result.get('market_order_id')):
-                    error_msg = result.get('error', 'Unknown error') if result else 'No result'
+                # Verificar éxito: futures_trader devuelve dict con 'symbol' si exitoso
+                if not result or 'symbol' not in result:
+                    error_msg = result.get('error', 'Unknown error') if isinstance(result, dict) else 'No result'
                     logger.error(f"❌ Error abriendo posición: {error_msg}")
                     return
 
@@ -218,14 +218,14 @@ class TestMode:
                     reason="Test mode auto-close"
                 )
 
-                # Verificar éxito: futures_trader devuelve dict con datos si exitoso
-                if not close_result or (not close_result.get('success') and not close_result.get('exit_price')):
-                    error_msg = close_result.get('error', 'Unknown error') if close_result else 'No result'
+                # Verificar éxito: futures_trader devuelve dict con 'symbol' si exitoso
+                if not close_result or 'symbol' not in close_result:
+                    error_msg = close_result.get('error', 'Unknown error') if isinstance(close_result, dict) else 'No result'
                     logger.error(f"❌ Error cerrando posición: {error_msg}")
                     return
 
                 exit_price = close_result.get('exit_price', 0)
-                realized_pnl = close_result.get('realized_pnl', 0)
+                realized_pnl = close_result.get('pnl', 0)  # P&L en USDT (absoluto)
 
                 logger.info(f"✅ Posición cerrada @ ${exit_price:,.2f}")
                 logger.info(f"💰 P&L: ${realized_pnl:+.2f}")
