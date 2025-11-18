@@ -119,3 +119,68 @@ async def get_status() -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error in /api/status: {e}", exc_info=True)
         return {'error': str(e), 'timestamp': datetime.now().isoformat()}
+
+
+@app.get("/portfolio")
+async def get_portfolio() -> Dict[str, Any]:
+    """
+    Retorna portfolio con historial de trades cerrados
+    """
+    try:
+        if not _market_monitor:
+            return {"error": "Bot not initialized"}
+
+        closed_trades = []
+
+        # Intentar obtener trades cerrados del position_monitor
+        try:
+            if hasattr(_market_monitor, 'position_monitor') and _market_monitor.position_monitor:
+                # Si el position_monitor tiene un atributo de closed_trades
+                if hasattr(_market_monitor.position_monitor, 'closed_trades'):
+                    closed_trades_raw = _market_monitor.position_monitor.closed_trades
+
+                    # Convertir a formato del dashboard
+                    for trade in closed_trades_raw:
+                        closed_trades.append({
+                            'id': trade.get('id', len(closed_trades)),
+                            'symbol': trade.get('symbol', 'UNKNOWN'),
+                            'side': trade.get('side', 'LONG'),
+                            'leverage': trade.get('leverage', 1),
+                            'pnl': trade.get('realized_pnl', 0),
+                            'pnl_pct': trade.get('realized_pnl_pct', 0),
+                            'timestamp': trade.get('close_time', datetime.now().isoformat())
+                        })
+        except Exception as e:
+            logger.error(f"Error getting closed trades: {e}")
+
+        # Si no hay historial, generar datos de ejemplo (opcional - comentar si no quieres)
+        # if len(closed_trades) == 0:
+        #     # Datos de ejemplo para testing del dashboard
+        #     import random
+        #     symbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT']
+        #     for i in range(5):
+        #         pnl = random.uniform(-20, 30)
+        #         closed_trades.append({
+        #             'id': i,
+        #             'symbol': random.choice(symbols),
+        #             'side': random.choice(['LONG', 'SHORT']),
+        #             'leverage': random.choice([2, 3]),
+        #             'pnl': pnl,
+        #             'pnl_pct': pnl / 50 * 100,
+        #             'timestamp': datetime.now().isoformat()
+        #         })
+
+        return {
+            'status': 'success',
+            'timestamp': datetime.now().isoformat(),
+            'closed_trades': closed_trades,
+            'total_trades': len(closed_trades)
+        }
+
+    except Exception as e:
+        logger.error(f"Error in /portfolio: {e}", exc_info=True)
+        return {
+            'error': str(e),
+            'timestamp': datetime.now().isoformat(),
+            'closed_trades': []
+        }

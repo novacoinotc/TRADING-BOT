@@ -28,6 +28,9 @@ if config.ENABLE_AUTONOMOUS_MODE:
     from src.autonomous.autonomy_controller import AutonomyController
     from src.telegram_commands import TelegramCommands
 
+# Import test mode
+from test_mode import TestMode
+
 
 async def send_bot_status_message(monitor):
     """
@@ -327,16 +330,25 @@ async def main():
             await autonomy_controller.initialize()
             logger.info("✅ Sistema Autónomo activo - IA tiene control total")
 
+            # Initialize Test Mode
+            test_mode = TestMode(
+                futures_trader=monitor.futures_trader if hasattr(monitor, 'futures_trader') else None,
+                position_monitor=monitor.position_monitor if hasattr(monitor, 'position_monitor') else None,
+                notifier=monitor.notifier if hasattr(monitor, 'notifier') else None
+            )
+            logger.info("🧪 Test Mode inicializado")
+
             # Initialize Telegram Commands Handler
             telegram_commands = TelegramCommands(
                 autonomy_controller=autonomy_controller,
                 telegram_token=config.TELEGRAM_BOT_TOKEN,
                 chat_id=config.TELEGRAM_CHAT_ID,
-                market_monitor=monitor  # Para acceso al ML System
+                market_monitor=monitor,  # Para acceso al ML System
+                test_mode=test_mode  # Para comandos de prueba
             )
             monitor.telegram_commands = telegram_commands
             await telegram_commands.start_command_listener()
-            logger.info("📱 Telegram Commands activos: /export, /import, /status, /stats, /params, /train_ml")
+            logger.info("📱 Telegram Commands activos: /export, /import, /status, /stats, /params, /train_ml, /test_start, /test_stop, /test_status")
 
         # ===== INICIAR API PARA DASHBOARD =====
         try:

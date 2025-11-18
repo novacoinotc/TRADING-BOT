@@ -19,16 +19,18 @@ class TelegramCommands:
     - /status: Status del sistema autónomo
     """
 
-    def __init__(self, autonomy_controller=None, telegram_token: str = None, chat_id: str = None, market_monitor=None):
+    def __init__(self, autonomy_controller=None, telegram_token: str = None, chat_id: str = None, market_monitor=None, test_mode=None):
         """
         Args:
             autonomy_controller: Instancia del AutonomyController
             telegram_token: Token del bot de Telegram
             chat_id: Chat ID para enviar mensajes proactivos
             market_monitor: Instancia del MarketMonitor (para ML System)
+            test_mode: Instancia del TestMode (para pruebas automáticas)
         """
         self.autonomy_controller = autonomy_controller
         self.market_monitor = market_monitor
+        self.test_mode = test_mode
         self.telegram_token = telegram_token
         self.chat_id = chat_id
         self.application = None
@@ -62,6 +64,9 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("force_sync", self.force_sync_command))  # Forzar sincronización RL ↔ Paper
             self.application.add_handler(CommandHandler("pause", self.pause_command))  # Pausar análisis
             self.application.add_handler(CommandHandler("resume", self.resume_command))  # Resumir análisis
+            self.application.add_handler(CommandHandler("test_start", self.test_start_command))  # Iniciar modo prueba
+            self.application.add_handler(CommandHandler("test_stop", self.test_stop_command))  # Detener modo prueba
+            self.application.add_handler(CommandHandler("test_status", self.test_status_command))  # Estado modo prueba
             self.application.add_handler(CommandHandler("help", self.help_command))
 
             # Handler para recibir archivos (documentos)
@@ -1035,4 +1040,167 @@ class TelegramCommands:
             logger.error(f"Error en comando /resume: {e}", exc_info=True)
             await update.message.reply_text(
                 f"❌ Error reanudando análisis: {str(e)}"
+            )
+
+    async def test_start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /test_start
+        Inicia el modo de prueba automática
+        """
+        try:
+            logger.info("🧪 Comando /test_start recibido")
+
+            if not self.test_mode:
+                await update.message.reply_text(
+                    "❌ Modo de prueba no disponible\n\n"
+                    "El TestMode no está inicializado."
+                )
+                return
+
+            if self.test_mode.running:
+                await update.message.reply_text(
+                    "⚠️ El modo de prueba ya está corriendo\n\n"
+                    "Usa /test_status para ver el estado actual."
+                )
+                return
+
+            # Iniciar modo de prueba
+            success = await self.test_mode.start()
+
+            if not success:
+                await update.message.reply_text(
+                    "❌ Error iniciando modo de prueba\n\n"
+                    "Verifica los logs para más detalles."
+                )
+                return
+
+            await update.message.reply_text(
+                "🧪 **MODO DE PRUEBA INICIADO**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "⚙️ Configuración:\n"
+                f"   • Frecuencia: 1 trade cada 3 minutos\n"
+                f"   • Tamaño: ${self.test_mode.trade_amount} por trade\n"
+                f"   • Pares: {', '.join(self.test_mode.symbols)}\n"
+                f"   • Leverage: 2-3x (aleatorio)\n\n"
+                "📊 El bot ejecutará trades automáticamente.\n"
+                "   Usa /test_status para ver progreso.\n"
+                "   Usa /test_stop para detener.",
+                parse_mode='Markdown'
+            )
+
+        except Exception as e:
+            logger.error(f"Error en comando /test_start: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ Error iniciando modo de prueba: {str(e)}"
+            )
+
+    async def test_stop_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /test_stop
+        Detiene el modo de prueba
+        """
+        try:
+            logger.info("⏸️ Comando /test_stop recibido")
+
+            if not self.test_mode:
+                await update.message.reply_text(
+                    "❌ Modo de prueba no disponible"
+                )
+                return
+
+            if not self.test_mode.running:
+                await update.message.reply_text(
+                    "⚠️ El modo de prueba no está corriendo\n\n"
+                    "Usa /test_start para iniciarlo."
+                )
+                return
+
+            # Obtener estadísticas antes de detener
+            stats = self.test_mode.get_stats()
+
+            # Detener modo de prueba
+            success = self.test_mode.stop()
+
+            if not success:
+                await update.message.reply_text(
+                    "❌ Error deteniendo modo de prueba"
+                )
+                return
+
+            # Calcular métricas
+            win_rate = stats['win_rate']
+            avg_pnl = (stats['total_pnl'] / stats['total_trades']) if stats['total_trades'] > 0 else 0
+
+            await update.message.reply_text(
+                "⏸️ **MODO DE PRUEBA DETENIDO**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "📊 Resumen final:\n"
+                f"   • Trades totales: {stats['total_trades']}\n"
+                f"   • Ganadores: {stats['winners']} ({win_rate:.1f}%)\n"
+                f"   • Perdedores: {stats['losers']}\n"
+                f"   • P&L total: ${stats['total_pnl']:+.2f}\n"
+                f"   • P&L promedio: ${avg_pnl:+.2f}\n\n"
+                "✅ El bot sigue funcionando normalmente.",
+                parse_mode='Markdown'
+            )
+
+        except Exception as e:
+            logger.error(f"Error en comando /test_stop: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ Error deteniendo modo de prueba: {str(e)}"
+            )
+
+    async def test_status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /test_status
+        Muestra estado del modo de prueba
+        """
+        try:
+            logger.info("📊 Comando /test_status recibido")
+
+            if not self.test_mode:
+                await update.message.reply_text(
+                    "❌ Modo de prueba no disponible"
+                )
+                return
+
+            # Obtener estadísticas
+            stats = self.test_mode.get_stats()
+
+            if not stats['running']:
+                await update.message.reply_text(
+                    "🔴 **Modo de prueba: DETENIDO**\n\n"
+                    "Usa /test_start para iniciarlo.",
+                    parse_mode='Markdown'
+                )
+                return
+
+            # Calcular métricas
+            win_rate = stats['win_rate']
+            avg_pnl = (stats['total_pnl'] / stats['total_trades']) if stats['total_trades'] > 0 else 0
+            next_trade_min = int(stats['next_trade_in'] / 60) if stats['next_trade_in'] else 0
+            next_trade_sec = int(stats['next_trade_in'] % 60) if stats['next_trade_in'] else 0
+
+            # Emoji según P&L
+            pnl_emoji = "📈" if stats['total_pnl'] > 0 else "📉" if stats['total_pnl'] < 0 else "➖"
+
+            await update.message.reply_text(
+                "🧪 **ESTADO DEL MODO PRUEBA**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "Estado: 🟢 ACTIVO\n\n"
+                "📊 Estadísticas:\n"
+                f"   • Trades ejecutados: {stats['total_trades']}\n"
+                f"   • Ganadores: {stats['winners']} ({win_rate:.1f}%)\n"
+                f"   • Perdedores: {stats['losers']}\n"
+                f"   • P&L acumulado: {pnl_emoji} ${stats['total_pnl']:+.2f}\n"
+                f"   • P&L promedio: ${avg_pnl:+.2f}\n\n"
+                f"⏭️ Próximo trade en: ~{next_trade_min}m {next_trade_sec}s\n\n"
+                "💡 Usa /test_stop para detener.",
+                parse_mode='Markdown'
+            )
+
+        except Exception as e:
+            logger.error(f"Error en comando /test_status: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ Error obteniendo estado: {str(e)}"
             )

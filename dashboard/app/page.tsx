@@ -8,6 +8,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function Dashboard() {
   const [data, setData] = useState<any>(null);
+  const [closedTrades, setClosedTrades] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -15,10 +16,25 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/status`);
-        if (!response.ok) throw new Error('API error');
-        const json = await response.json();
-        setData(json);
+        // Fetch status
+        const statusResponse = await fetch(`${API_URL}/api/status`);
+        if (!statusResponse.ok) throw new Error('API error');
+        const statusData = await statusResponse.json();
+        setData(statusData);
+
+        // Fetch portfolio (historial de trades)
+        try {
+          const portfolioResponse = await fetch(`${API_URL}/portfolio`);
+          if (portfolioResponse.ok) {
+            const portfolioData = await portfolioResponse.json();
+            // Obtener últimas 20 operaciones cerradas, más recientes primero
+            const trades = (portfolioData.closed_trades || []).slice(-20).reverse();
+            setClosedTrades(trades);
+          }
+        } catch (portfolioErr) {
+          console.error('Error fetching portfolio:', portfolioErr);
+        }
+
         setError(null);
         setLastUpdate(new Date());
       } catch (err: any) {
@@ -32,6 +48,16 @@ export default function Dashboard() {
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Función helper para formatear fecha
+  const formatDate = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month} ${hours}:${minutes}`;
+  };
 
   if (loading) {
     return (
@@ -240,6 +266,75 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* HISTORIAL DE OPERACIONES */}
+      <Card className="bg-slate-800/50 border-slate-700 max-w-7xl mx-auto mt-6">
+        <CardHeader>
+          <CardTitle className="text-white">📜 Historial de Operaciones</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {closedTrades.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-gray-400 text-sm border-b border-slate-700">
+                    <th className="text-left py-3 px-4">#</th>
+                    <th className="text-left py-3 px-4">Par</th>
+                    <th className="text-left py-3 px-4">Tipo</th>
+                    <th className="text-left py-3 px-4">Leverage</th>
+                    <th className="text-right py-3 px-4">P&L</th>
+                    <th className="text-left py-3 px-4">Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {closedTrades.map((trade, index) => (
+                    <tr
+                      key={trade.id || index}
+                      className="border-b border-slate-700/50 hover:bg-slate-700/30 transition"
+                    >
+                      <td className="py-3 px-4 text-gray-300">{index + 1}</td>
+
+                      <td className="py-3 px-4 text-white font-semibold">{trade.symbol}</td>
+
+                      <td className="py-3 px-4">
+                        <Badge
+                          className={
+                            trade.side === 'LONG'
+                              ? 'bg-green-500/20 text-green-400 border-green-500/50'
+                              : 'bg-red-500/20 text-red-400 border-red-500/50'
+                          }
+                        >
+                          {trade.side}
+                        </Badge>
+                      </td>
+
+                      <td className="py-3 px-4 text-gray-300">{trade.leverage}x</td>
+
+                      <td className="text-right py-3 px-4">
+                        <span
+                          className={`font-bold ${
+                            trade.pnl > 0 ? 'text-green-400' : 'text-red-400'
+                          }`}
+                        >
+                          {trade.pnl > 0 ? '+' : ''}${trade.pnl.toFixed(2)}
+                        </span>
+                      </td>
+
+                      <td className="py-3 px-4 text-gray-400 text-sm">
+                        {formatDate(trade.timestamp)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              📭 Aún no hay operaciones cerradas
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
