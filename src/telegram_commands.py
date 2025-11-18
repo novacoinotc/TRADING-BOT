@@ -72,14 +72,31 @@ class TelegramCommands:
             # Handler para recibir archivos (documentos)
             self.application.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
 
-            # Iniciar polling
+            # Iniciar polling con drop_pending_updates para limpiar updates antiguos
             logger.info("✅ Telegram command listener iniciado")
             await self.application.initialize()
             await self.application.start()
-            await self.application.updater.start_polling()
+
+            # drop_pending_updates=True limpia updates pendientes de instancias anteriores
+            # Esto previene el error "Conflict: terminated by other getUpdates request"
+            await self.application.updater.start_polling(
+                drop_pending_updates=True,  # Limpiar updates antiguos
+                allowed_updates=Update.ALL_TYPES
+            )
 
         except Exception as e:
-            logger.error(f"Error iniciando command listener: {e}", exc_info=True)
+            # Manejar específicamente el error de conflicto de Telegram
+            error_msg = str(e).lower()
+            if 'conflict' in error_msg or 'getupdates' in error_msg:
+                logger.warning(
+                    "⚠️ Conflicto de Telegram Updater detectado.\n"
+                    "Esto significa que hay otra instancia del bot corriendo.\n"
+                    "El bot continuará funcionando, pero los comandos pueden no responder.\n"
+                    "SOLUCIÓN: Reinicia el contenedor completamente para matar instancias duplicadas.\n"
+                    f"Error original: {e}"
+                )
+            else:
+                logger.error(f"❌ Error iniciando command listener: {e}", exc_info=True)
 
     async def stop_command_listener(self):
         """Detiene el listener de comandos"""
