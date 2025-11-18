@@ -26,6 +26,8 @@ def _sanitize_for_json(obj):
         return obj.tolist()
     elif isinstance(obj, (np.integer, np.floating)):
         return float(obj)
+    elif isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
     elif isinstance(obj, dict):
         return {k: _sanitize_for_json(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):

@@ -983,13 +983,29 @@ class MarketMonitor:
                                 take_profit_pct = 3.0  # Default 3%
 
                                 if 'stop_loss' in signals and signals['stop_loss']:
-                                    # Calcular % desde el precio actual
+                                    # Manejar si es dict o float
                                     sl_price = signals['stop_loss']
-                                    stop_loss_pct = abs((sl_price - current_price) / current_price * 100)
+                                    if isinstance(sl_price, dict):
+                                        # Si es dict, tomar el valor 'price' o 'value'
+                                        sl_price = sl_price.get('price', sl_price.get('value', current_price))
+
+                                    # Validar que sl_price sea numérico
+                                    if isinstance(sl_price, (int, float)) and sl_price > 0:
+                                        stop_loss_pct = abs((sl_price - current_price) / current_price * 100)
+                                    else:
+                                        logger.warning(f"⚠️ stop_loss inválido: {sl_price}, usando default 2%")
+                                        stop_loss_pct = 2.0
 
                                 if 'take_profit' in signals and signals['take_profit']:
                                     tp_price = signals['take_profit']
-                                    take_profit_pct = abs((tp_price - current_price) / current_price * 100)
+                                    if isinstance(tp_price, dict):
+                                        tp_price = tp_price.get('price', tp_price.get('value', current_price))
+
+                                    if isinstance(tp_price, (int, float)) and tp_price > 0:
+                                        take_profit_pct = abs((tp_price - current_price) / current_price * 100)
+                                    else:
+                                        logger.warning(f"⚠️ take_profit inválido: {tp_price}, usando default 3%")
+                                        take_profit_pct = 3.0
 
                                 # Determinar leverage desde signals o usar default
                                 leverage = signals.get('leverage', config.DEFAULT_LEVERAGE)
