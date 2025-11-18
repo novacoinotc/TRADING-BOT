@@ -12,7 +12,6 @@ from src.ml.predictor import MLPredictor
 from src.ml.model_trainer import ModelTrainer
 from src.ml.feature_engineer import FeatureEngineer
 from src.ml.optimizer import AutoOptimizer
-from src.trading.paper_trader import PaperTrader
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +39,15 @@ class MLIntegration:
         self.feature_engineer = FeatureEngineer()
         self.optimizer = AutoOptimizer()
 
-        # Paper Trading (opcional en v2.0)
+        # Paper Trading (opcional en v2.0 - import condicional)
         if initial_balance is not None:
-            self.paper_trader = PaperTrader(initial_balance=initial_balance)
-            logger.info(f"   Paper Trading habilitado: ${initial_balance:,.2f} USDT")
+            try:
+                from src.trading.paper_trader import PaperTrader
+                self.paper_trader = PaperTrader(initial_balance=initial_balance)
+                logger.info(f"   Paper Trading habilitado: ${initial_balance:,.2f} USDT")
+            except ImportError:
+                logger.warning("⚠️ PaperTrader no disponible (eliminado en v2.0), usando solo Binance")
+                self.paper_trader = None
         else:
             self.paper_trader = None
             logger.info("   Paper Trading deshabilitado (v2.0: usando Binance real)")
