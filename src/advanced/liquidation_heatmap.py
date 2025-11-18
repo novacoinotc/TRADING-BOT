@@ -144,13 +144,25 @@ class LiquidationHeatmap:
         liquidations = {}
 
         try:
-            if 'data' in data:
-                for level in data['data']:
-                    price = float(level.get('price', 0))
-                    volume = float(level.get('volume', 0))
+            # Validar que data existe y tiene el campo 'data'
+            if data and isinstance(data, dict) and 'data' in data:
+                data_list = data['data']
 
-                    if volume >= self.min_liquidation_volume:
-                        liquidations[price] = volume
+                # Validar que data['data'] es iterable y no None
+                if data_list is not None and isinstance(data_list, (list, tuple)):
+                    for level in data_list:
+                        if not isinstance(level, dict):
+                            continue
+
+                        price = float(level.get('price', 0))
+                        volume = float(level.get('volume', 0))
+
+                        if volume >= self.min_liquidation_volume:
+                            liquidations[price] = volume
+                else:
+                    logger.warning(f"⚠️ Liquidation data['data'] is not iterable for {pair}: {type(data_list)}")
+            else:
+                logger.warning(f"⚠️ Invalid liquidation data format for {pair}: {type(data)}")
 
             self.liquidation_data[pair] = liquidations
 

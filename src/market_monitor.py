@@ -652,6 +652,14 @@ class MarketMonitor:
                     # LOG DETALLADO DEL ARSENAL
                     logger.info(f"  📊 ARSENAL AVANZADO ({pair}):")
 
+                    # VALIDACIÓN FINAL: Asegurar que son diccionarios antes de acceder
+                    if not isinstance(arsenal_ml_features_preview, dict):
+                        logger.warning(f"  ⚠️ arsenal_ml_features_preview no es dict en logging: {type(arsenal_ml_features_preview)}")
+                        arsenal_ml_features_preview = {}
+                    if not isinstance(arsenal_rl_extensions_preview, dict):
+                        logger.warning(f"  ⚠️ arsenal_rl_extensions_preview no es dict en logging: {type(arsenal_rl_extensions_preview)}")
+                        arsenal_rl_extensions_preview = {}
+
                     # Session Trading
                     session = arsenal_rl_extensions_preview.get('current_session', 'UNKNOWN')
                     session_mult = arsenal_rl_extensions_preview.get('session_multiplier', 1.0)

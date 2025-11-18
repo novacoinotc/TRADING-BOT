@@ -1556,8 +1556,9 @@ class AutonomyController:
             # Registrar este trade como procesado
             self._recently_processed_trades[symbol] = (current_time, realized_pnl)
 
-            # Log de cuál fuente está notificando
-            source = "Test Mode" if "test_" in closed_info.get('trade_id', '') else "Position Monitor"
+            # Log de cuál fuente está notificando (trade_id puede ser int o string)
+            trade_id = str(closed_info.get('trade_id', ''))
+            source = "Test Mode" if "test_" in trade_id else "Position Monitor"
             logger.info(f"📥 Trade notification from: {source}")
 
             # Incrementar contador global
