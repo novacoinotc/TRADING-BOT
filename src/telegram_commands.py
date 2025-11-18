@@ -67,6 +67,7 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("test_start", self.test_start_command))  # Iniciar modo prueba
             self.application.add_handler(CommandHandler("test_stop", self.test_stop_command))  # Detener modo prueba
             self.application.add_handler(CommandHandler("test_status", self.test_status_command))  # Estado modo prueba
+            self.application.add_handler(CommandHandler("validarends", self.validarends_command))  # Validar endpoints Binance
             self.application.add_handler(CommandHandler("help", self.help_command))
 
             # Handler para recibir archivos (documentos)
@@ -315,10 +316,17 @@ class TelegramCommands:
                 "  ├─ Sincroniza: trades, win rate, procesados, all-time\n"
                 "  ├─ Ajusta RL Agent automáticamente\n"
                 "  └─ Útil si /stats muestra desincronización ⚠️\n\n"
+                "/validarends\n"
+                "  ├─ Valida TODOS los endpoints de Binance\n"
+                "  ├─ Ejecuta 17 tests de conectividad y autenticación\n"
+                "  ├─ Verifica trading, balance, positions, etc.\n"
+                "  ├─ ⚙️ REQUERIDO antes de pasar a producción\n"
+                "  └─ Te dice si estás listo para trading real 🚀\n\n"
                 "/help\n"
                 "  └─ Muestra este mensaje\n\n"
                 "**Auto-Backup**: Cada 24h automático\n"
                 "**Flujo**: /export antes de redeploy → /import después → /train_ml\n"
+                "**Producción**: /validarends para verificar endpoints antes de ir LIVE\n"
                 "**Emergencia**: Si /import falla → /import_force"
             )
 
@@ -1226,4 +1234,99 @@ class TelegramCommands:
             logger.error(f"Error en comando /test_status: {e}", exc_info=True)
             await update.message.reply_text(
                 f"❌ Error obteniendo estado: {str(e)}"
+            )
+
+    async def validarends_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /validarends
+        Valida TODOS los endpoints de Binance necesarios para trading
+        """
+        try:
+            logger.info("🔍 Comando /validarends recibido")
+
+            # Enviar mensaje inicial
+            await update.message.reply_text(
+                "🔍 **VALIDANDO ENDPOINTS DE BINANCE**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "⏳ Ejecutando 17 tests de validación...\n"
+                "Esto tomará ~10-15 segundos",
+                parse_mode='Markdown'
+            )
+
+            # Verificar que market_monitor esté disponible
+            if not hasattr(self, 'market_monitor') or not self.market_monitor:
+                await update.message.reply_text(
+                    "❌ **Market Monitor no disponible**\n\n"
+                    "No se puede acceder a las credenciales de Binance."
+                )
+                return
+
+            # Obtener credenciales de Binance desde market_monitor
+            binance_client = self.market_monitor.binance_client
+            if not binance_client:
+                await update.message.reply_text(
+                    "❌ **Binance Client no disponible**\n\n"
+                    "El bot no tiene conexión con Binance."
+                )
+                return
+
+            # Importar validador
+            from src.validators.endpoint_validator import BinanceEndpointValidator
+
+            # Crear instancia del validador
+            validator = BinanceEndpointValidator(
+                api_key=binance_client.api_key,
+                api_secret=binance_client.api_secret,
+                base_url=binance_client.base_url
+            )
+
+            # Ejecutar todos los tests
+            results = validator.run_all_tests()
+
+            # Formatear mensaje de resultados
+            if results['ready_for_production']:
+                header = "✅ **VALIDACIÓN COMPLETADA - LISTO PARA PRODUCCIÓN**\n"
+                header_emoji = "🎉"
+            else:
+                header = "⚠️ **VALIDACIÓN COMPLETADA - REQUIERE ATENCIÓN**\n"
+                header_emoji = "⚠️"
+
+            message = (
+                f"{header_emoji} {header}"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                f"📊 **Resumen:**\n"
+                f"   • Total tests: {results['total']}\n"
+                f"   • ✅ Pasados: {results['passed']}\n"
+                f"   • ❌ Fallidos: {results['failed']}\n"
+                f"   • Tasa de éxito: {results['success_rate']:.1f}%\n\n"
+            )
+
+            # Mostrar tests fallidos si hay
+            if results['failed'] > 0:
+                message += "❌ **Tests Fallidos:**\n"
+                for test in results['failed_tests'][:10]:  # Máximo 10
+                    # Extraer nombre corto del test
+                    test_name = test.replace('_', ' ').title()
+                    message += f"   • {test_name}\n"
+
+                if len(results['failed_tests']) > 10:
+                    message += f"   ... y {len(results['failed_tests']) - 10} más\n"
+
+                message += "\n⚠️ **Acción requerida:**\n"
+                message += "Revisa los logs para ver detalles de los errores\n\n"
+
+            # Estado final
+            if results['ready_for_production']:
+                message += "🎯 **ESTADO: LISTO PARA PRODUCCIÓN**\n"
+                message += "Todos los endpoints críticos funcionan correctamente"
+            else:
+                message += "⚠️ **ESTADO: NO LISTO PARA PRODUCCIÓN**\n"
+                message += "Resuelve los endpoints fallidos antes de pasar a producción"
+
+            await update.message.reply_text(message, parse_mode='Markdown')
+
+        except Exception as e:
+            logger.error(f"Error en comando /validarends: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ **Error ejecutando validación**\n\n{str(e)}"
             )
