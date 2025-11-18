@@ -281,22 +281,49 @@ class PositionMonitor:
             last_trade = recent_trades[-1]
             trade_time = last_trade.get('time', int(time.time() * 1000))
 
+            # Obtener exit price (puede estar en 'price' o 'avgPrice')
+            exit_price = float(last_trade.get('price', last_trade.get('avgPrice', 0)))
+            logger.debug(f"Exit price del trade: ${exit_price:,.2f}")
+
             # Verificar que es reciente (últimos 10 segundos)
             current_time = int(time.time() * 1000)
             if (current_time - trade_time) > 10000:  # Más de 10 segundos
                 logger.warning(f"⚠️ Last trade for {symbol} is old ({(current_time - trade_time)/1000}s ago)")
 
             # Obtener P&L realizado desde income history
+            # CRÍTICO: Usar startTime/endTime para obtener el income correcto
             try:
+                # Buscar REALIZED_PNL en los últimos 60 segundos
+                end_time = int(time.time() * 1000)
+                start_time = end_time - 60000  # Últimos 60 segundos
+
                 income = self.client.get_income_history(
                     symbol=symbol,
                     income_type='REALIZED_PNL',
-                    limit=1
+                    limit=10,
+                    start_time=start_time,
+                    end_time=end_time
                 )
 
-                realized_pnl = float(income[0]['income']) if income else 0
-            except:
+                # Encontrar el income más reciente para este símbolo
+                realized_pnl = 0
+                if income:
+                    # Ordenar por timestamp descendente y tomar el más reciente
+                    income_sorted = sorted(income, key=lambda x: x.get('time', 0), reverse=True)
+                    if income_sorted:
+                        realized_pnl = float(income_sorted[0]['income'])
+                        logger.debug(f"P&L obtenido de income history: ${realized_pnl:+.2f}")
+
+                # Si no se encontró, calcular desde unrealized_pnl
+                if realized_pnl == 0 and position.get('unrealized_pnl', 0) != 0:
+                    realized_pnl = position.get('unrealized_pnl', 0)
+                    logger.debug(f"P&L calculado desde unrealized: ${realized_pnl:+.2f}")
+
+            except Exception as e:
+                logger.warning(f"⚠️ Error obteniendo income history: {e}")
+                # Fallback: usar unrealized_pnl del position
                 realized_pnl = position.get('unrealized_pnl', 0)
+                logger.debug(f"P&L fallback desde unrealized: ${realized_pnl:+.2f}")
 
             # Determinar razón del cierre (SL, TP, MANUAL, etc.)
             # Esto se puede mejorar consultando las órdenes canceladas/ejecutadas
@@ -316,7 +343,7 @@ class PositionMonitor:
                 'side': position.get('side', 'UNKNOWN'),
                 'quantity': quantity,
                 'entry_price': entry_price,
-                'exit_price': float(last_trade.get('price', 0)),
+                'exit_price': exit_price,  # Ya calculado arriba con fallbacks
                 'realized_pnl': realized_pnl,  # P&L en USDT (absoluto, de Binance)
                 'realized_pnl_pct': roe_pct,  # ROE% (retorno sobre margen inicial)
                 'leverage': leverage,
@@ -326,6 +353,12 @@ class PositionMonitor:
                 'commission': float(last_trade.get('commission', 0)),
                 'commission_asset': last_trade.get('commissionAsset', 'USDT')
             }
+
+            logger.info(
+                f"📊 Close info calculado: "
+                f"Entry=${entry_price:.2f}, Exit=${exit_price:.2f}, "
+                f"P&L=${realized_pnl:+.2f} ({roe_pct:+.2f}%)"
+            )
 
             return close_info
 

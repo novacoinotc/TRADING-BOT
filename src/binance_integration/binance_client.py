@@ -158,13 +158,20 @@ class BinanceClient:
                 error_msg = data.get('msg', 'Unknown error')
                 error_desc = get_error_description(error_code)
 
-                logger.error(
-                    f"❌ Binance API Error:\n"
-                    f"   Code: {error_code}\n"
-                    f"   Message: {error_msg}\n"
-                    f"   Description: {error_desc}\n"
-                    f"   Endpoint: {endpoint}"
-                )
+                # Error -4046 es informativo (margin type ya configurado), no es un error real
+                if error_code == -4046:
+                    logger.info(
+                        f"ℹ️ Binance Info (Code {error_code}): {error_msg}"
+                    )
+                else:
+                    # Otros errores sí son verdaderos errores
+                    logger.error(
+                        f"❌ Binance API Error:\n"
+                        f"   Code: {error_code}\n"
+                        f"   Message: {error_msg}\n"
+                        f"   Description: {error_desc}\n"
+                        f"   Endpoint: {endpoint}"
+                    )
 
                 # Manejar errores específicos
                 if error_code == -1021:  # Timestamp out of sync
