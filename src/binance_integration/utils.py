@@ -135,12 +135,15 @@ def round_step_size(quantity: float, step_size: float) -> float:
     """
     Redondea cantidad al stepSize del símbolo
 
+    CRÍTICO: Usa round() y precisión para evitar errores de punto flotante
+    que causan error -1111 en Binance.
+
     Args:
         quantity: Cantidad a redondear
         step_size: Step size del símbolo
 
     Returns:
-        float: Cantidad redondeada
+        float: Cantidad redondeada exactamente al step_size
 
     Example:
         >>> round_step_size(0.123456, 0.001)
@@ -148,27 +151,49 @@ def round_step_size(quantity: float, step_size: float) -> float:
         >>> round_step_size(0.123456, 0.01)
         0.12
     """
-    return math.floor(quantity / step_size) * step_size
+    # Calcular número de decimales necesarios basado en step_size
+    if step_size >= 1:
+        decimals = 0
+    else:
+        # Contar decimales del step_size
+        decimals = len(str(step_size).rstrip('0').split('.')[-1])
+
+    # Redondear hacia abajo (floor) pero con precisión correcta
+    # Esto elimina errores de punto flotante
+    return round(math.floor(quantity / step_size) * step_size, decimals)
 
 
 def round_tick_size(price: float, tick_size: float) -> float:
     """
     Redondea precio al tickSize del símbolo
 
+    CRÍTICO: Usa round() en lugar de floor() para evitar errores de precisión
+    de punto flotante que causan error -1111 en Binance.
+
     Args:
         price: Precio a redondear
         tick_size: Tick size del símbolo
 
     Returns:
-        float: Precio redondeado
+        float: Precio redondeado exactamente al tick_size
 
     Example:
         >>> round_tick_size(1234.5678, 0.01)
-        1234.56
-        >>> round_tick_size(1234.5678, 0.1)
-        1234.5
+        1234.57
+        >>> round_tick_size(88360.70000000001, 0.01)
+        88360.70  # SIN errores de punto flotante
     """
-    return math.floor(price / tick_size) * tick_size
+    # Calcular número de decimales necesarios basado en tick_size
+    # Ejemplo: tick_size=0.01 -> 2 decimales, tick_size=0.1 -> 1 decimal
+    if tick_size >= 1:
+        decimals = 0
+    else:
+        # Contar decimales del tick_size
+        decimals = len(str(tick_size).rstrip('0').split('.')[-1])
+
+    # Redondear a la precisión correcta y devolver float
+    # Esto elimina el problema de 88360.70000000001
+    return round(round(price / tick_size) * tick_size, decimals)
 
 
 def format_quantity(quantity: float, precision: int = 8) -> str:
@@ -271,6 +296,7 @@ def get_error_description(error_code: int) -> str:
         -1104: "Unread parameters",
         -1105: "Empty parameter",
         -1106: "Parameter not required",
+        -1111: "Precision too high (too many decimals in price/quantity)",
         -2010: "Insufficient balance",
         -2011: "Margin call",
         -2013: "No such order",
@@ -282,6 +308,7 @@ def get_error_description(error_code: int) -> str:
         -4003: "Price less than or equal to stop price",
         -4004: "Price greater than or equal to stop price",
         -4044: "Order would immediately trigger",
+        -4046: "No need to change margin type (already set)",
         -4164: "Position side does not match user settings",
     }
 
