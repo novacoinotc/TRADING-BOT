@@ -29,6 +29,10 @@ AUTO_TRADE = os.getenv('AUTO_TRADE', 'true').lower() == 'true'  # Enable/disable
 DEFAULT_LEVERAGE = int(os.getenv('DEFAULT_LEVERAGE', '3'))  # Default leverage for futures (1-125x)
 USE_ISOLATED_MARGIN = os.getenv('USE_ISOLATED_MARGIN', 'true').lower() == 'true'  # Use isolated margin (recommended)
 
+# Trade Amounts (USDT)
+TRADE_AMOUNT_USDT = float(os.getenv('TRADE_AMOUNT_USDT', '100.0'))  # Amount in USDT per regular trade
+FLASH_TRADE_AMOUNT_USDT = float(os.getenv('FLASH_TRADE_AMOUNT_USDT', '50.0'))  # Amount for flash trades
+
 # Proxy Configuration (Required for Binance on Railway/datacenter IPs)
 # Get proxy from: Webshare.io, Smartproxy, Bright Data, etc.
 USE_PROXY = os.getenv('USE_PROXY', 'true').lower() == 'true'

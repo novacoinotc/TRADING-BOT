@@ -282,6 +282,15 @@ async def main():
     try:
         monitor = MarketMonitor()
 
+        # v2.0: Iniciar Position Monitor si está disponible
+        if hasattr(monitor, 'position_monitor') and monitor.position_monitor:
+            try:
+                logger.info("🚀 Iniciando Position Monitor...")
+                monitor.position_monitor.start_background_monitoring()
+                logger.info("✅ Position Monitor iniciado - monitoreando posiciones cada 5s")
+            except Exception as e:
+                logger.error(f"❌ Error iniciando Position Monitor: {e}")
+
         # Initialize Autonomous AI System if enabled
         autonomy_controller = None
         telegram_commands = None

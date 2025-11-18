@@ -242,6 +242,30 @@ class MarketMonitor:
         except Exception as e:
             logger.error(f"❌ Error notifying trade closed: {e}")
 
+    async def _notify_trade_opened(self, trade_info: Dict):
+        """Notifica a Telegram que se abrió un trade"""
+        try:
+            # Detectar si es flash trade
+            is_flash = trade_info.get('is_flash', False)
+            emoji = "⚡" if is_flash else "🟢"
+            trade_type = "FLASH " if is_flash else ""
+
+            message = (
+                f"{emoji} **TRADE {trade_type}ABIERTO - Binance Futures**\n\n"
+                f"📌 Par: {trade_info['symbol']}\n"
+                f"📊 Dirección: {trade_info['side']}\n"
+                f"⚡ Leverage: {trade_info['leverage']}x\n"
+                f"💰 Entrada: ${trade_info['entry_price']:,.2f}\n"
+                f"📊 Cantidad: {trade_info['quantity']}\n"
+                f"🎯 Take Profit: ${trade_info['take_profit']:,.2f}\n"
+                f"🛡️ Stop Loss: ${trade_info['stop_loss']:,.2f}\n"
+                f"💵 USDT usado: ${trade_info['usdt_amount']:.2f}\n"
+                f"🔖 Order ID: {trade_info['market_order_id']}"
+            )
+            await self.notifier.send_message(message)
+        except Exception as e:
+            logger.error(f"❌ Error notifying trade abierto: {e}")
+
     def _auto_train_ml_if_ready(self):
         """
         Auto-entrena el ML System si hay suficientes trades históricos (40+)
@@ -880,6 +904,72 @@ class MarketMonitor:
                             # Add RL decision data
                             if rl_decision:
                                 analysis['rl_decision'] = rl_decision
+
+                        # ===== v2.0: EJECUTAR TRADE EN BINANCE FUTURES =====
+                        try:
+                            # Determinar cantidad en USDT por trade
+                            usdt_amount = getattr(config, 'TRADE_AMOUNT_USDT', 100.0)  # Default $100
+
+                            # Calcular stop loss y take profit desde signals
+                            stop_loss_pct = 2.0  # Default 2%
+                            take_profit_pct = 3.0  # Default 3%
+
+                            if 'stop_loss' in signals and signals['stop_loss']:
+                                # Calcular % desde el precio actual
+                                sl_price = signals['stop_loss']
+                                stop_loss_pct = abs((sl_price - current_price) / current_price * 100)
+
+                            if 'take_profit' in signals and signals['take_profit']:
+                                tp_price = signals['take_profit']
+                                take_profit_pct = abs((tp_price - current_price) / current_price * 100)
+
+                            # Determinar leverage desde signals o usar default
+                            leverage = signals.get('leverage', config.DEFAULT_LEVERAGE)
+
+                            # Aplicar multiplicador de RL Agent si está disponible
+                            if 'rl_position_multiplier' in signals:
+                                usdt_amount *= signals['rl_position_multiplier']
+
+                            logger.info(
+                                f"🚀 Ejecutando trade Binance: {pair} {signals['action']}\n"
+                                f"   USDT: ${usdt_amount:.2f} | Leverage: {leverage}x\n"
+                                f"   SL: {stop_loss_pct:.2f}% | TP: {take_profit_pct:.2f}%"
+                            )
+
+                            # Ejecutar trade con Binance Futures
+                            binance_result = self.futures_trader.open_position(
+                                symbol=pair.replace('/', ''),  # BTC/USDT → BTCUSDT
+                                side=signals['action'],  # 'BUY' o 'SELL'
+                                usdt_amount=usdt_amount,
+                                stop_loss_pct=stop_loss_pct,
+                                take_profit_pct=take_profit_pct,
+                                leverage=leverage,
+                                current_price=current_price
+                            )
+
+                            if binance_result:
+                                logger.info(f"✅ Trade ejecutado en Binance: {binance_result['market_order_id']}")
+
+                                # Notificar a Telegram
+                                if self.notifier:
+                                    await self._notify_trade_opened(binance_result)
+
+                                # Añadir resultado de Binance al analysis
+                                analysis['binance_trade'] = binance_result
+
+                                # Registrar en RL Agent para aprendizaje futuro
+                                if self.autonomy_controller:
+                                    try:
+                                        # El RL Agent aprenderá cuando se cierre (vía _on_position_closed)
+                                        logger.debug(f"📝 Trade registrado - aprendizaje al cerrar posición")
+                                    except Exception as e:
+                                        logger.error(f"❌ Error registrando trade en RL Agent: {e}")
+                            else:
+                                logger.error(f"❌ No se pudo ejecutar trade en Binance para {pair}")
+
+                        except Exception as e:
+                            logger.error(f"❌ Error ejecutando trade Binance en {pair}: {e}", exc_info=True)
+                        # ===== FIN EJECUCIÓN BINANCE =====
                     else:
                         logger.info(f"🤖 RL Agent bloqueó trade en {pair}: {rl_decision.get('chosen_action', 'SKIP')}")
 
@@ -1086,6 +1176,64 @@ class MarketMonitor:
                                     # Add RL decision data
                                     if rl_flash_decision:
                                         flash_analysis['rl_decision'] = rl_flash_decision
+
+                                # ===== v2.0: EJECUTAR FLASH TRADE EN BINANCE FUTURES =====
+                                try:
+                                    # Determinar cantidad en USDT (flash signals suelen usar menos)
+                                    usdt_amount = getattr(config, 'FLASH_TRADE_AMOUNT_USDT', 50.0)  # Default $50 para flash
+
+                                    # Calcular stop loss y take profit
+                                    stop_loss_pct = 2.5  # Flash = SL más amplio
+                                    take_profit_pct = 2.0  # Flash = TP más cercano
+
+                                    if 'stop_loss' in flash_signals and flash_signals['stop_loss']:
+                                        sl_price = flash_signals['stop_loss']
+                                        stop_loss_pct = abs((sl_price - flash_price) / flash_price * 100)
+
+                                    if 'take_profit' in flash_signals and flash_signals['take_profit']:
+                                        tp_price = flash_signals['take_profit']
+                                        take_profit_pct = abs((tp_price - flash_price) / flash_price * 100)
+
+                                    # Leverage para flash (menor que señales normales)
+                                    leverage = flash_signals.get('leverage', max(1, config.DEFAULT_LEVERAGE - 1))
+
+                                    # Aplicar multiplicador de RL Agent
+                                    if 'rl_position_multiplier' in flash_signals:
+                                        usdt_amount *= flash_signals['rl_position_multiplier']
+
+                                    logger.info(
+                                        f"⚡ Ejecutando FLASH trade Binance: {pair} {flash_signals['action']}\n"
+                                        f"   USDT: ${usdt_amount:.2f} | Leverage: {leverage}x\n"
+                                        f"   SL: {stop_loss_pct:.2f}% | TP: {take_profit_pct:.2f}%"
+                                    )
+
+                                    # Ejecutar trade con Binance Futures
+                                    flash_binance_result = self.futures_trader.open_position(
+                                        symbol=pair.replace('/', ''),
+                                        side=flash_signals['action'],
+                                        usdt_amount=usdt_amount,
+                                        stop_loss_pct=stop_loss_pct,
+                                        take_profit_pct=take_profit_pct,
+                                        leverage=leverage,
+                                        current_price=flash_price
+                                    )
+
+                                    if flash_binance_result:
+                                        logger.info(f"✅ Flash trade ejecutado: {flash_binance_result['market_order_id']}")
+
+                                        # Notificar a Telegram con tag de FLASH
+                                        if self.notifier:
+                                            flash_binance_result['is_flash'] = True
+                                            await self._notify_trade_opened(flash_binance_result)
+
+                                        # Añadir resultado al analysis
+                                        flash_analysis['binance_trade'] = flash_binance_result
+                                    else:
+                                        logger.error(f"❌ No se pudo ejecutar flash trade en Binance para {pair}")
+
+                                except Exception as e:
+                                    logger.error(f"❌ Error ejecutando flash trade Binance: {e}", exc_info=True)
+                                # ===== FIN EJECUCIÓN FLASH BINANCE =====
                             else:
                                 logger.info(f"🤖 RL Agent bloqueó flash trade en {pair}: {rl_flash_decision.get('chosen_action', 'SKIP')}")
 
