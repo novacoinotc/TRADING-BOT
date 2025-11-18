@@ -1064,7 +1064,20 @@ class TelegramCommands:
                 )
                 return
 
-            # Iniciar modo de prueba
+            # Responder primero a Telegram para evitar timeout
+            await update.message.reply_text(
+                "🧪 **INICIANDO MODO DE PRUEBA...**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                "⚙️ Configuración:\n"
+                f"   • Frecuencia: 1 trade cada 3 minutos\n"
+                f"   • Tamaño: ${self.test_mode.trade_amount} por trade\n"
+                f"   • Pares: {', '.join(self.test_mode.symbols)}\n"
+                f"   • Leverage: 2-3x (aleatorio)\n\n"
+                "⏳ Iniciando...",
+                parse_mode='Markdown'
+            )
+
+            # Iniciar modo de prueba (async, no bloquea respuesta)
             success = await self.test_mode.start()
 
             if not success:
@@ -1072,21 +1085,14 @@ class TelegramCommands:
                     "❌ Error iniciando modo de prueba\n\n"
                     "Verifica los logs para más detalles."
                 )
-                return
-
-            await update.message.reply_text(
-                "🧪 **MODO DE PRUEBA INICIADO**\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "⚙️ Configuración:\n"
-                f"   • Frecuencia: 1 trade cada 3 minutos\n"
-                f"   • Tamaño: ${self.test_mode.trade_amount} por trade\n"
-                f"   • Pares: {', '.join(self.test_mode.symbols)}\n"
-                f"   • Leverage: 2-3x (aleatorio)\n\n"
-                "📊 El bot ejecutará trades automáticamente.\n"
-                "   Usa /test_status para ver progreso.\n"
-                "   Usa /test_stop para detener.",
-                parse_mode='Markdown'
-            )
+            else:
+                await update.message.reply_text(
+                    "✅ **MODO DE PRUEBA INICIADO CORRECTAMENTE**\n\n"
+                    "📊 El bot ejecutará trades automáticamente.\n"
+                    "   Usa /test_status para ver progreso.\n"
+                    "   Usa /test_stop para detener.",
+                    parse_mode='Markdown'
+                )
 
         except Exception as e:
             logger.error(f"Error en comando /test_start: {e}", exc_info=True)
