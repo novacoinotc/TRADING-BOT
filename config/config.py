@@ -164,6 +164,7 @@ LOG_FILE = 'logs/trading_bot.log'
 # Autonomous AI System Configuration - CONTROL ABSOLUTO
 # La IA tiene poder total para modificar TODOS los parámetros sin limitaciones
 ENABLE_AUTONOMOUS_MODE = os.getenv('ENABLE_AUTONOMOUS_MODE', 'true').lower() == 'true'
+ENABLE_ML_SYSTEM = os.getenv('ENABLE_ML_SYSTEM', 'true').lower() == 'true'  # Machine Learning predictions (v2.0)
 AUTONOMOUS_AUTO_SAVE_INTERVAL = int(os.getenv('AUTONOMOUS_AUTO_SAVE_INTERVAL', '30'))  # Minutos entre auto-saves
 AUTONOMOUS_OPTIMIZATION_INTERVAL = float(os.getenv('AUTONOMOUS_OPTIMIZATION_INTERVAL', '2.0'))  # Horas entre optimizaciones
 AUTONOMOUS_MIN_TRADES_BEFORE_OPT = int(os.getenv('AUTONOMOUS_MIN_TRADES_BEFORE_OPT', '20'))  # Mínimo trades antes de optimizar

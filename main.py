@@ -278,6 +278,10 @@ async def main():
     logger.info(f"Check Interval: {config.CHECK_INTERVAL} seconds")
     logger.info(f"Timeframe: {config.TIMEFRAME}")
 
+    # Initialize variables before try block (para evitar UnboundLocalError en exception handlers)
+    autonomy_controller = None
+    telegram_commands = None
+
     # Initialize and start market monitor
     try:
         monitor = MarketMonitor()
@@ -292,8 +296,6 @@ async def main():
                 logger.error(f"❌ Error iniciando Position Monitor: {e}")
 
         # Initialize Autonomous AI System if enabled
-        autonomy_controller = None
-        telegram_commands = None
         if config.ENABLE_AUTONOMOUS_MODE:
             logger.info("🤖 Inicializando Sistema Autónomo - CONTROL ABSOLUTO")
             autonomy_controller = AutonomyController(
