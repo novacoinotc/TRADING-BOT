@@ -7,6 +7,8 @@ import logging
 import sys
 import warnings
 from pathlib import Path
+import threading
+import uvicorn
 
 # Suprimir warnings de NumPy sobre operaciones con NaN
 # Estos son comunes en cálculos de indicadores técnicos y no afectan funcionalidad
@@ -19,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.market_monitor import MarketMonitor
 from config import config
 from datetime import datetime
+from src.api import app, set_bot_instances
 
 # Import autonomous AI system
 if config.ENABLE_AUTONOMOUS_MODE:
@@ -334,6 +337,18 @@ async def main():
             monitor.telegram_commands = telegram_commands
             await telegram_commands.start_command_listener()
             logger.info("📱 Telegram Commands activos: /export, /import, /status, /stats, /params, /train_ml")
+
+        # ===== INICIAR API PARA DASHBOARD =====
+        try:
+            set_bot_instances(monitor, autonomy_controller)
+            api_thread = threading.Thread(
+                target=lambda: uvicorn.run(app, host="0.0.0.0", port=8000, log_level="warning"),
+                daemon=True
+            )
+            api_thread.start()
+            logger.info("✅ API iniciada en puerto 8000")
+        except Exception as e:
+            logger.error(f"⚠️ Error iniciando API: {e}")
 
         # Run historical training if enabled (pre-train ML model)
         if config.ENABLE_HISTORICAL_TRAINING:
