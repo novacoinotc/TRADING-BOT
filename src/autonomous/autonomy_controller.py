@@ -1364,7 +1364,27 @@ class AutonomyController:
         # El training_buffer contiene las features necesarias para entrenar el ML
         # Sin estas features, el ML no puede reentrenarse con los trades importados
         try:
-            if 'ml_training_buffer' in loaded and loaded['ml_training_buffer']:
+            # Intentar cargar ml_training_data primero (formato nuevo)
+            if 'ml_training_data' in loaded and loaded['ml_training_data']:
+                logger.info("🧠 Restaurando ML Training Data...")
+
+                # Verificar que tengamos acceso al ml_system
+                if hasattr(self, 'market_monitor') and self.market_monitor:
+                    if hasattr(self.market_monitor, 'ml_system') and self.market_monitor.ml_system:
+                        ml_system = self.market_monitor.ml_system
+                        training_data = loaded['ml_training_data']
+
+                        # Asignar ml_training_data al ml_system
+                        ml_system.ml_training_data = training_data
+                        logger.info(f"  ✅ ML training data restaurado: {len(training_data)} muestras")
+
+                        # También copiar a training_buffer para compatibilidad
+                        if not hasattr(ml_system, 'training_buffer') or not ml_system.training_buffer:
+                            ml_system.training_buffer = training_data
+                            logger.info(f"  ✅ Training buffer sincronizado desde ml_training_data")
+
+            # Fallback: cargar ml_training_buffer (formato antiguo)
+            elif 'ml_training_buffer' in loaded and loaded['ml_training_buffer']:
                 logger.info("🧠 Restaurando ML Training Buffer...")
 
                 # Verificar que tengamos acceso al ml_system
@@ -1375,7 +1395,10 @@ class AutonomyController:
 
                         # Restaurar training_buffer
                         ml_system.training_buffer = buffer_data
+                        # También asignar a ml_training_data para compatibilidad
+                        ml_system.ml_training_data = buffer_data
                         logger.info(f"  ✅ Training buffer restaurado: {len(buffer_data)} features")
+                        logger.info(f"  ✅ ML training data sincronizado desde buffer")
 
                         # NUEVO: Crear mapa trade_id → features para fallback
                         # Esto permite que _get_features_for_trades() encuentre features
@@ -1396,12 +1419,12 @@ class AutonomyController:
                 else:
                     logger.warning("⚠️ Market Monitor no disponible, no se puede restaurar training_buffer")
             else:
-                logger.debug("ℹ️  No se encontró 'ml_training_buffer' en el archivo importado (puede ser un export antiguo)")
+                logger.debug("ℹ️  No se encontró 'ml_training_data' ni 'ml_training_buffer' en el archivo importado")
 
         except Exception as e:
-            logger.error(f"❌ Error restaurando ML Training Buffer: {e}", exc_info=True)
+            logger.error(f"❌ Error restaurando ML Training Data/Buffer: {e}", exc_info=True)
             # No es crítico, continuar
-        # ===== FIN RESTAURAR ML TRAINING BUFFER =====
+        # ===== FIN RESTAURAR ML TRAINING DATA/BUFFER =====
 
         # ===== PARCHE DIRECTO PARA total_trades_all_time =====
         # Verificar si total_trades_all_time quedó en 0
