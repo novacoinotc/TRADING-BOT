@@ -315,16 +315,36 @@ class FuturesTrader:
                 stop_loss_price = current_price * (1 + stop_loss_pct / 100)
                 take_profit_price = current_price * (1 - take_profit_pct / 100)
 
-            # Validar y redondear precios
+            # 🔍 VALIDACIÓN CRÍTICA: Verificar distancia mínima de TP
+            min_distance_pct = 0.1  # Mínimo 0.1% de diferencia
+            actual_tp_distance = abs((take_profit_price - current_price) / current_price) * 100
+
+            if actual_tp_distance < min_distance_pct:
+                logger.warning(
+                    f"⚠️ TP demasiado cerca del entry ({actual_tp_distance:.3f}% < {min_distance_pct}%), "
+                    f"NO se colocará orden de Take Profit"
+                )
+                take_profit_price = None  # No colocar TP
+            else:
+                # Validar y redondear precio de TP
+                try:
+                    take_profit_price = self._validate_and_round_price(symbol, take_profit_price)
+                except ValueError as e:
+                    logger.error(f"❌ Invalid TP price: {e}")
+                    take_profit_price = None
+
+            # Validar y redondear precio de SL
             try:
                 stop_loss_price = self._validate_and_round_price(symbol, stop_loss_price)
-                take_profit_price = self._validate_and_round_price(symbol, take_profit_price)
             except ValueError as e:
-                logger.error(f"❌ Invalid SL/TP price: {e}")
+                logger.error(f"❌ Invalid SL price: {e}")
                 return None
 
             logger.info(f"🛑 Stop Loss: ${stop_loss_price:,.2f}")
-            logger.info(f"🎯 Take Profit: ${take_profit_price:,.2f}")
+            if take_profit_price:
+                logger.info(f"🎯 Take Profit: ${take_profit_price:,.2f}")
+            else:
+                logger.info(f"🎯 Take Profit: NO colocado (distancia < {min_distance_pct}%)")
 
             # PASO 5: Abrir posición MARKET
             logger.info(f"📤 Sending MARKET order...")
@@ -362,23 +382,31 @@ class FuturesTrader:
                 f"   Stop Price: ${stop_loss_price:,.2f}"
             )
 
-            # PASO 7: Colocar Take Profit
-            logger.info(f"📤 Placing Take Profit order...")
-            tp_order = self.client.create_order(
-                symbol=symbol,
-                side=sl_side,  # Mismo que SL
-                order_type='TAKE_PROFIT_MARKET',
-                quantity=quantity,
-                stop_price=take_profit_price,
-                position_side='BOTH',
-                reduce_only=True
-            )
+            # PASO 7: Colocar Take Profit (solo si es válido)
+            tp_order = None
+            if take_profit_price is not None:
+                logger.info(f"📤 Placing Take Profit order...")
+                try:
+                    tp_order = self.client.create_order(
+                        symbol=symbol,
+                        side=sl_side,
+                        order_type='TAKE_PROFIT_MARKET',
+                        quantity=quantity,
+                        stop_price=take_profit_price,
+                        position_side='BOTH',
+                        reduce_only=True
+                    )
 
-            logger.info(
-                f"✅ Take Profit placed!\n"
-                f"   Order ID: {tp_order['orderId']}\n"
-                f"   Stop Price: ${take_profit_price:,.2f}"
-            )
+                    logger.info(
+                        f"✅ Take Profit placed!\n"
+                        f"   Order ID: {tp_order['orderId']}\n"
+                        f"   Stop Price: ${take_profit_price:,.2f}"
+                    )
+                except BinanceAPIError as e:
+                    logger.error(f"❌ Error placing TP (no crítico): {e.message}")
+                    # NO fallar el trade por error de TP
+            else:
+                logger.warning(f"⚠️ Take Profit NO colocado (TP demasiado cerca del entry)")
 
             # Retornar información completa del trade
             trade_info = {
@@ -388,11 +416,11 @@ class FuturesTrader:
                 'quantity': quantity,
                 'entry_price': float(market_order.get('avgPrice', current_price)),
                 'stop_loss': stop_loss_price,
-                'take_profit': take_profit_price,
+                'take_profit': take_profit_price,  # Puede ser None
                 'usdt_amount': usdt_amount,
                 'market_order_id': market_order['orderId'],
                 'sl_order_id': sl_order['orderId'],
-                'tp_order_id': tp_order['orderId'],
+                'tp_order_id': tp_order['orderId'] if tp_order else None,  # Manejar None
                 'timestamp': market_order['updateTime'],
                 'status': 'OPEN'
             }

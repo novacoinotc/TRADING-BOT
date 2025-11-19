@@ -1047,6 +1047,15 @@ class MarketMonitor:
 
                                     if isinstance(tp_price, (int, float)) and tp_price > 0:
                                         take_profit_pct = abs((tp_price - current_price) / current_price * 100)
+
+                                        # 🔍 VALIDACIÓN: TP debe estar a distancia mínima
+                                        min_tp_pct = 0.2  # Mínimo 0.2% de diferencia
+                                        if take_profit_pct < min_tp_pct:
+                                            logger.warning(
+                                                f"⚠️ TP demasiado cerca del entry ({take_profit_pct:.2f}% < {min_tp_pct}%), "
+                                                f"usando default 3%"
+                                            )
+                                            take_profit_pct = 3.0
                                     else:
                                         logger.warning(f"⚠️ take_profit inválido: {tp_price}, usando default 3%")
                                         take_profit_pct = 3.0

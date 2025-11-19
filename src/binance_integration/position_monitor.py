@@ -120,18 +120,12 @@ class PositionMonitor:
         # Intentar obtener leverage del position data primero
         leverage_from_pos = int(position_data.get('leverage', 1))
 
-        # Si es 1, podría ser incorrecto - verificar con órdenes abiertas
+        # 🔍 Logging de debugging
+        logger.debug(f"🔍 Leverage detection for {symbol}: position_data={leverage_from_pos}x")
+
+        # Si es 1, podría ser incorrecto - verificar con account info
         if leverage_from_pos == 1:
             try:
-                # Consultar órdenes abiertas (SL/TP) que contienen leverage info
-                open_orders = self.client.get_open_orders(symbol)
-                if open_orders:
-                    # Las órdenes de SL/TP tienen metadata del leverage usado
-                    # Revisar si alguna orden tiene info de leverage
-                    for order in open_orders:
-                        # Binance no devuelve leverage en órdenes, así que usamos account info
-                        pass
-
                 # Consultar account info que tiene leverage por símbolo
                 account_info = self.client.get_account_info()
                 if 'positions' in account_info:
@@ -139,11 +133,13 @@ class PositionMonitor:
                         if pos.get('symbol') == symbol:
                             leverage_from_account = int(pos.get('leverage', 1))
                             if leverage_from_account > 1:
-                                logger.debug(f"Leverage corregido para {symbol}: {leverage_from_account}x (era 1x)")
+                                logger.info(f"✅ Leverage corregido para {symbol}: {leverage_from_account}x (positionRisk mostraba 1x)")
                                 return leverage_from_account
+                            else:
+                                logger.debug(f"  → account_info también muestra 1x para {symbol}")
 
             except Exception as e:
-                logger.debug(f"No se pudo verificar leverage real para {symbol}: {e}")
+                logger.warning(f"⚠️ No se pudo verificar leverage real para {symbol}: {e}")
 
         return leverage_from_pos
 
