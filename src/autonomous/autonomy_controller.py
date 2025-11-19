@@ -86,6 +86,7 @@ class AutonomyController:
 
         # Contador global de trades (nunca se resetea)
         self.total_trades_all_time = 0
+        self.max_leverage_unlocked = 1  # Inicializar leverage
 
         # Referencia a market_monitor (se asigna desde main.py)
         # Necesaria para acceder a ml_system para export/import de training_buffer
@@ -145,12 +146,11 @@ class AutonomyController:
         """
         Calcula max leverage basado en total_trades_all_time.
 
-        En v2.0 usa total_trades_all_time en lugar de paper_trading.total_trades.
-        Esto asegura que el leverage se preserve en imports/exports.
+        Returns:
+            int: Leverage máximo desbloqueado (1-20x)
         """
         total = self.total_trades_all_time
 
-        # Tabla de desbloqueo progresivo
         if total < 10:
             return 1
         elif total < 20:
@@ -808,10 +808,7 @@ class AutonomyController:
             'current_parameters': self.current_parameters,
             'total_trades_processed': self.total_trades_processed,
             'total_trades_all_time': self.total_trades_all_time,  # Contador global nunca se resetea
-            'max_leverage_unlocked': max(
-                self.max_leverage_unlocked,  # Preservar el importado
-                self._calculate_max_leverage()  # O calcular nuevo
-            ),
+            'max_leverage_unlocked': self._calculate_max_leverage(),
             'total_parameter_changes': self.total_parameter_changes,
             'last_optimization': self.last_optimization_time.isoformat(),
             'decision_mode': self.decision_mode

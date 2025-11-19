@@ -246,33 +246,34 @@ class MLIntegration:
         try:
             # Intentar obtener datos de múltiples fuentes
             training_data = []
-            features_list = []
 
-            # Fuente 1: ml_training_data (formato estándar de exports)
+            # Opción 1: ml_training_data (estándar)
             if hasattr(self, 'ml_training_data') and self.ml_training_data:
                 training_data = self.ml_training_data
                 logger.info(f"📊 Usando ml_training_data: {len(training_data)} muestras")
 
-            # Fuente 2: training_buffer (si ml_training_data está vacío)
+            # Opción 2: training_buffer
             elif hasattr(self, 'training_buffer') and self.training_buffer:
                 training_data = self.training_buffer
                 logger.info(f"📊 Usando training_buffer: {len(training_data)} muestras")
 
-            # Fuente 3: Del autonomy_controller via RL agent memory
-            elif hasattr(self, 'autonomy_controller'):
-                rl_memory = getattr(self.autonomy_controller.rl_agent, 'memory', [])
-                if rl_memory:
-                    # Convertir RL memory a formato ML
-                    training_data = []
-                    for exp in rl_memory:
-                        training_data.append({
-                            'features': exp.get('state', ''),
-                            'reward': exp.get('reward', 0),
-                            'success': exp.get('reward', 0) > 0
-                        })
-                    logger.info(f"📊 Convertido de RL memory: {len(training_data)} muestras")
+            # Opción 3: Desde autonomy_controller via RL memory
+            elif hasattr(self, 'autonomy_controller') and self.autonomy_controller:
+                rl_agent = getattr(self.autonomy_controller, 'rl_agent', None)
+                if rl_agent:
+                    rl_memory = getattr(rl_agent, 'memory', [])
+                    if rl_memory:
+                        # Convertir RL memory a formato ML
+                        for exp in rl_memory:
+                            training_data.append({
+                                'features': exp.get('state', ''),
+                                'reward': exp.get('reward', 0),
+                                'success': exp.get('reward', 0) > 0,
+                                'action': exp.get('action', 'SKIP')
+                            })
+                        logger.info(f"📊 Convertido de RL memory: {len(training_data)} muestras")
 
-            # Fuente 4 (fallback original): Paper trader trades
+            # Opción 4 (fallback): Paper trader trades
             if not training_data:
                 # Usar paper_trader externo si se proporcionó, sino usar el interno
                 paper_trader = external_paper_trader if external_paper_trader else self.paper_trader
@@ -284,17 +285,19 @@ class MLIntegration:
                     logger.info(f"📊 Portfolio closed_trades length: {len(paper_trader.portfolio.closed_trades)}")
 
                 # Obtener trades cerrados
-                closed_trades = paper_trader.get_closed_trades(limit=500)
-                logger.info(f"📊 Trades obtenidos para entrenamiento: {len(closed_trades)}")
-                training_data = closed_trades
+                training_data = paper_trader.get_closed_trades(limit=500)
+                logger.info(f"📊 Trades obtenidos para entrenamiento: {len(training_data)}")
+
+            if not training_data:
+                logger.error("❌ No se encontraron datos en ninguna fuente")
+                return
 
             if len(training_data) < self.trainer.min_samples:
                 logger.warning(f"Insuficientes trades para reentrenar: {len(training_data)}")
                 logger.warning(f"  Requerido: {self.trainer.min_samples}")
-                logger.error("❌ No hay datos históricos para entrenar")
                 return
 
-            logger.info(f"✅ Datos encontrados: {len(training_data)} muestras para entrenar")
+            logger.info(f"✅ Datos encontrados: {len(training_data)} muestras para entrenar ML")
 
             # Cargar features correspondientes desde buffer
             features_list = self._get_features_for_trades(training_data)
