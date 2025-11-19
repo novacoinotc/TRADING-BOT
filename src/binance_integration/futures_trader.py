@@ -37,17 +37,20 @@ class FuturesTrader:
         self,
         client: BinanceClient,
         default_leverage: int = 3,
-        use_isolated_margin: bool = True
+        use_isolated_margin: bool = True,
+        telegram_bot = None
     ):
         """
         Args:
             client: Cliente de Binance
             default_leverage: Leverage por defecto (1-125x)
             use_isolated_margin: Usar margin isolated (recomendado)
+            telegram_bot: Instancia de TelegramNotifier para notificaciones
         """
         self.client = client
         self.default_leverage = default_leverage
         self.use_isolated_margin = use_isolated_margin
+        self.telegram_bot = telegram_bot
 
         # Cache de symbol info
         self._symbol_cache = {}
@@ -400,6 +403,30 @@ class FuturesTrader:
                 f"{'='*60}\n"
             )
 
+            # 🔴 CRÍTICO: Enviar notificación a Telegram
+            if self.telegram_bot:
+                try:
+                    direction_emoji = "🟢" if side == 'BUY' else "🔴"
+                    notional = trade_info['entry_price'] * trade_info['quantity'] * leverage
+                    msg = (
+                        f"{direction_emoji} **TRADE ABIERTO**\n"
+                        f"━━━━━━━━━━━━━━━━━\n"
+                        f"Par: `{symbol}`\n"
+                        f"Dirección: **{'LONG' if side == 'BUY' else 'SHORT'}**\n"
+                        f"Precio entrada: `${trade_info['entry_price']:,.2f}`\n"
+                        f"Cantidad: `{trade_info['quantity']:.4f}`\n"
+                        f"Nocional: `${notional:.2f} ({leverage}x leverage)`\n"
+                        f"━━━━━━━━━━━━━━━━━\n"
+                        f"🛑 Stop Loss: `${trade_info['stop_loss']:,.2f}` (-{stop_loss_pct}%)\n"
+                        f"🎯 Take Profit: `${trade_info['take_profit']:,.2f}` (+{take_profit_pct}%)\n"
+                        f"━━━━━━━━━━━━━━━━━\n"
+                        f"Order ID: `{trade_info['market_order_id']}`"
+                    )
+                    self.telegram_bot.send_message(msg)
+                    logger.info("✅ Notificación de trade enviada a Telegram")
+                except Exception as notify_error:
+                    logger.warning(f"⚠️ Error enviando notificación a Telegram: {notify_error}")
+
             return trade_info
 
         except BinanceAPIError as e:
@@ -473,6 +500,11 @@ class FuturesTrader:
 
             # Cancelar órdenes abiertas (SL/TP)
             try:
+                # 🔍 LOGGING CRÍTICO: Rastrear quién cancela SL
+                import traceback
+                logger.warning(f"⚠️ CANCELANDO ÓRDENES SL/TP: symbol={symbol}, reason={reason}")
+                logger.warning(f"⚠️ TRACEBACK: {''.join(traceback.format_stack()[-5:])}")
+
                 self.client.cancel_all_orders(symbol)
                 logger.info("✅ Cancelled pending SL/TP orders")
             except Exception as e:

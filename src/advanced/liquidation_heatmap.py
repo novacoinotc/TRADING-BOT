@@ -148,6 +148,10 @@ class LiquidationHeatmap:
             if data and isinstance(data, dict) and 'data' in data:
                 data_list = data['data']
 
+                # 🔍 DEBUG LOGGING - Para identificar el problema exacto
+                logger.info(f"🔍 DEBUG liquidation_heatmap {pair}: type(data)={type(data)}, data.keys()={data.keys() if isinstance(data, dict) else 'NOT_DICT'}")
+                logger.info(f"🔍 DEBUG liquidation_heatmap {pair}: type(data['data'])={type(data.get('data'))}, len={len(data.get('data', [])) if isinstance(data.get('data'), (list, tuple)) else 'NOT_LIST'}")
+
                 # VALIDACIÓN CRÍTICA: Verificar que data_list NO es un string
                 if isinstance(data_list, str):
                     logger.warning(f"⚠️ Liquidation API devolvió string en lugar de lista para {pair}: {data_list[:100]}")
@@ -229,24 +233,29 @@ class LiquidationHeatmap:
         Returns:
             (is_near, details_dict)
         """
-        nearest = self.get_nearest_liquidation_zone(pair, current_price)
+        try:
+            nearest = self.get_nearest_liquidation_zone(pair, current_price)
 
-        if nearest is None:
+            if nearest is None:
+                return False, None
+
+            price_level, volume, direction = nearest
+
+            distance_pct = abs((price_level - current_price) / current_price) * 100
+
+            details = {
+                'liquidation_price': price_level,
+                'liquidation_volume': volume,
+                'direction': direction,
+                'distance_pct': distance_pct,
+                'is_significant': volume >= self.min_liquidation_volume * 2  # 2x threshold = muy significativo
+            }
+
+            return True, details
+
+        except Exception as e:
+            logger.error(f"❌ Error en is_near_liquidation_zone para {pair}: {e}", exc_info=True)
             return False, None
-
-        price_level, volume, direction = nearest
-
-        distance_pct = abs((price_level - current_price) / current_price) * 100
-
-        details = {
-            'liquidation_price': price_level,
-            'liquidation_volume': volume,
-            'direction': direction,
-            'distance_pct': distance_pct,
-            'is_significant': volume >= self.min_liquidation_volume * 2  # 2x threshold = muy significativo
-        }
-
-        return True, details
 
     def get_liquidation_bias(self, pair: str, current_price: float) -> Tuple[str, float]:
         """
@@ -264,6 +273,11 @@ class LiquidationHeatmap:
         is_near, details = self.is_near_liquidation_zone(pair, current_price)
 
         if not is_near or details is None:
+            return 'neutral', 0.0
+
+        # 🔍 VALIDACIÓN CRÍTICA: Asegurar que details es un dict antes de acceder
+        if not isinstance(details, dict):
+            logger.warning(f"⚠️ get_liquidation_bias recibió details no-dict para {pair}: type={type(details)}, value={details}")
             return 'neutral', 0.0
 
         direction = details['direction']
