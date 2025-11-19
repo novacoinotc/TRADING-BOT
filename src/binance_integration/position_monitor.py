@@ -64,9 +64,22 @@ class PositionMonitor:
         Obtiene todas las posiciones abiertas
 
         Returns:
-            Dict: {symbol: position_data}
+            Dict: {symbol: position_data} - SIEMPRE devuelve dict, nunca None o string
         """
-        return self._positions.copy()
+        try:
+            if self._positions is None:
+                logger.warning("⚠️ _positions es None, inicializando dict vacío")
+                self._positions = {}
+
+            if not isinstance(self._positions, dict):
+                logger.error(f"❌ _positions es tipo inesperado: {type(self._positions)}, reiniciando")
+                self._positions = {}
+
+            return self._positions.copy()
+
+        except Exception as e:
+            logger.error(f"❌ Error en get_open_positions(): {e}", exc_info=True)
+            return {}  # SIEMPRE devolver dict vacío en caso de error
 
     def get_position(self, symbol: str) -> Optional[Dict]:
         """

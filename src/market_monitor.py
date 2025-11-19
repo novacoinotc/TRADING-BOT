@@ -615,7 +615,25 @@ class MarketMonitor:
                     open_positions = []
                     if self.position_monitor:
                         positions = self.position_monitor.get_open_positions()
-                        open_positions = [p['symbol'] for p in positions]
+
+                        # 🔍 VALIDACIÓN CRÍTICA: Asegurar que positions es dict/list válido
+                        if positions is None:
+                            logger.warning("⚠️ get_open_positions() devolvió None, usando dict vacío")
+                            positions = {}
+                        elif isinstance(positions, str):
+                            logger.error(f"❌ get_open_positions() devolvió STRING en lugar de dict: {positions[:200]}")
+                            positions = {}
+                        elif not isinstance(positions, (dict, list)):
+                            logger.error(f"❌ get_open_positions() devolvió tipo inesperado: {type(positions)}")
+                            positions = {}
+
+                        # Extraer símbolos de posiciones abiertas (con validación robusta)
+                        if isinstance(positions, dict):
+                            open_positions = [p['symbol'] for p in positions.values() if isinstance(p, dict) and 'symbol' in p]
+                        elif isinstance(positions, list):
+                            open_positions = [p['symbol'] for p in positions if isinstance(p, dict) and 'symbol' in p]
+                        else:
+                            open_positions = []
 
                     # OBTENER ANÁLISIS DEL ARSENAL (preview)
                     arsenal_ml_features_preview = {}
@@ -743,7 +761,22 @@ class MarketMonitor:
                         open_positions = []
                         if self.position_monitor:
                             positions = self.position_monitor.get_open_positions()
-                            open_positions = [p['symbol'] for p in positions]
+
+                            # 🔍 VALIDACIÓN: Asegurar que positions es dict/list válido
+                            if positions is None:
+                                positions = {}
+                            elif isinstance(positions, str):
+                                logger.error(f"❌ get_open_positions() devolvió STRING: {positions[:200]}")
+                                positions = {}
+                            elif not isinstance(positions, (dict, list)):
+                                logger.error(f"❌ get_open_positions() tipo inesperado: {type(positions)}")
+                                positions = {}
+
+                            # Extraer símbolos con validación robusta
+                            if isinstance(positions, dict):
+                                open_positions = [p['symbol'] for p in positions.values() if isinstance(p, dict) and 'symbol' in p]
+                            elif isinstance(positions, list):
+                                open_positions = [p['symbol'] for p in positions if isinstance(p, dict) and 'symbol' in p]
 
                         # ENRIQUECER SEÑAL CON ARSENAL AVANZADO
                         enriched_signal = self.feature_aggregator.enrich_signal(
@@ -1164,7 +1197,22 @@ class MarketMonitor:
                                 open_positions_flash = []
                                 if self.position_monitor:
                                     positions = self.position_monitor.get_open_positions()
-                                    open_positions_flash = [p['symbol'] for p in positions]
+
+                                    # 🔍 VALIDACIÓN: Asegurar que positions es dict/list válido
+                                    if positions is None:
+                                        positions = {}
+                                    elif isinstance(positions, str):
+                                        logger.error(f"❌ get_open_positions() devolvió STRING: {positions[:200]}")
+                                        positions = {}
+                                    elif not isinstance(positions, (dict, list)):
+                                        logger.error(f"❌ get_open_positions() tipo inesperado: {type(positions)}")
+                                        positions = {}
+
+                                    # Extraer símbolos con validación robusta
+                                    if isinstance(positions, dict):
+                                        open_positions_flash = [p['symbol'] for p in positions.values() if isinstance(p, dict) and 'symbol' in p]
+                                    elif isinstance(positions, list):
+                                        open_positions_flash = [p['symbol'] for p in positions if isinstance(p, dict) and 'symbol' in p]
 
                                 # ENRIQUECER FLASH SIGNAL CON ARSENAL
                                 enriched_flash = self.feature_aggregator.enrich_signal(

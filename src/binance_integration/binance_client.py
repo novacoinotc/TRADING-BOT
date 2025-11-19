@@ -548,10 +548,22 @@ class BinanceClient:
             symbol: Símbolo opcional
 
         Returns:
-            List: Lista de todas las posiciones (incluso cerradas con positionAmt=0)
+            List: Lista de todas las posiciones - SIEMPRE devuelve lista, nunca string
         """
-        params = {'symbol': symbol} if symbol else {}
-        return self._make_request('GET', '/fapi/v3/positionRisk', params=params, signed=True)
+        try:
+            params = {'symbol': symbol} if symbol else {}
+            result = self._make_request('GET', '/fapi/v3/positionRisk', params=params, signed=True)
+
+            # Validar que result es una lista
+            if not isinstance(result, list):
+                logger.error(f"❌ get_position_risk devolvió tipo inesperado: {type(result)}")
+                return []
+
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ Error en get_position_risk: {e}")
+            return []  # SIEMPRE devolver lista vacía en error, NO string
 
     def get_balance(self) -> List[Dict]:
         """
