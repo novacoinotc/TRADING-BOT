@@ -215,9 +215,6 @@ class BinanceClient:
                 logger.error(f"❌ Request error on {endpoint}: {e}")
                 raise BinanceClientError(f"Request error: {e}")
 
-        # Si llegamos aquí, todos los retries fallaron
-        raise BinanceClientError(f"Max retries exceeded for {endpoint}")
-
     # ========== ENDPOINTS PÚBLICOS ==========
 
     def get_server_time(self) -> int:

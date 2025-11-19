@@ -149,8 +149,8 @@ class LiquidationHeatmap:
                 data_list = data['data']
 
                 # 🔍 DEBUG LOGGING - Para identificar el problema exacto
-                logger.info(f"🔍 DEBUG liquidation_heatmap {pair}: type(data)={type(data)}, data.keys()={data.keys() if isinstance(data, dict) else 'NOT_DICT'}")
-                logger.info(f"🔍 DEBUG liquidation_heatmap {pair}: type(data['data'])={type(data.get('data'))}, len={len(data.get('data', [])) if isinstance(data.get('data'), (list, tuple)) else 'NOT_LIST'}")
+                logger.debug(f"🔍 DEBUG liquidation_heatmap {pair}: type(data)={type(data)}, data.keys()={data.keys() if isinstance(data, dict) else 'NOT_DICT'}")
+                logger.debug(f"🔍 DEBUG liquidation_heatmap {pair}: type(data['data'])={type(data.get('data'))}, len={len(data.get('data', [])) if isinstance(data.get('data'), (list, tuple)) else 'NOT_LIST'}")
 
                 # VALIDACIÓN CRÍTICA: Verificar que data_list NO es un string
                 if isinstance(data_list, str):
