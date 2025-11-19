@@ -687,30 +687,51 @@ class TelegramCommands:
                 )
                 return
 
+            # Verificar múltiples fuentes de datos ANTES de fallar
             paper_trader = self.autonomy_controller.paper_trader if hasattr(self.autonomy_controller, 'paper_trader') else None
-            if not paper_trader or not hasattr(paper_trader, 'portfolio'):
+            has_paper_trader = paper_trader and hasattr(paper_trader, 'portfolio')
+
+            # Verificar si ml_system tiene ml_training_data
+            has_ml_data = hasattr(ml_system, 'ml_training_data') and ml_system.ml_training_data
+            has_training_buffer = hasattr(ml_system, 'training_buffer') and ml_system.training_buffer
+
+            # Si NO hay ninguna fuente de datos, fallar
+            if not has_paper_trader and not has_ml_data and not has_training_buffer:
                 await update.message.reply_text(
                     "⚠️ **No hay datos históricos para entrenar**\n\n"
-                    "En v2.0 se necesitan trades de Binance.\n"
-                    "TODO: Implementar obtención de trades de Binance API"
+                    "No se encontraron datos en:\n"
+                    "  • ml_training_data (de imports)\n"
+                    "  • training_buffer\n"
+                    "  • paper_trader\n\n"
+                    "Importa un archivo con /import o espera a tener trades"
                 )
                 return
 
-            stats = paper_trader.portfolio.get_statistics()
-            total_trades = stats.get('total_trades', 0)
+            # Obtener total de muestras disponibles
+            total_samples = 0
+            if has_ml_data:
+                total_samples = len(ml_system.ml_training_data)
+                logger.info(f"📊 ml_training_data disponible: {total_samples} muestras")
+            elif has_training_buffer:
+                total_samples = len(ml_system.training_buffer)
+                logger.info(f"📊 training_buffer disponible: {total_samples} muestras")
+            elif has_paper_trader:
+                stats = paper_trader.portfolio.get_statistics()
+                total_samples = stats.get('total_trades', 0)
+                logger.info(f"📊 paper_trader disponible: {total_samples} trades")
 
-            if total_trades < 25:
+            if total_samples < 25:
                 await update.message.reply_text(
-                    f"⚠️ **Insuficientes trades para entrenar**\n\n"
-                    f"Trades actuales: {total_trades}\n"
+                    f"⚠️ **Insuficientes datos para entrenar**\n\n"
+                    f"Muestras actuales: {total_samples}\n"
                     f"Mínimo requerido: 25\n\n"
-                    f"Espera a tener más trades históricos o después de /import"
+                    f"Importa más datos con /import o espera a tener más trades"
                 )
                 return
 
             # Forzar entrenamiento con threshold reducido
             # Pasar el paper_trader del autonomy_controller (que tiene los datos restaurados)
-            logger.info(f"Forzando entrenamiento ML con {total_trades} trades")
+            logger.info(f"Forzando entrenamiento ML con {total_samples} muestras")
             ml_system.force_retrain(
                 min_samples_override=25,
                 external_paper_trader=paper_trader
@@ -724,7 +745,7 @@ class TelegramCommands:
                 message = (
                     "✅ **ML System Entrenado Exitosamente**\n\n"
                     f"📊 **Datos de Entrenamiento:**\n"
-                    f"  • Total trades: {total_trades}\n"
+                    f"  • Total muestras: {total_samples}\n"
                     f"  • Samples usados: {metrics.get('samples_total', 0)}\n\n"
                     f"📈 **Métricas del Modelo:**\n"
                     f"  • Accuracy: {metrics.get('test_accuracy', 0):.1%}\n"
@@ -738,7 +759,7 @@ class TelegramCommands:
             else:
                 message = (
                     "⚠️ **Entrenamiento Completado con Advertencias**\n\n"
-                    f"Se procesaron {total_trades} trades pero el modelo\n"
+                    f"Se procesaron {total_samples} muestras pero el modelo\n"
                     f"puede necesitar más datos para predicciones confiables.\n\n"
                     f"Continúa trading para mejorar el modelo 📈"
                 )
