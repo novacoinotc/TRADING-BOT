@@ -403,12 +403,13 @@ class FuturesTrader:
                 f"{'='*60}\n"
             )
 
-            # 🔴 CRÍTICO: Enviar notificación a Telegram
+            # 🔴 CRÍTICO: Enviar notificación a Telegram (manejo robusto de async/sync)
             if self.telegram_bot:
                 try:
+                    # Construir mensaje de notificación
                     direction_emoji = "🟢" if side == 'BUY' else "🔴"
                     notional = trade_info['entry_price'] * trade_info['quantity'] * leverage
-                    msg = (
+                    notification_message = (
                         f"{direction_emoji} **TRADE ABIERTO**\n"
                         f"━━━━━━━━━━━━━━━━━\n"
                         f"Par: `{symbol}`\n"
@@ -422,10 +423,44 @@ class FuturesTrader:
                         f"━━━━━━━━━━━━━━━━━\n"
                         f"Order ID: `{trade_info['market_order_id']}`"
                     )
-                    self.telegram_bot.send_message(msg)
-                    logger.info("✅ Notificación de trade enviada a Telegram")
-                except Exception as notify_error:
-                    logger.warning(f"⚠️ Error enviando notificación a Telegram: {notify_error}")
+
+                    import asyncio
+                    import threading
+
+                    # Verificar si hay event loop corriendo
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # Hay event loop activo, crear task
+                        loop.create_task(self.telegram_bot.send_message(notification_message))
+                        logger.info("📢 Trade notification queued in event loop")
+
+                    except RuntimeError:
+                        # No hay event loop, ejecutar en thread separado para no bloquear
+                        def send_notification():
+                            try:
+                                # Verificar si el método es async o sync
+                                if asyncio.iscoroutinefunction(self.telegram_bot.send_message):
+                                    # Método async: crear nuevo event loop
+                                    asyncio.run(self.telegram_bot.send_message(notification_message))
+                                else:
+                                    # Método sync: ejecutar directamente
+                                    self.telegram_bot.send_message(notification_message)
+                                logger.info("📢 Trade notification sent successfully")
+                            except Exception as e:
+                                logger.error(f"❌ Error sending notification in thread: {e}", exc_info=True)
+
+                        # Iniciar thread daemon (no bloquea el shutdown)
+                        notification_thread = threading.Thread(
+                            target=send_notification,
+                            daemon=True,
+                            name=f"TelegramNotif-{symbol}"
+                        )
+                        notification_thread.start()
+                        logger.info("📢 Trade notification sent in background thread")
+
+                except Exception as e:
+                    logger.error(f"❌ Failed to setup trade notification: {e}", exc_info=True)
+                    # NO fallar el trade por error de notificación
 
             return trade_info
 
