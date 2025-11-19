@@ -148,6 +148,12 @@ class LiquidationHeatmap:
             if data and isinstance(data, dict) and 'data' in data:
                 data_list = data['data']
 
+                # VALIDACIÓN CRÍTICA: Verificar que data_list NO es un string
+                if isinstance(data_list, str):
+                    logger.warning(f"⚠️ Liquidation API devolvió string en lugar de lista para {pair}: {data_list[:100]}")
+                    self.liquidation_data[pair] = {}
+                    return
+
                 # Validar que data['data'] es iterable y no None
                 if data_list is not None and isinstance(data_list, (list, tuple)):
                     for level in data_list:

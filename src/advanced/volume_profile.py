@@ -67,6 +67,11 @@ class VolumeProfile:
         Returns:
             Dict con POC, Value Area, y distribución
         """
+        # VALIDACIÓN: Verificar que prices y volumes son listas válidas
+        if not isinstance(prices, (list, np.ndarray)) or not isinstance(volumes, (list, np.ndarray)):
+            logger.warning(f"⚠️ Tipos inválidos en calculate_volume_profile para {pair}: prices={type(prices)}, volumes={type(volumes)}")
+            return {}
+
         if len(prices) < 10 or len(prices) != len(volumes):
             return {}
 

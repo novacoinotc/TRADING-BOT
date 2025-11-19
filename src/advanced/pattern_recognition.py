@@ -13,6 +13,7 @@ Ejemplo: Detecta Head & Shoulders en BTC → señal SHORT con alta confianza
 
 import logging
 import numpy as np
+import pandas as pd
 from typing import Dict, List, Optional, Tuple
 from scipy.signal import argrelextrema
 
@@ -170,7 +171,7 @@ class PatternRecognition:
         Detecta todos los patrones en datos OHLC
 
         Args:
-            ohlc_data: Dict con 'high', 'low', 'close', 'open'
+            ohlc_data: Dict con 'high', 'low', 'close', 'open' (o pandas DataFrame)
 
         Returns:
             Lista de patrones detectados
@@ -178,8 +179,22 @@ class PatternRecognition:
         if not self.enabled:
             return []
 
-        highs = np.array(ohlc_data.get('high', []))
-        lows = np.array(ohlc_data.get('low', []))
+        # VALIDACIÓN: Verificar que ohlc_data es válido
+        if ohlc_data is None or not isinstance(ohlc_data, (dict, pd.DataFrame)):
+            logger.warning(f"⚠️ ohlc_data inválido en detect_all_patterns: {type(ohlc_data)}")
+            return []
+
+        # Extraer datos (funciona tanto para dict como DataFrame)
+        try:
+            if hasattr(ohlc_data, 'values'):  # Es un DataFrame
+                highs = ohlc_data['high'].values
+                lows = ohlc_data['low'].values
+            else:  # Es un dict
+                highs = np.array(ohlc_data.get('high', []))
+                lows = np.array(ohlc_data.get('low', []))
+        except Exception as e:
+            logger.error(f"❌ Error extrayendo datos OHLC en pattern recognition: {e}")
+            return []
 
         if len(highs) < 10 or len(lows) < 10:
             return []
