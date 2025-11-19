@@ -143,25 +143,27 @@ class AutonomyController:
 
     def _calculate_max_leverage(self) -> int:
         """
-        Calcula el máximo leverage permitido basado en experiencia
+        Calcula max leverage basado en total_trades_all_time.
 
-        Límites escalonados:
-        - 0-50 trades: máximo 5x
-        - 50-100 trades: máximo 8x
-        - 100-150 trades: máximo 10x
-        - 150-500 trades: máximo 15x
-        - 500+ trades: máximo 20x
-
-        Returns:
-            Leverage máximo permitido (1-20x)
+        En v2.0 usa total_trades_all_time en lugar de paper_trading.total_trades.
+        Esto asegura que el leverage se preserve en imports/exports.
         """
-        if self.total_trades_all_time < 50:
+        total = self.total_trades_all_time
+
+        # Tabla de desbloqueo progresivo
+        if total < 10:
+            return 1
+        elif total < 20:
+            return 2
+        elif total < 30:
+            return 3
+        elif total < 50:
             return 5
-        elif self.total_trades_all_time < 100:
-            return 8
-        elif self.total_trades_all_time < 150:
+        elif total < 100:
+            return 7
+        elif total < 150:
             return 10
-        elif self.total_trades_all_time < 500:
+        elif total < 200:
             return 15
         else:
             return 20
@@ -806,7 +808,10 @@ class AutonomyController:
             'current_parameters': self.current_parameters,
             'total_trades_processed': self.total_trades_processed,
             'total_trades_all_time': self.total_trades_all_time,  # Contador global nunca se resetea
-            'current_max_leverage': self._calculate_max_leverage(),
+            'max_leverage_unlocked': max(
+                self.max_leverage_unlocked,  # Preservar el importado
+                self._calculate_max_leverage()  # O calcular nuevo
+            ),
             'total_parameter_changes': self.total_parameter_changes,
             'last_optimization': self.last_optimization_time.isoformat(),
             'decision_mode': self.decision_mode

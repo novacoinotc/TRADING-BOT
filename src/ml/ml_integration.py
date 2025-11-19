@@ -244,36 +244,67 @@ class MLIntegration:
                                   Si es None, usa self.paper_trader
         """
         try:
-            # Usar paper_trader externo si se proporcionó, sino usar el interno
-            paper_trader = external_paper_trader if external_paper_trader else self.paper_trader
+            # Intentar obtener datos de múltiples fuentes
+            training_data = []
+            features_list = []
 
-            # DEBUG: Verificar estado del portfolio
-            if hasattr(paper_trader, 'portfolio'):
-                portfolio_stats = paper_trader.portfolio.get_statistics()
-                logger.info(f"📊 Portfolio stats: total_trades={portfolio_stats.get('total_trades', 0)}")
-                logger.info(f"📊 Portfolio closed_trades length: {len(paper_trader.portfolio.closed_trades)}")
+            # Fuente 1: ml_training_data (formato estándar de exports)
+            if hasattr(self, 'ml_training_data') and self.ml_training_data:
+                training_data = self.ml_training_data
+                logger.info(f"📊 Usando ml_training_data: {len(training_data)} muestras")
 
-            # Obtener trades cerrados
-            closed_trades = paper_trader.get_closed_trades(limit=500)
-            logger.info(f"📊 Trades obtenidos para entrenamiento: {len(closed_trades)}")
+            # Fuente 2: training_buffer (si ml_training_data está vacío)
+            elif hasattr(self, 'training_buffer') and self.training_buffer:
+                training_data = self.training_buffer
+                logger.info(f"📊 Usando training_buffer: {len(training_data)} muestras")
 
-            if len(closed_trades) < self.trainer.min_samples:
-                logger.warning(f"Insuficientes trades para reentrenar: {len(closed_trades)}")
-                logger.warning(f"  Requerido: {self.trainer.min_samples}")
+            # Fuente 3: Del autonomy_controller via RL agent memory
+            elif hasattr(self, 'autonomy_controller'):
+                rl_memory = getattr(self.autonomy_controller.rl_agent, 'memory', [])
+                if rl_memory:
+                    # Convertir RL memory a formato ML
+                    training_data = []
+                    for exp in rl_memory:
+                        training_data.append({
+                            'features': exp.get('state', ''),
+                            'reward': exp.get('reward', 0),
+                            'success': exp.get('reward', 0) > 0
+                        })
+                    logger.info(f"📊 Convertido de RL memory: {len(training_data)} muestras")
+
+            # Fuente 4 (fallback original): Paper trader trades
+            if not training_data:
+                # Usar paper_trader externo si se proporcionó, sino usar el interno
+                paper_trader = external_paper_trader if external_paper_trader else self.paper_trader
+
+                # DEBUG: Verificar estado del portfolio
                 if hasattr(paper_trader, 'portfolio'):
-                    logger.warning(f"  Portfolio.closed_trades: {len(paper_trader.portfolio.closed_trades)}")
-                    logger.warning(f"  Portfolio.total_trades: {paper_trader.portfolio.total_trades}")
+                    portfolio_stats = paper_trader.portfolio.get_statistics()
+                    logger.info(f"📊 Portfolio stats: total_trades={portfolio_stats.get('total_trades', 0)}")
+                    logger.info(f"📊 Portfolio closed_trades length: {len(paper_trader.portfolio.closed_trades)}")
+
+                # Obtener trades cerrados
+                closed_trades = paper_trader.get_closed_trades(limit=500)
+                logger.info(f"📊 Trades obtenidos para entrenamiento: {len(closed_trades)}")
+                training_data = closed_trades
+
+            if len(training_data) < self.trainer.min_samples:
+                logger.warning(f"Insuficientes trades para reentrenar: {len(training_data)}")
+                logger.warning(f"  Requerido: {self.trainer.min_samples}")
+                logger.error("❌ No hay datos históricos para entrenar")
                 return
 
-            # Cargar features correspondientes desde buffer
-            features_list = self._get_features_for_trades(closed_trades)
+            logger.info(f"✅ Datos encontrados: {len(training_data)} muestras para entrenar")
 
-            if len(features_list) != len(closed_trades):
-                logger.error(f"Mismatch: {len(closed_trades)} trades vs {len(features_list)} features")
+            # Cargar features correspondientes desde buffer
+            features_list = self._get_features_for_trades(training_data)
+
+            if len(features_list) != len(training_data):
+                logger.error(f"Mismatch: {len(training_data)} trades vs {len(features_list)} features")
                 return
 
             # Preparar datos
-            X, y = self.trainer.prepare_training_data(closed_trades, features_list)
+            X, y = self.trainer.prepare_training_data(training_data, features_list)
 
             # Entrenar
             metrics = self.trainer.train(X, y)
@@ -285,7 +316,7 @@ class MLIntegration:
                 logger.info(f"   Test F1: {metrics['test_f1']:.3f}")
 
                 # Actualizar contador
-                self.last_trained_samples = len(closed_trades)
+                self.last_trained_samples = len(training_data)
                 self.trades_since_last_training = 0
 
         except Exception as e:

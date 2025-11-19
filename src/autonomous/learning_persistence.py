@@ -103,6 +103,7 @@ class LearningPersistence:
                 'metadata': metadata or {},
                 'paper_trading': paper_trading or {},  # Estado de paper trading
                 'ml_training_buffer': ml_training_buffer or [],  # Training buffer del ML System
+                'ml_training_data': ml_training_buffer or [],  # Para compatibilidad con train_ml
                 'advanced_modules': advanced_modules_state or {}  # NUEVO: Estado del arsenal avanzado (7 módulos)
             }
 
