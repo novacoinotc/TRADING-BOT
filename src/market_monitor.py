@@ -633,7 +633,9 @@ class MarketMonitor:
                             logger.warning(f"arsenal_ml_features_preview no es dict: {type(arsenal_ml_features_preview)}")
                             arsenal_ml_features_preview = {}
                     except Exception as e:
+                        import traceback
                         logger.warning(f"Error obteniendo ML features del arsenal: {e}")
+                        logger.warning(f"TRACEBACK:\n{traceback.format_exc()}")
                         arsenal_ml_features_preview = {}
 
                     try:
@@ -647,7 +649,9 @@ class MarketMonitor:
                             logger.warning(f"arsenal_rl_extensions_preview no es dict: {type(arsenal_rl_extensions_preview)}")
                             arsenal_rl_extensions_preview = {}
                     except Exception as e:
+                        import traceback
                         logger.warning(f"Error obteniendo RL extensions del arsenal: {e}")
+                        logger.warning(f"TRACEBACK:\n{traceback.format_exc()}")
                         arsenal_rl_extensions_preview = {}
 
                     # LOG DETALLADO DEL ARSENAL
@@ -719,7 +723,9 @@ class MarketMonitor:
                     logger.info(f"    🤖 RL State: 19 dimensions (12 base + 7 arsenal)")
 
                 except Exception as e:
+                    import traceback
                     logger.error(f"  ❌ Error en análisis del arsenal: {e}")
+                    logger.error(f"  📍 TRACEBACK COMPLETO:\n{traceback.format_exc()}")
                 # ===== FIN ANÁLISIS ARSENAL =====
 
                 # ===== ARSENAL AVANZADO: ENRICH SIGNAL =====
@@ -762,7 +768,9 @@ class MarketMonitor:
                         logger.info(f"🚀 Arsenal Avanzado aplicado a {pair}: confidence={signals['confidence']:.1f}% (boost={enriched_signal.get('total_boost', 1.0):.2f}x)")
 
                     except Exception as e:
+                        import traceback
                         logger.error(f"Error applying Feature Aggregator to signal: {e}")
+                        logger.error(f"TRACEBACK:\n{traceback.format_exc()}")
                 # ===== FIN ARSENAL AVANZADO =====
 
                 # APPLY SENTIMENT ANALYSIS TO SIGNALS
@@ -824,7 +832,9 @@ class MarketMonitor:
                                 logger.warning(f"arsenal_rl_extensions no es dict: {type(arsenal_rl_extensions)}")
                                 arsenal_rl_extensions = {}
                         except Exception as e:
+                            import traceback
                             logger.warning(f"No se pudieron obtener features del arsenal: {e}")
+                            logger.warning(f"TRACEBACK:\n{traceback.format_exc()}")
                             arsenal_ml_features = {}
                             arsenal_rl_extensions = {}
 
@@ -1135,7 +1145,9 @@ class MarketMonitor:
                             logger.info(f"    ⏰ Session: {session_f} ({session_mult_f:.2f}x) | 💧 Flow: {flow_bias_f} ({flow_ratio_f:.2f})")
 
                         except Exception as e:
+                            import traceback
                             logger.debug(f"  ⚡ Arsenal flash preview error: {e}")
+                            logger.debug(f"TRACEBACK:\n{traceback.format_exc()}")
                         # ===== FIN ANÁLISIS FLASH =====
 
                         # ===== ARSENAL AVANZADO: ENRICH FLASH SIGNAL =====
@@ -1177,7 +1189,9 @@ class MarketMonitor:
                                 logger.info(f"⚡ Arsenal aplicado a FLASH {pair}: confidence={flash_signals['confidence']:.1f}% (boost={enriched_flash.get('total_boost', 1.0):.2f}x)")
 
                             except Exception as e:
+                                import traceback
                                 logger.error(f"Error applying Arsenal to flash signal: {e}")
+                                logger.error(f"TRACEBACK:\n{traceback.format_exc()}")
                         # ===== FIN ARSENAL FLASH =====
 
                         # APPLY SENTIMENT TO FLASH SIGNALS
@@ -1266,7 +1280,9 @@ class MarketMonitor:
                                         logger.warning(f"arsenal_ml_features_flash no es dict: {type(arsenal_ml_features_flash)}")
                                         arsenal_ml_features_flash = {}
                                 except Exception as e:
+                                    import traceback
                                     logger.warning(f"No se pudieron obtener arsenal features para flash: {e}")
+                                    logger.warning(f"TRACEBACK:\n{traceback.format_exc()}")
                                     arsenal_ml_features_flash = {}
 
                                 combined_flash_features = {**(sentiment_features or {}), **arsenal_ml_features_flash}
