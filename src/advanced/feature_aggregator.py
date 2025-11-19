@@ -291,11 +291,16 @@ class FeatureAggregator:
 
         # Pattern recognition features
         if ohlc_data is not None:
-            patterns = self.pattern_recognition.detect_all_patterns(ohlc_data)
-            ml_features['has_pattern'] = 1.0 if patterns else 0.0
-            ml_features['pattern_confidence'] = max([p['confidence'] for p in patterns], default=0.0)
-            ml_features['pattern_detected'] = bool(patterns)
-            ml_features['pattern_type'] = patterns[0]['pattern'] if patterns else 'NONE'
+            try:
+                patterns = self.pattern_recognition.detect_all_patterns(ohlc_data)
+                ml_features['has_pattern'] = 1.0 if patterns else 0.0
+                ml_features['pattern_confidence'] = max([p['confidence'] for p in patterns], default=0.0)
+                ml_features['pattern_detected'] = bool(patterns)
+                ml_features['pattern_type'] = patterns[0]['pattern'] if patterns else 'NONE'
+            except Exception as e:
+                logger.error(f"❌ Error en pattern recognition para {pair}: {e}")
+                ml_features['pattern_detected'] = False
+                ml_features['pattern_type'] = 'NONE'
         else:
             ml_features['pattern_detected'] = False
             ml_features['pattern_type'] = 'NONE'
