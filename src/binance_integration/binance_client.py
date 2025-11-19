@@ -102,7 +102,7 @@ class BinanceClient:
         signed: bool = False
     ) -> Dict:
         """
-        Hace request a la API de Binance
+        Hace request a la API de Binance con retry logic y exponential backoff
 
         Args:
             method: HTTP method (GET, POST, DELETE, PUT)
@@ -117,78 +117,106 @@ class BinanceClient:
             BinanceAPIError: Si la API retorna error
             BinanceClientError: Si hay error de conexión
         """
-        url = f"{self.base_url}{endpoint}"
-        headers = {'X-MBX-APIKEY': self.api_key} if signed or self.api_key else {}
+        max_retries = 3
+        base_delay = 2  # segundos
 
-        params = params or {}
+        for attempt in range(max_retries):
+            try:
+                url = f"{self.base_url}{endpoint}"
+                headers = {'X-MBX-APIKEY': self.api_key} if signed or self.api_key else {}
 
-        try:
-            if signed:
-                # Construir query string firmado
-                query_string = build_signed_request(
-                    params,
-                    self.api_secret,
-                    timestamp=self._get_adjusted_timestamp()
-                )
-                url = f"{url}?{query_string}"
-                response = requests.request(
-                    method,
-                    url,
-                    headers=headers,
-                    timeout=self.timeout,
-                    proxies=self.proxies
-                )
-            else:
-                # Request pública
-                response = requests.request(
-                    method,
-                    url,
-                    params=params,
-                    headers=headers,
-                    timeout=self.timeout,
-                    proxies=self.proxies
-                )
+                params = params or {}
 
-            # Parsear respuesta
-            data = response.json()
-
-            # Verificar errores
-            if response.status_code != 200:
-                error_code = data.get('code', response.status_code)
-                error_msg = data.get('msg', 'Unknown error')
-                error_desc = get_error_description(error_code)
-
-                # Error -4046 es informativo (margin type ya configurado), no es un error real
-                if error_code == -4046:
-                    logger.info(
-                        f"ℹ️ Binance Info (Code {error_code}): {error_msg}"
+                if signed:
+                    # Construir query string firmado
+                    query_string = build_signed_request(
+                        params,
+                        self.api_secret,
+                        timestamp=self._get_adjusted_timestamp()
+                    )
+                    url = f"{url}?{query_string}"
+                    response = requests.request(
+                        method,
+                        url,
+                        headers=headers,
+                        timeout=self.timeout,
+                        proxies=self.proxies
                     )
                 else:
-                    # Otros errores sí son verdaderos errores
-                    logger.error(
-                        f"❌ Binance API Error:\n"
-                        f"   Code: {error_code}\n"
-                        f"   Message: {error_msg}\n"
-                        f"   Description: {error_desc}\n"
-                        f"   Endpoint: {endpoint}"
+                    # Request pública
+                    response = requests.request(
+                        method,
+                        url,
+                        params=params,
+                        headers=headers,
+                        timeout=self.timeout,
+                        proxies=self.proxies
                     )
 
-                # Manejar errores específicos
-                if error_code == -1021:  # Timestamp out of sync
-                    logger.warning("⚠️ Timestamp desincronizado. Re-sincronizando...")
-                    self._sync_time()
+                # Parsear respuesta
+                data = response.json()
 
-                raise BinanceAPIError(error_code, error_msg)
+                # Verificar errores
+                if response.status_code != 200:
+                    error_code = data.get('code', response.status_code)
+                    error_msg = data.get('msg', 'Unknown error')
+                    error_desc = get_error_description(error_code)
 
-            return data
+                    # Error -4046 es informativo (margin type ya configurado), no es un error real
+                    if error_code == -4046:
+                        logger.info(
+                            f"ℹ️ Binance Info (Code {error_code}): {error_msg}"
+                        )
+                    else:
+                        # Otros errores sí son verdaderos errores
+                        logger.error(
+                            f"❌ Binance API Error:\n"
+                            f"   Code: {error_code}\n"
+                            f"   Message: {error_msg}\n"
+                            f"   Description: {error_desc}\n"
+                            f"   Endpoint: {endpoint}"
+                        )
 
-        except requests.exceptions.Timeout:
-            logger.error(f"❌ Timeout en request a {endpoint}")
-            raise BinanceClientError(f"Timeout: {endpoint}")
+                    # Manejar errores específicos
+                    if error_code == -1021:  # Timestamp out of sync
+                        logger.warning("⚠️ Timestamp desincronizado. Re-sincronizando...")
+                        self._sync_time()
+                        # Retry para timestamp errors
+                        if attempt < max_retries - 1:
+                            logger.info(f"🔄 Reintentando después de sync timestamp (attempt {attempt+1}/{max_retries})")
+                            import time
+                            time.sleep(1)
+                            continue
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"❌ Error de conexión: {e}")
-            raise BinanceClientError(f"Connection error: {e}")
+                    raise BinanceAPIError(error_code, error_msg)
+
+                return data
+
+            except (requests.exceptions.ProxyError,
+                    requests.exceptions.ConnectTimeout,
+                    requests.exceptions.ConnectionError,
+                    requests.exceptions.Timeout) as e:
+                # Errores de conexión: aplicar exponential backoff
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)  # 2s, 4s, 8s
+                    logger.warning(
+                        f"⚠️ Connection error on {endpoint}, "
+                        f"retry {attempt+1}/{max_retries} in {delay}s: {e}"
+                    )
+                    import time
+                    time.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"❌ Max retries exceeded for {endpoint}: {e}")
+                    raise BinanceClientError(f"Max retries exceeded: {e}")
+
+            except requests.exceptions.RequestException as e:
+                # Otros errores de requests: fallar inmediatamente
+                logger.error(f"❌ Request error on {endpoint}: {e}")
+                raise BinanceClientError(f"Request error: {e}")
+
+        # Si llegamos aquí, todos los retries fallaron
+        raise BinanceClientError(f"Max retries exceeded for {endpoint}")
 
     # ========== ENDPOINTS PÚBLICOS ==========
 
@@ -408,6 +436,11 @@ class BinanceClient:
         Returns:
             Dict: Info de orden cancelada
         """
+        # 🔍 LOGGING CRÍTICO: Rastrear cada cancelación de orden
+        import traceback
+        logger.warning(f"⚠️ CANCEL_ORDER LLAMADO: symbol={symbol}, order_id={order_id}")
+        logger.warning(f"⚠️ TRACEBACK: {''.join(traceback.format_stack()[-6:])}")
+
         params = {'symbol': symbol, 'orderId': order_id}
         logger.info(f"❌ Canceling order {order_id} for {symbol}")
         return self._make_request('DELETE', '/fapi/v1/order', params=params, signed=True)
@@ -422,6 +455,11 @@ class BinanceClient:
         Returns:
             Dict: Confirmación
         """
+        # 🔍 LOGGING CRÍTICO: Rastrear cada cancelación masiva de órdenes
+        import traceback
+        logger.warning(f"⚠️ CANCEL_ALL_ORDERS LLAMADO: symbol={symbol}")
+        logger.warning(f"⚠️ TRACEBACK: {''.join(traceback.format_stack()[-6:])}")
+
         params = {'symbol': symbol}
         logger.warning(f"⚠️ Canceling ALL orders for {symbol}")
         return self._make_request('DELETE', '/fapi/v1/allOpenOrders', params=params, signed=True)
@@ -452,6 +490,20 @@ class BinanceClient:
         """
         params = {'symbol': symbol} if symbol else {}
         return self._make_request('GET', '/fapi/v1/openOrders', params=params, signed=True)
+
+    def get_all_orders(self, symbol: str, limit: int = 10) -> List[Dict]:
+        """
+        Obtiene historial de órdenes (abiertas y cerradas)
+
+        Args:
+            symbol: Símbolo
+            limit: Número máximo de órdenes a retornar (default 10, max 1000)
+
+        Returns:
+            List: Lista de órdenes ordenadas por tiempo (más recientes primero)
+        """
+        params = {'symbol': symbol, 'limit': limit}
+        return self._make_request('GET', '/fapi/v1/allOrders', params=params, signed=True)
 
     # ========== ENDPOINTS PRIVADOS (Cuenta y Posiciones) ==========
 

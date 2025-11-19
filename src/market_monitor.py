@@ -83,7 +83,8 @@ class MarketMonitor:
                 self.futures_trader = FuturesTrader(
                     client=self.binance_client,
                     default_leverage=config.DEFAULT_LEVERAGE,
-                    use_isolated_margin=config.USE_ISOLATED_MARGIN
+                    use_isolated_margin=config.USE_ISOLATED_MARGIN,
+                    telegram_bot=self.notifier
                 )
                 logger.info("✅ Futures Trader initialized")
 

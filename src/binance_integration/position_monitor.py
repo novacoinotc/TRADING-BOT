@@ -358,9 +358,41 @@ class PositionMonitor:
                 realized_pnl = position.get('unrealized_pnl', 0)
                 logger.debug(f"P&L fallback desde unrealized: ${realized_pnl:+.2f}")
 
-            # Determinar razón del cierre (SL, TP, MANUAL, etc.)
-            # Esto se puede mejorar consultando las órdenes canceladas/ejecutadas
+            # Determinar razón del cierre consultando órdenes recientes
             reason = 'AUTO_CLOSE'  # Por defecto
+            try:
+                # Consultar últimas 10 órdenes del símbolo
+                recent_orders = self.client.get_all_orders(symbol=symbol, limit=10)
+
+                # Buscar órdenes FILLED recientes (últimos 15 segundos)
+                import time
+                now = int(time.time() * 1000)
+                recent_filled = [
+                    o for o in recent_orders
+                    if o['status'] == 'FILLED' and (now - o['updateTime']) < 15000
+                ]
+
+                # Detectar tipo de cierre basado en el tipo de orden
+                for order in recent_filled:
+                    order_type = order.get('type', '')
+                    if order_type == 'STOP_MARKET':
+                        reason = 'STOP_LOSS'
+                        logger.info(f"🛑 Cierre detectado: STOP_LOSS (order_id={order.get('orderId')})")
+                        break
+                    elif order_type == 'TAKE_PROFIT_MARKET':
+                        reason = 'TAKE_PROFIT'
+                        logger.info(f"🎯 Cierre detectado: TAKE_PROFIT (order_id={order.get('orderId')})")
+                        break
+                    elif order_type == 'MARKET' and order.get('reduceOnly'):
+                        reason = 'MANUAL'
+                        logger.info(f"👤 Cierre detectado: MANUAL (order_id={order.get('orderId')})")
+                        break
+                else:
+                    logger.debug(f"ℹ️ No se pudo determinar razón específica, usando AUTO_CLOSE")
+
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo determinar razón de cierre para {symbol}: {e}")
+                reason = 'AUTO_CLOSE'
 
             # Construir info del cierre
             entry_price = position.get('entry_price', 1)
