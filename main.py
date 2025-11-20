@@ -287,6 +287,7 @@ async def main():
     # Initialize variables before try block (para evitar UnboundLocalError en exception handlers)
     autonomy_controller = None
     telegram_commands = None
+    trade_manager = None
 
     # Initialize and start market monitor
     try:
@@ -300,6 +301,35 @@ async def main():
                 logger.info("✅ Position Monitor iniciado - monitoreando posiciones cada 5s")
             except Exception as e:
                 logger.error(f"❌ Error iniciando Position Monitor: {e}")
+
+        # 🤖 v2.1: Iniciar Trade Manager (gestión inteligente de trades)
+        if (hasattr(monitor, 'position_monitor') and monitor.position_monitor and
+            hasattr(monitor, 'futures_trader') and monitor.futures_trader):
+            try:
+                from src.autonomous.trade_manager import TradeManager
+
+                logger.info("🤖 Inicializando Trade Manager...")
+                trade_manager = TradeManager(
+                    position_monitor=monitor.position_monitor,
+                    futures_trader=monitor.futures_trader,
+                    rl_agent=None,  # Será asignado después si está disponible
+                    ml_system=monitor.ml_system if hasattr(monitor, 'ml_system') else None,
+                    market_analyzer=monitor
+                )
+
+                # Iniciar monitoreo en background
+                import asyncio
+                loop = asyncio.get_event_loop()
+                loop.create_task(trade_manager.start_monitoring())
+
+                logger.info("✅ Trade Manager activo - Gestión inteligente de trades en tiempo real")
+                logger.info("   - Breakeven protection: 1.5%")
+                logger.info("   - Trailing stop: 3.0%")
+                logger.info("   - Partial TP: 4.0%")
+                logger.info("   - Protección adversa: -1.5%")
+
+            except Exception as e:
+                logger.error(f"❌ Error iniciando Trade Manager: {e}", exc_info=True)
 
         # Initialize Autonomous AI System if enabled
         if config.ENABLE_AUTONOMOUS_MODE:
@@ -332,6 +362,11 @@ async def main():
             # Ahora sí, inicializar (esto cargará la inteligencia guardada)
             await autonomy_controller.initialize()
             logger.info("✅ Sistema Autónomo activo - IA tiene control total")
+
+            # Asignar RL agent al Trade Manager si existe
+            if trade_manager and hasattr(autonomy_controller, 'rl_agent'):
+                trade_manager.rl_agent = autonomy_controller.rl_agent
+                logger.info("✅ RL Agent asignado al Trade Manager")
 
             # Initialize Test Mode
             test_mode = TestMode(
@@ -384,6 +419,9 @@ async def main():
 
     except KeyboardInterrupt:
         logger.info("Received interrupt signal. Shutting down...")
+        # Shutdown trade manager if active
+        if trade_manager:
+            trade_manager.stop_monitoring()
         # Shutdown telegram commands if active
         if telegram_commands:
             await telegram_commands.stop_command_listener()
@@ -393,6 +431,9 @@ async def main():
 
     except Exception as e:
         logger.error(f"Fatal error: {e}", exc_info=True)
+        # Shutdown trade manager if active
+        if trade_manager:
+            trade_manager.stop_monitoring()
         # Shutdown telegram commands if active
         if telegram_commands:
             await telegram_commands.stop_command_listener()
