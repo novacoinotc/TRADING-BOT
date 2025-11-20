@@ -5,6 +5,8 @@ Handles notifications and user interactions via Telegram
 import asyncio
 from telegram import Bot
 from telegram.error import TelegramError
+from telegram.request import HTTPXRequest
+from httpx import Limits, Timeout
 from config import config
 import logging
 
@@ -22,10 +24,37 @@ class TelegramNotifier:
         if not config.TELEGRAM_CHAT_ID:
             raise ValueError("TELEGRAM_CHAT_ID not configured")
 
-        self.bot = Bot(token=config.TELEGRAM_BOT_TOKEN)
+        # Configurar límites HTTP personalizados para evitar pool timeouts
+        http_limits = Limits(
+            max_connections=16,             # Max conexiones totales
+            max_keepalive_connections=8,    # Conexiones keep-alive
+            keepalive_expiry=300.0          # Expiración keep-alive (5 min)
+        )
+
+        http_timeout = Timeout(
+            connect=30.0,   # Timeout de conexión
+            read=30.0,      # Timeout de lectura
+            write=30.0,     # Timeout de escritura
+            pool=30.0       # Timeout del pool
+        )
+
+        # Crear request con configuración custom
+        request = HTTPXRequest(
+            connection_pool_size=16,
+            connect_timeout=30.0,
+            read_timeout=30.0,
+            write_timeout=30.0,
+            pool_timeout=30.0,
+            http_version="1.1"
+        )
+
+        # Crear bot con request personalizado
+        self.bot = Bot(token=config.TELEGRAM_BOT_TOKEN, request=request)
         self.chat_id = config.TELEGRAM_CHAT_ID
         self.last_signals = {}  # Avoid duplicate notifications
         self.tracker = tracker  # Signal tracker for accuracy measurement
+
+        logger.info("✅ Telegram Bot inicializado con connection pool aumentado (16 conexiones)")
 
     async def send_signal(self, pair: str, analysis: dict):
         """
