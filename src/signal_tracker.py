@@ -71,13 +71,33 @@ class SignalTracker:
             # Ensure directory exists
             self.tracking_file.parent.mkdir(parents=True, exist_ok=True)
 
-            # Sanitizar datos antes de guardar (convierte pandas Series, numpy, etc. a JSON)
-            sanitized_signals = _sanitize_for_json(self.signals)
+            # 🔧 FIX: Convertir timestamps en KEYS del diccionario también
+            def sanitize_dict_keys(obj):
+                """Convierte keys de diccionarios que sean Timestamps a strings"""
+                import pandas as pd
+
+                if isinstance(obj, dict):
+                    new_dict = {}
+                    for k, v in obj.items():
+                        # Convertir key si es Timestamp
+                        if isinstance(k, pd.Timestamp):
+                            k = k.isoformat()
+                        # Recursivamente sanitizar el valor
+                        new_dict[k] = sanitize_dict_keys(v)
+                    return new_dict
+                elif isinstance(obj, (list, tuple)):
+                    return [sanitize_dict_keys(item) for item in obj]
+                else:
+                    return obj
+
+            # Sanitizar datos (incluyendo keys)
+            sanitized_signals = sanitize_dict_keys(_sanitize_for_json(self.signals))
 
             with open(self.tracking_file, 'w', encoding='utf-8') as f:
                 json.dump(sanitized_signals, f, indent=2, ensure_ascii=False)
+
         except Exception as e:
-            logger.error(f"Error saving signals: {e}")
+            logger.error(f"Error saving signals: {e}", exc_info=True)
 
     def add_signal(self, pair: str, action: str, price: float, indicators: Dict, reasons: List[str]):
         """

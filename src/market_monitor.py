@@ -1387,11 +1387,21 @@ class MarketMonitor:
 
                                         if 'stop_loss' in flash_signals and flash_signals['stop_loss']:
                                             sl_price = flash_signals['stop_loss']
-                                            stop_loss_pct = abs((sl_price - flash_price) / flash_price * 100)
+                                            # 🔧 FIX: Validar que sl_price es un número
+                                            if isinstance(sl_price, dict):
+                                                logger.warning(f"⚠️ sl_price es dict, extrayendo valor: {sl_price}")
+                                                sl_price = sl_price.get('price', sl_price.get('value', 0))
+                                            if isinstance(sl_price, (int, float)) and sl_price > 0:
+                                                stop_loss_pct = abs((sl_price - flash_price) / flash_price * 100)
 
                                         if 'take_profit' in flash_signals and flash_signals['take_profit']:
                                             tp_price = flash_signals['take_profit']
-                                            take_profit_pct = abs((tp_price - flash_price) / flash_price * 100)
+                                            # 🔧 FIX: Validar que tp_price es un número
+                                            if isinstance(tp_price, dict):
+                                                logger.warning(f"⚠️ tp_price es dict, extrayendo valor: {tp_price}")
+                                                tp_price = tp_price.get('price', tp_price.get('value', 0))
+                                            if isinstance(tp_price, (int, float)) and tp_price > 0:
+                                                take_profit_pct = abs((tp_price - flash_price) / flash_price * 100)
 
                                         # Leverage para flash (menor que señales normales)
                                         leverage = flash_signals.get('leverage', max(1, config.DEFAULT_LEVERAGE - 1))
