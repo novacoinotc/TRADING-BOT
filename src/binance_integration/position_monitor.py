@@ -571,9 +571,28 @@ class PositionMonitor:
         while self._running:
             try:
                 # Actualizar posiciones
-                self.update_positions()
+                positions = self.update_positions()
 
-                # Log status periódicamente (cada 60 segundos)
+                # Contar posiciones abiertas
+                open_positions = {k: v for k, v in positions.items() if float(v.get('positionAmt', 0)) != 0}
+
+                if open_positions:
+                    # Log compacto cada ciclo (5s)
+                    logger.info(f"📊 Position Monitor: {len(open_positions)} posiciones abiertas")
+                    for symbol, pos in open_positions.items():
+                        pnl = float(pos.get('unrealized_pnl', 0))
+                        entry = float(pos.get('entry_price', 0))
+                        mark = float(pos.get('mark_price', 0))
+
+                        # Calcular PNL%
+                        position_amt = abs(float(pos.get('position_amt', 0)))
+                        notional = position_amt * entry
+                        pnl_pct = (pnl / notional * 100) if notional > 0 else 0
+
+                        emoji = "📈" if pnl >= 0 else "📉"
+                        logger.info(f"   {emoji} {symbol}: {pnl:+.2f} USDT ({pnl_pct:+.2f}%) | Entry: ${entry:.4f} | Mark: ${mark:.4f}")
+
+                # Log detallado cada 60s
                 if int(time.time()) % 60 == 0:
                     self.log_positions_status()
 

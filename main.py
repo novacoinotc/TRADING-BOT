@@ -402,9 +402,17 @@ async def main():
             logger.info("✅ Sistema Autónomo activo - IA tiene control total")
 
             # Asignar RL agent al Trade Manager si existe
-            if trade_manager and hasattr(autonomy_controller, 'rl_agent'):
+            if trade_manager and hasattr(autonomy_controller, 'rl_agent') and autonomy_controller.rl_agent:
                 trade_manager.rl_agent = autonomy_controller.rl_agent
                 logger.info("✅ RL Agent asignado al Trade Manager")
+                logger.info(f"   Tipo: {type(autonomy_controller.rl_agent).__name__}")
+
+                # RE-VERIFICAR
+                logger.info("🔄 Verificando integración del RL Agent en Trade Manager...")
+                if hasattr(trade_manager, 'rl_agent') and trade_manager.rl_agent:
+                    logger.info("✅ RL Agent CONFIRMADO disponible en Trade Manager")
+                else:
+                    logger.error("❌ ERROR: RL Agent NO se asignó correctamente")
 
             # Asignar trade_manager al autonomy_controller para export
             if trade_manager:
