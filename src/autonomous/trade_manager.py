@@ -7,6 +7,8 @@ import asyncio
 from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 
+from .trade_management_learning import TradeManagementLearning
+
 logger = logging.getLogger(__name__)
 
 
@@ -89,6 +91,55 @@ class TradeManager:
         self._partial_closed = set()  # Símbolos donde ya se hizo partial TP
         self._breakeven_set = set()  # Símbolos donde ya se movió a breakeven
 
+        # 🧠 Sistema de Aprendizaje
+        self.learning = TradeManagementLearning(max_history=200)
+        self.learning.load_from_file()  # Cargar historial anterior si existe
+
+        # Tracking de posiciones abiertas (para detectar cierres)
+        self._tracked_positions = set()  # {symbol}
+
+        # Configurar callback en position_monitor para detectar cierres
+        if position_monitor and hasattr(position_monitor, 'on_position_closed'):
+            original_callback = position_monitor.on_position_closed
+
+            def learning_callback(close_info: Dict):
+                """Callback que evalúa decisiones cuando un trade cierra"""
+                try:
+                    symbol = close_info.get('symbol')
+                    final_pnl_pct = close_info.get('realized_pnl_pct', 0)
+                    close_reason = close_info.get('reason', 'UNKNOWN')
+
+                    # Obtener el máximo P&L alcanzado
+                    highest_pnl = self._position_highs.get(symbol, final_pnl_pct)
+
+                    # Evaluar acciones
+                    self.learning.evaluate_actions(
+                        symbol=symbol,
+                        final_pnl_pct=final_pnl_pct,
+                        highest_pnl_pct_reached=highest_pnl,
+                        close_reason=close_reason
+                    )
+
+                    # Limpiar tracking
+                    self._position_highs.pop(symbol, None)
+                    self._position_lows.pop(symbol, None)
+                    self._partial_closed.discard(symbol)
+                    self._breakeven_set.discard(symbol)
+                    self._tracked_positions.discard(symbol)
+
+                    # Guardar learning cada 10 trades cerrados
+                    if self.learning.stats['total_evaluated'] % 10 == 0:
+                        self.learning.save_to_file()
+
+                    # Llamar callback original si existe
+                    if original_callback and callable(original_callback):
+                        original_callback(close_info)
+
+                except Exception as e:
+                    logger.error(f"Error en learning callback: {e}", exc_info=True)
+
+            position_monitor.on_position_closed = learning_callback
+
         logger.info("✅ Trade Manager INTELIGENTE inicializado")
         logger.info("   📊 Servicios integrados:")
         logger.info(f"      - RL Agent: {'✅' if rl_agent else '❌'}")
@@ -97,6 +148,7 @@ class TradeManager:
         logger.info(f"      - Regime Detector: {'✅' if self.regime_detector else '❌'}")
         logger.info(f"      - Feature Aggregator: {'✅' if self.feature_aggregator else '❌'}")
         logger.info(f"      - OrderBook: {'✅' if self.orderbook_analyzer else '❌'}")
+        logger.info(f"      - Learning System: ✅ ({len(self.learning.actions_history)} acciones en historial)")
 
     async def start_monitoring(self):
         """Inicia monitoreo activo de trades"""
@@ -169,6 +221,9 @@ class TradeManager:
         self._position_highs[symbol] = max(self._position_highs[symbol], pnl_pct)
         self._position_lows[symbol] = min(self._position_lows[symbol], pnl_pct)
 
+        # Añadir a tracked positions (para learning system)
+        self._tracked_positions.add(symbol)
+
         highest_pnl = self._position_highs[symbol]
         drawdown_from_high = highest_pnl - pnl_pct
 
@@ -193,6 +248,16 @@ class TradeManager:
                 await self._set_breakeven(symbol, position)
                 self._breakeven_set.add(symbol)
 
+                # 🧠 Registrar acción en learning system
+                self.learning.record_action(
+                    symbol=symbol,
+                    action_type='breakeven',
+                    pnl_at_decision=pnl_usdt,
+                    pnl_pct_at_decision=pnl_pct,
+                    conditions=market_conditions,
+                    decision_info=decision
+                )
+
         # 2️⃣ DECISIÓN INTELIGENTE: Trailing Stop
         if highest_pnl > 2.0:  # Solo si ya hay ganancia significativa
             decision = self._get_intelligent_decision('trailing', position, market_conditions)
@@ -204,6 +269,16 @@ class TradeManager:
                 )
                 logger.info(f"   Razones: {', '.join(decision['reasons'])}")
                 await self._apply_trailing_stop(symbol, position, highest_pnl, market_conditions)
+
+                # 🧠 Registrar acción en learning system
+                self.learning.record_action(
+                    symbol=symbol,
+                    action_type='trailing',
+                    pnl_at_decision=pnl_usdt,
+                    pnl_pct_at_decision=pnl_pct,
+                    conditions=market_conditions,
+                    decision_info=decision
+                )
 
         # 3️⃣ DECISIÓN INTELIGENTE: Partial Take Profit
         if pnl_pct >= self.base_config['min_pnl_for_partial'] and symbol not in self._partial_closed:
@@ -217,6 +292,16 @@ class TradeManager:
                 logger.info(f"   Razones: {', '.join(decision['reasons'])}")
                 await self._partial_take_profit(symbol, position)
 
+                # 🧠 Registrar acción en learning system
+                self.learning.record_action(
+                    symbol=symbol,
+                    action_type='partial_tp',
+                    pnl_at_decision=pnl_usdt,
+                    pnl_pct_at_decision=pnl_pct,
+                    conditions=market_conditions,
+                    decision_info=decision
+                )
+
         # 4️⃣ DECISIÓN INTELIGENTE: Protección contra movimiento adverso
         if drawdown_from_high >= self.base_config['max_drawdown_tolerance']:
             decision = self._get_intelligent_decision('close_adverse', position, market_conditions)
@@ -229,6 +314,16 @@ class TradeManager:
                 logger.warning(f"   Razones: {', '.join(decision['reasons'])}")
                 await self._close_on_adverse_move(symbol, position, drawdown_from_high)
 
+                # 🧠 Registrar acción en learning system
+                self.learning.record_action(
+                    symbol=symbol,
+                    action_type='close_adverse',
+                    pnl_at_decision=pnl_usdt,
+                    pnl_pct_at_decision=pnl_pct,
+                    conditions=market_conditions,
+                    decision_info=decision
+                )
+
         # 5️⃣ DECISIÓN INTELIGENTE: Detección de reversión
         decision = self._get_intelligent_decision('reversal', position, market_conditions)
 
@@ -238,6 +333,17 @@ class TradeManager:
                 f"(Confidence: {decision['confidence']:.0%}, Risk: {decision['risk_score']:.2f})"
             )
             logger.warning(f"   Razones: {', '.join(decision['reasons'])}")
+
+            # 🧠 Registrar acción en learning system ANTES de cerrar
+            self.learning.record_action(
+                symbol=symbol,
+                action_type='reversal',
+                pnl_at_decision=pnl_usdt,
+                pnl_pct_at_decision=pnl_pct,
+                conditions=market_conditions,
+                decision_info=decision
+            )
+
             await self.futures_trader.close_position(symbol, reason='AI_REVERSAL')
             # Limpiar tracking
             self._position_highs.pop(symbol, None)
@@ -856,7 +962,7 @@ class TradeManager:
 
     def get_management_stats(self) -> Dict:
         """Obtiene estadísticas de gestión de trades"""
-        return {
+        stats = {
             'positions_tracked': len(self._position_highs),
             'partial_tps_executed': len(self._partial_closed),
             'breakevens_set': len(self._breakeven_set),
@@ -871,3 +977,10 @@ class TradeManager:
                 'orderbook': self.orderbook_analyzer is not None,
             }
         }
+
+        # 🧠 Añadir estadísticas del sistema de aprendizaje
+        if self.learning:
+            stats['learning'] = self.learning.get_statistics()
+            stats['learning_insights'] = self.learning.get_insights()
+
+        return stats
