@@ -695,3 +695,122 @@ class FuturesTrader:
         except Exception as e:
             logger.error(f"❌ Error closing all positions: {e}", exc_info=True)
             return closed
+
+    async def modify_stop_loss(self, symbol: str, new_sl_price: float) -> bool:
+        """
+        Modifica el Stop Loss de una posición activa
+
+        Args:
+            symbol: Símbolo
+            new_sl_price: Nuevo precio de Stop Loss
+
+        Returns:
+            bool: True si se modificó exitosamente
+        """
+        try:
+            logger.info(f"🔄 Modificando Stop Loss para {symbol} a ${new_sl_price:.4f}")
+
+            # Obtener posición actual
+            positions = self.client.get_position_risk(symbol=symbol)
+            position = None
+            for p in positions:
+                if p.get('symbol') == symbol and float(p.get('positionAmt', 0)) != 0:
+                    position = p
+                    break
+
+            if not position:
+                logger.warning(f"⚠️ No hay posición abierta para {symbol}")
+                return False
+
+            # Determinar side y cantidad
+            position_amt = float(position.get('positionAmt', 0))
+            current_side = 'LONG' if position_amt > 0 else 'SHORT'
+            quantity = abs(position_amt)
+
+            # Validar y redondear cantidad y precio
+            quantity = self._validate_and_round_quantity(symbol, quantity)
+            new_sl_price = self._validate_and_round_price(symbol, new_sl_price)
+
+            # Cancelar órdenes de Stop Loss existentes
+            try:
+                open_orders = self.client.get_open_orders(symbol=symbol)
+                for order in open_orders:
+                    if order.get('type') == 'STOP_MARKET':
+                        self.client.cancel_order(symbol=symbol, order_id=order['orderId'])
+                        logger.info(f"✅ Cancelado SL anterior (Order ID: {order['orderId']})")
+            except Exception as e:
+                logger.warning(f"⚠️ Error cancelando SL anterior: {e}")
+
+            # Colocar nuevo Stop Loss
+            sl_side = 'SELL' if current_side == 'LONG' else 'BUY'
+            sl_order = self.client.create_order(
+                symbol=symbol,
+                side=sl_side,
+                order_type='STOP_MARKET',
+                quantity=quantity,
+                stop_price=new_sl_price,
+                position_side='BOTH',
+                reduce_only=True
+            )
+
+            logger.info(
+                f"✅ Stop Loss modificado!\n"
+                f"   Order ID: {sl_order['orderId']}\n"
+                f"   Nuevo Stop Price: ${new_sl_price:.4f}"
+            )
+
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Error modificando Stop Loss para {symbol}: {e}", exc_info=True)
+            return False
+
+    async def close_partial_position(self, symbol: str, quantity: float) -> Optional[Dict]:
+        """
+        Cierra parcialmente una posición (ej: cerrar 50%)
+
+        Args:
+            symbol: Símbolo
+            quantity: Cantidad a cerrar
+
+        Returns:
+            Dict: Información del cierre parcial
+            None: Si hubo error
+        """
+        try:
+            logger.info(f"💰 Cerrando posición parcial: {symbol} - {quantity} qty")
+
+            # Usar el método close_position con cantidad especificada
+            result = self.close_position(
+                symbol=symbol,
+                quantity=quantity,
+                reason='PARTIAL_TP'
+            )
+
+            if result:
+                logger.info(f"✅ Posición parcial cerrada: {quantity} qty de {symbol}")
+            else:
+                logger.error(f"❌ Error cerrando posición parcial de {symbol}")
+
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ Error en close_partial_position para {symbol}: {e}", exc_info=True)
+            return None
+
+    def _get_price_precision(self, symbol: str) -> int:
+        """
+        Obtiene la precisión de precio para un símbolo
+
+        Args:
+            symbol: Símbolo
+
+        Returns:
+            int: Número de decimales para el precio
+        """
+        try:
+            filters = self._get_symbol_filters(symbol)
+            return filters.get('pricePrecision', 2)
+        except Exception as e:
+            logger.warning(f"⚠️ No se pudo obtener precisión de precio para {symbol}: {e}")
+            return 2  # Default 2 decimales

@@ -245,41 +245,28 @@ class TradeManager:
     async def _check_reversal_signals(self, symbol: str, position: Dict):
         """Verifica si la IA detecta señales de reversión fuertes"""
         try:
-            # Obtener análisis actual del mercado
-            pair = symbol.replace('USDT', '/USDT')
-            current_price = position.get('mark_price', 0)
-            side = position.get('side', 'UNKNOWN')
+            # TODO: Implementar detección de reversión cuando el ML system esté listo
+            # Por ahora, esta funcionalidad está deshabilitada
+            #
+            # Para habilitar, necesitarás:
+            # 1. Un método rápido de análisis de señales (ej: analyze_pair_fast)
+            # 2. Que retorne {'action': 'BUY/SELL/HOLD', 'confidence': 0-100}
+            #
+            # Ejemplo de implementación futura:
+            # pair = symbol.replace('USDT', '/USDT')
+            # market_data = await self.market_analyzer.get_quick_signal(pair)
+            # if market_data:
+            #     signal_action = market_data.get('action', 'HOLD')
+            #     confidence = market_data.get('confidence', 0) / 100
+            #     side = position.get('side', 'UNKNOWN')
+            #     is_reversal = (
+            #         (side == 'LONG' and signal_action == 'SELL' and confidence >= 0.75) or
+            #         (side == 'SHORT' and signal_action == 'BUY' and confidence >= 0.75)
+            #     )
+            #     if is_reversal:
+            #         await self.futures_trader.close_position(symbol, reason='AI_REVERSAL')
 
-            # Obtener señal actual de la IA
-            market_data = await self.market_analyzer.analyze_pair_fast(pair, current_price)
-
-            if not market_data:
-                return
-
-            # Verificar si hay señal contraria fuerte
-            signal_action = market_data.get('action', 'HOLD')
-            confidence = market_data.get('confidence', 0) / 100
-
-            # Si la IA recomienda lo contrario con alta confianza, cerrar
-            is_reversal = (
-                (side == 'LONG' and signal_action == 'SELL' and confidence >= self.config['reversal_close_confidence']) or
-                (side == 'SHORT' and signal_action == 'BUY' and confidence >= self.config['reversal_close_confidence'])
-            )
-
-            if is_reversal:
-                logger.warning(
-                    f"🔄 {symbol}: IA detecta reversión fuerte ({signal_action} conf={confidence:.0%}), "
-                    f"cerrando {side} position"
-                )
-
-                await self.futures_trader.close_position(symbol, reason='AI_REVERSAL')
-
-                # Limpiar tracking
-                self._position_highs.pop(symbol, None)
-                self._position_lows.pop(symbol, None)
-                self._partial_closed.discard(symbol)
-
-                logger.info(f"✅ {symbol}: Posición cerrada por señal de reversión")
+            pass  # Funcionalidad deshabilitada por ahora
 
         except Exception as e:
             logger.error(f"❌ Error verificando reversión para {symbol}: {e}")
