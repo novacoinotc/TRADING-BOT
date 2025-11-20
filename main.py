@@ -297,10 +297,36 @@ async def main():
         if hasattr(monitor, 'position_monitor') and monitor.position_monitor:
             try:
                 logger.info("🚀 Iniciando Position Monitor...")
-                monitor.position_monitor.start_background_monitoring()
-                logger.info("✅ Position Monitor iniciado - monitoreando posiciones cada 5s")
+
+                # CRÍTICO: Verificar que hay un loop de eventos activo
+                try:
+                    loop = asyncio.get_running_loop()
+                    logger.info(f"✅ Loop de eventos detectado: {loop}")
+                except RuntimeError:
+                    logger.warning("⚠️ No hay loop running, usando get_event_loop()...")
+                    loop = asyncio.get_event_loop()
+
+                # Iniciar monitoreo en background
+                task = monitor.position_monitor.start_background_monitoring()
+
+                if task:
+                    logger.info("✅ Position Monitor iniciado - monitoreando posiciones cada 5s")
+                    logger.info(f"   Task ID: {id(task)}")
+
+                    # Verificar después de 2 segundos que está corriendo
+                    await asyncio.sleep(2)
+                    if monitor.position_monitor._running:
+                        logger.info("✅ Position Monitor confirmado en ejecución")
+                    else:
+                        logger.error("❌ Position Monitor NO está corriendo después de iniciar")
+                else:
+                    logger.error("❌ start_background_monitoring() retornó None")
+
             except Exception as e:
-                logger.error(f"❌ Error iniciando Position Monitor: {e}")
+                logger.error(f"❌ Error iniciando Position Monitor: {e}", exc_info=True)
+                logger.error("   Position Monitor NO estará activo")
+        else:
+            logger.warning("⚠️ Position Monitor no disponible (verifica credenciales de Binance)")
 
         # 🤖 v2.1: Iniciar Trade Manager (gestión inteligente de trades)
         if (hasattr(monitor, 'position_monitor') and monitor.position_monitor and
@@ -317,19 +343,31 @@ async def main():
                     market_analyzer=monitor
                 )
 
-                # Iniciar monitoreo en background
-                import asyncio
-                loop = asyncio.get_event_loop()
-                loop.create_task(trade_manager.start_monitoring())
+                # CRÍTICO: Iniciar monitoreo en el loop actual
+                logger.info("🔄 Iniciando Trade Manager en background...")
+                loop = asyncio.get_running_loop()
+                trade_manager_task = loop.create_task(trade_manager.start_monitoring())
+
+                # Esperar confirmación
+                await asyncio.sleep(1)
 
                 logger.info("✅ Trade Manager activo - Gestión inteligente de trades en tiempo real")
                 logger.info("   - Breakeven protection: 1.5%")
                 logger.info("   - Trailing stop: 3.0%")
                 logger.info("   - Partial TP: 4.0%")
                 logger.info("   - Protección adversa: -1.5%")
+                logger.info(f"   Task ID: {id(trade_manager_task)}")
 
             except Exception as e:
                 logger.error(f"❌ Error iniciando Trade Manager: {e}", exc_info=True)
+                logger.error("   Trade Manager NO estará activo")
+        else:
+            reason = []
+            if not hasattr(monitor, 'position_monitor') or not monitor.position_monitor:
+                reason.append("Position Monitor no disponible")
+            if not hasattr(monitor, 'futures_trader') or not monitor.futures_trader:
+                reason.append("Futures Trader no disponible")
+            logger.warning(f"⚠️ Trade Manager no inicializado: {', '.join(reason)}")
 
         # Initialize Autonomous AI System if enabled
         if config.ENABLE_AUTONOMOUS_MODE:
