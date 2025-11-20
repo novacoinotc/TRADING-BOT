@@ -312,6 +312,14 @@ class PositionMonitor:
             Dict: Información del cierre
         """
         try:
+            # 🔧 FIX: Inicializar variables ANTES del try para evitar UnboundLocalError
+            import time
+            from datetime import datetime
+            trade_time = int(time.time() * 1000)  # Default timestamp
+            exit_price = position.get('mark_price', 0)  # Default exit price
+            last_trade = {}  # Default empty dict
+            reason = 'AUTO_CLOSE'  # Default reason
+
             # Obtener últimos trades para este símbolo
             recent_trades = self.client.get_user_trades(symbol, limit=10)
 
@@ -368,13 +376,11 @@ class PositionMonitor:
                 logger.debug(f"P&L fallback desde unrealized: ${realized_pnl:+.2f}")
 
             # Determinar razón del cierre consultando órdenes recientes
-            reason = 'AUTO_CLOSE'  # Por defecto
             try:
                 # Consultar últimas 10 órdenes del símbolo
                 recent_orders = self.client.get_all_orders(symbol=symbol, limit=10)
 
                 # Buscar órdenes FILLED recientes (últimos 15 segundos)
-                import time
                 now = int(time.time() * 1000)
                 recent_filled = [
                     o for o in recent_orders
