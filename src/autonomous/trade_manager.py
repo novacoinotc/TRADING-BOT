@@ -286,23 +286,63 @@ class TradeManager:
             pnl_pct = position.get('unrealized_pnl_pct', 0)
 
             # 📊 1. RL AGENT ANALYSIS (Q-values del estado actual)
+            # NOTA: RL Agent es para ABRIR trades, no gestionarlos
+            # Acciones: SKIP, OPEN_CONSERVATIVE, OPEN_NORMAL, OPEN_AGGRESSIVE, FUTURES_*
+            # Si Q(SKIP) es alto, puede indicar que RL no recomendaría entrar ahora
             if self.rl_agent:
                 try:
-                    state = self._build_rl_state(position, symbol)
-                    q_values = self.rl_agent.get_q_values(state)
-                    conditions['rl_q_values'] = q_values
+                    # Construir market_data para get_state_representation()
+                    pair = symbol.replace('USDT', '/USDT')
 
-                    # Analizar Q-values para determinar si mantener o cerrar
-                    if q_values:
-                        hold_value = q_values.get('hold', 0)
-                        close_value = q_values.get('close', 0)
+                    # Necesitamos construir market_data completo
+                    market_data_for_state = {
+                        'pair': pair,
+                        'action': 'BUY' if side == 'LONG' else 'SELL',
+                        'rsi': 50,  # Default - idealmente obtener RSI real
+                        'regime': conditions.get('market_regime', 'SIDEWAYS'),
+                        'regime_strength': 'MEDIUM',
+                        'orderbook': 'NEUTRAL',
+                        'confidence': min(100, max(0, pnl_pct * 10)),  # Aproximación
+                        'volatility': 'medium',
+                        'cryptopanic_sentiment': 'neutral',
+                        'news_volume': 0,
+                        'total_trades': self.rl_agent.total_trades,
+                        'success_rate': self.rl_agent.get_success_rate(),
+                    }
 
-                        if close_value > hold_value + 0.1:  # Margen significativo
-                            conditions['should_secure_profits'] = True
-                            conditions['reasons'].append(f"RL Agent: Close Q={close_value:.2f} > Hold Q={hold_value:.2f}")
-                        elif hold_value > close_value + 0.1:
-                            conditions['should_let_run'] = True
-                            conditions['reasons'].append(f"RL Agent: Hold Q={hold_value:.2f} > Close Q={close_value:.2f}")
+                    # Obtener hash del estado usando método real del RL Agent
+                    state_hash = self.rl_agent.get_state_representation(market_data_for_state)
+
+                    # Acceder directamente a Q-table
+                    if state_hash in self.rl_agent.q_table:
+                        q_values = self.rl_agent.q_table[state_hash]
+                        conditions['rl_q_values'] = q_values
+
+                        # Analizar Q(SKIP) vs Q(acciones de apertura)
+                        skip_q = q_values.get('SKIP', 0)
+
+                        # Calcular promedio de Q-values de acciones de apertura
+                        open_actions = [a for a in q_values.keys() if a != 'SKIP']
+                        if open_actions:
+                            avg_open_q = sum(q_values.get(a, 0) for a in open_actions) / len(open_actions)
+                            max_open_q = max(q_values.get(a, 0) for a in open_actions)
+
+                            # Si SKIP tiene Q-value alto, puede indicar mal momento
+                            # Interpretación: RL Agent no abriría trade ahora → asegurar ganancias
+                            if skip_q > avg_open_q + 0.5:
+                                conditions['should_secure_profits'] = True
+                                conditions['reasons'].append(
+                                    f"RL: SKIP Q={skip_q:.2f} >> Open Q={avg_open_q:.2f} "
+                                    f"(RL no abriría trade ahora → asegurar)"
+                                )
+                            elif max_open_q > skip_q + 0.5:
+                                conditions['should_let_run'] = True
+                                conditions['reasons'].append(
+                                    f"RL: Open Q={max_open_q:.2f} >> SKIP Q={skip_q:.2f} "
+                                    f"(RL vería buena oportunidad → dejar correr)"
+                                )
+                    else:
+                        logger.debug(f"Estado {state_hash[:16]}... no encontrado en Q-table")
 
                 except Exception as e:
                     logger.debug(f"Error en RL analysis: {e}")
@@ -601,23 +641,107 @@ class TradeManager:
 
     def _check_liquidation_zones(self, symbol: str, position: Dict) -> float:
         """Verifica proximidad a zonas de liquidación"""
-        # TODO: Implementar cuando feature_aggregator tenga liquidation data
-        return 0.0
+        try:
+            if not self.feature_aggregator:
+                return 0.0
+
+            pair = symbol.replace('USDT', '/USDT')
+            current_price = position.get('mark_price', 0)
+
+            # Verificar si feature_aggregator tiene liquidation_heatmap
+            if not hasattr(self.feature_aggregator, 'liquidation_heatmap'):
+                return 0.0
+
+            liq_heatmap = self.feature_aggregator.liquidation_heatmap
+            is_near, details = liq_heatmap.is_near_liquidation_zone(pair, current_price)
+
+            if is_near and details:
+                confidence = details.get('confidence', 0)
+                logger.debug(f"Liquidation zone detected for {symbol}: confidence={confidence:.0%}")
+                return confidence
+
+            return 0.0
+
+        except Exception as e:
+            logger.debug(f"Error checking liquidation zones: {e}")
+            return 0.0
 
     def _analyze_funding_rate(self, symbol: str) -> Optional[str]:
         """Analiza funding rate para detectar sentiment extremo"""
-        # TODO: Implementar cuando feature_aggregator tenga funding data
-        return None
+        try:
+            if not self.feature_aggregator:
+                return None
+
+            pair = symbol.replace('USDT', '/USDT')
+
+            # Verificar si feature_aggregator tiene funding_rate_analyzer
+            if not hasattr(self.feature_aggregator, 'funding_rate_analyzer'):
+                return None
+
+            funding_analyzer = self.feature_aggregator.funding_rate_analyzer
+            sentiment, strength, signal = funding_analyzer.get_funding_sentiment(pair)
+
+            if strength == 'STRONG' and sentiment != 'neutral':
+                return f"Funding: {sentiment.upper()} sentiment (strength={strength})"
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"Error analyzing funding rate: {e}")
+            return None
 
     def _analyze_volume_profile(self, symbol: str, position: Dict) -> Optional[str]:
         """Analiza volume profile para soporte/resistencia"""
-        # TODO: Implementar cuando feature_aggregator tenga volume profile
-        return None
+        try:
+            if not self.feature_aggregator:
+                return None
+
+            pair = symbol.replace('USDT', '/USDT')
+            current_price = position.get('mark_price', 0)
+
+            # Verificar si feature_aggregator tiene volume_profile
+            if not hasattr(self.feature_aggregator, 'volume_profile'):
+                return None
+
+            volume_profile = self.feature_aggregator.volume_profile
+
+            # Verificar proximidad a POC (Point of Control)
+            is_near_poc, distance = volume_profile.is_near_poc(pair, current_price)
+            in_value_area = volume_profile.is_in_value_area(pair, current_price)
+
+            if is_near_poc:
+                return f"Volume: Near POC (distance={distance:.1f}%)"
+            elif in_value_area:
+                return "Volume: In value area (strong support/resistance)"
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"Error analyzing volume profile: {e}")
+            return None
 
     def _detect_reversal_patterns(self, symbol: str, position: Dict) -> Optional[str]:
         """Detecta patrones de reversión"""
-        # TODO: Implementar cuando feature_aggregator tenga pattern recognition
-        return None
+        try:
+            if not self.feature_aggregator:
+                return None
+
+            # Verificar si feature_aggregator tiene pattern_recognition
+            if not hasattr(self.feature_aggregator, 'pattern_recognition'):
+                return None
+
+            pair = symbol.replace('USDT', '/USDT')
+            pattern_recognition = self.feature_aggregator.pattern_recognition
+
+            # Pattern recognition necesita OHLC data que no tenemos en tiempo real aquí
+            # Por ahora, retornar None hasta tener acceso a OHLC en tiempo real
+            # TODO: Integrar cuando tengamos OHLC data disponible
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"Error detecting patterns: {e}")
+            return None
 
     async def _analyze_orderbook(self, symbol: str) -> Optional[Dict]:
         """Analiza order book para presión buy/sell"""
