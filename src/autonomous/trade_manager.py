@@ -98,48 +98,6 @@ class TradeManager:
         # Tracking de posiciones abiertas (para detectar cierres)
         self._tracked_positions = set()  # {symbol}
 
-        # Configurar callback en position_monitor para detectar cierres
-        if position_monitor and hasattr(position_monitor, 'on_position_closed'):
-            original_callback = position_monitor.on_position_closed
-
-            def learning_callback(close_info: Dict):
-                """Callback que evalúa decisiones cuando un trade cierra"""
-                try:
-                    symbol = close_info.get('symbol')
-                    final_pnl_pct = close_info.get('realized_pnl_pct', 0)
-                    close_reason = close_info.get('reason', 'UNKNOWN')
-
-                    # Obtener el máximo P&L alcanzado
-                    highest_pnl = self._position_highs.get(symbol, final_pnl_pct)
-
-                    # Evaluar acciones
-                    self.learning.evaluate_actions(
-                        symbol=symbol,
-                        final_pnl_pct=final_pnl_pct,
-                        highest_pnl_pct_reached=highest_pnl,
-                        close_reason=close_reason
-                    )
-
-                    # Limpiar tracking
-                    self._position_highs.pop(symbol, None)
-                    self._position_lows.pop(symbol, None)
-                    self._partial_closed.discard(symbol)
-                    self._breakeven_set.discard(symbol)
-                    self._tracked_positions.discard(symbol)
-
-                    # Guardar learning cada 10 trades cerrados
-                    if self.learning.stats['total_evaluated'] % 10 == 0:
-                        self.learning.save_to_file()
-
-                    # Llamar callback original si existe
-                    if original_callback and callable(original_callback):
-                        original_callback(close_info)
-
-                except Exception as e:
-                    logger.error(f"Error en learning callback: {e}", exc_info=True)
-
-            position_monitor.on_position_closed = learning_callback
-
         logger.info("✅ Trade Manager INTELIGENTE inicializado")
         logger.info("   📊 Servicios integrados:")
         logger.info(f"      - RL Agent: {'✅' if rl_agent else '❌'}")
@@ -179,8 +137,77 @@ class TradeManager:
         logger.info("🛑 Deteniendo Trade Manager...")
         self._running = False
 
+    async def _detect_closed_positions(self):
+        """Detecta posiciones que cerraron desde el último check"""
+        try:
+            # Obtener posiciones actuales
+            current_positions = self.position_monitor.get_open_positions()
+            current_symbols = set(current_positions.keys()) if current_positions else set()
+
+            # Detectar símbolos que cerraron
+            closed_symbols = self._tracked_positions - current_symbols
+
+            if closed_symbols:
+                logger.info(f"🔍 Detectados {len(closed_symbols)} trade(s) cerrado(s): {closed_symbols}")
+
+            for symbol in closed_symbols:
+                await self._evaluate_closed_position(symbol)
+
+        except Exception as e:
+            logger.error(f"Error detecting closed positions: {e}", exc_info=True)
+
+    async def _evaluate_closed_position(self, symbol: str):
+        """Evalúa las decisiones de un trade que cerró"""
+        try:
+            # Obtener información del cierre desde position monitor history
+            # Si position_monitor tiene historial de trades cerrados
+            closed_trades = getattr(self.position_monitor, 'closed_trades', {})
+
+            if symbol in closed_trades:
+                trade_info = closed_trades[symbol]
+                final_pnl_pct = trade_info.get('pnl_pct', 0)
+                close_reason = trade_info.get('reason', 'UNKNOWN')
+            else:
+                # Fallback: usar último P&L conocido
+                final_pnl_pct = 0  # No podemos saber el final exacto
+                close_reason = 'UNKNOWN'
+                logger.warning(f"⚠️ No se encontró info de cierre para {symbol}, usando fallback")
+
+            # Obtener el máximo P&L alcanzado
+            highest_pnl = self._position_highs.get(symbol, final_pnl_pct)
+
+            # Evaluar acciones
+            logger.info(f"📊 Evaluando acciones de {symbol} (Final: {final_pnl_pct:+.2f}%, Max: {highest_pnl:+.2f}%)")
+
+            self.learning.evaluate_actions(
+                symbol=symbol,
+                final_pnl_pct=final_pnl_pct,
+                highest_pnl_pct_reached=highest_pnl,
+                close_reason=close_reason
+            )
+
+            # Limpiar tracking
+            self._position_highs.pop(symbol, None)
+            self._position_lows.pop(symbol, None)
+            self._partial_closed.discard(symbol)
+            self._breakeven_set.discard(symbol)
+            self._tracked_positions.discard(symbol)
+
+            # Auto-guardar cada 10 evaluaciones
+            if self.learning.stats['total_evaluated'] % 10 == 0:
+                self.learning.save_to_file()
+                logger.info(f"💾 Learning guardado ({self.learning.stats['total_evaluated']} evaluaciones)")
+
+        except Exception as e:
+            logger.error(f"Error evaluating closed position {symbol}: {e}", exc_info=True)
+
     async def _check_all_positions(self):
         """Revisa todas las posiciones abiertas y aplica gestión inteligente"""
+
+        # 🔍 PRIMERO: Detectar trades que cerraron
+        await self._detect_closed_positions()
+
+        # LUEGO: Gestionar trades abiertos
         positions = self.position_monitor.get_open_positions()
 
         if not positions:

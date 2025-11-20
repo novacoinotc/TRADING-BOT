@@ -1641,3 +1641,74 @@ class AutonomyController:
         except Exception as e:
             logger.error(f"❌ Error in update_from_trade_result: {e}", exc_info=True)
 
+    def export_intelligence(self) -> Dict:
+        """Exporta toda la inteligencia aprendida"""
+        try:
+            intelligence_data = {
+                "version": "2.0",
+                "timestamp": datetime.now().isoformat(),
+                "rl_agent": self.rl_agent.save_to_dict(),
+                "parameter_optimizer": self.parameter_optimizer.save_to_dict(),
+                "performance_history": {
+                    'total_trades': len(self.performance_history),
+                    'recent_performance': self.performance_history[-100:] if self.performance_history else []
+                },
+                "metadata": {
+                    'current_parameters': self.current_parameters,
+                    'total_trades_processed': self.total_trades_processed,
+                    'total_trades_all_time': self.total_trades_all_time,
+                    'max_leverage_unlocked': self._calculate_max_leverage(),
+                    'total_parameter_changes': self.total_parameter_changes,
+                    'last_optimization': self.last_optimization_time.isoformat(),
+                    'decision_mode': self.decision_mode
+                },
+
+                # ✨ AÑADIR LEARNING SYSTEM
+                "trade_management_learning": self.get_trade_management_learning_data(),
+            }
+
+            # Añadir paper trading si existe
+            if hasattr(self, 'paper_trader') and self.paper_trader:
+                intelligence_data['paper_trading'] = self.paper_trader.portfolio.get_full_state_for_export()
+                logger.debug(
+                    f"📤 Exportando paper trading: "
+                    f"{len(intelligence_data['paper_trading'].get('closed_trades', []))} trades"
+                )
+
+            # Añadir ML training buffer si existe
+            ml_training_buffer = []
+            if hasattr(self, 'market_monitor') and self.market_monitor:
+                if hasattr(self.market_monitor, 'ml_system') and self.market_monitor.ml_system:
+                    ml_system = self.market_monitor.ml_system
+                    if hasattr(ml_system, 'training_buffer'):
+                        ml_training_buffer = ml_system.training_buffer
+                        intelligence_data['ml_training_buffer'] = ml_training_buffer
+                        logger.debug(f"🧠 ML Training Buffer incluido en export: {len(ml_training_buffer)} features")
+
+            return intelligence_data
+
+        except Exception as e:
+            logger.error(f"Error exporting intelligence: {e}", exc_info=True)
+            return {}
+
+    def get_trade_management_learning_data(self) -> Dict:
+        """Obtiene datos del learning system del Trade Manager"""
+        try:
+            # Opción 1: Si trade_manager está en autonomy_controller
+            if hasattr(self, 'trade_manager') and self.trade_manager:
+                return self.trade_manager.learning.export_to_json()
+
+            # Opción 2: Cargar desde archivo si no hay referencia
+            from pathlib import Path
+            import json
+            filepath = 'data/trade_management_learning.json'
+            if Path(filepath).exists():
+                with open(filepath, 'r') as f:
+                    return json.load(f)
+
+            return {}
+
+        except Exception as e:
+            logger.error(f"Error getting trade management learning: {e}", exc_info=True)
+            return {}
+
