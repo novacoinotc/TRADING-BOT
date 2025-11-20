@@ -49,8 +49,22 @@ class TelegramCommands:
             return
 
         try:
-            # Crear aplicación
-            self.application = ApplicationBuilder().token(self.telegram_token).build()
+            # Crear aplicación con connection pool aumentado para evitar timeouts
+            self.application = (
+                ApplicationBuilder()
+                .token(self.telegram_token)
+                .concurrent_updates(True)  # Permite updates concurrentes
+                .http_version("1.1")
+                .get_updates_http_version("1.1")
+                .connect_timeout(30.0)
+                .read_timeout(30.0)
+                .write_timeout(30.0)
+                .pool_timeout(30.0)
+                .connection_pool_size(16)  # Aumentar de 1 (default) a 16
+                .build()
+            )
+
+            logger.info("✅ Telegram Application creada con connection pool aumentado (16 conexiones)")
 
             # Agregar handlers
             self.application.add_handler(CommandHandler("export_intelligence", self.export_intelligence_command))
