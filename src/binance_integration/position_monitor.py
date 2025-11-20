@@ -574,7 +574,7 @@ class PositionMonitor:
                 positions = self.update_positions()
 
                 # Contar posiciones abiertas
-                open_positions = {k: v for k, v in positions.items() if float(v.get('positionAmt', 0)) != 0}
+                open_positions = {k: v for k, v in positions.items() if float(v.get('position_amt', 0)) != 0}
 
                 if open_positions:
                     # Log compacto cada ciclo (5s)
