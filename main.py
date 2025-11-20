@@ -310,7 +310,7 @@ async def main():
                 task = monitor.position_monitor.start_background_monitoring()
 
                 if task:
-                    logger.info("✅ Position Monitor iniciado - monitoreando posiciones cada 5s")
+                    logger.info("✅ Position Monitor iniciado - monitoreando posiciones cada 10s")
                     logger.info(f"   Task ID: {id(task)}")
 
                     # Verificar después de 2 segundos que está corriendo
