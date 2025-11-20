@@ -368,6 +368,11 @@ async def main():
                 trade_manager.rl_agent = autonomy_controller.rl_agent
                 logger.info("✅ RL Agent asignado al Trade Manager")
 
+            # Asignar trade_manager al autonomy_controller para export
+            if trade_manager:
+                autonomy_controller.trade_manager = trade_manager
+                logger.info("✅ Trade Manager asignado al autonomy_controller (para export)")
+
             # Initialize Test Mode
             test_mode = TestMode(
                 futures_trader=monitor.futures_trader if hasattr(monitor, 'futures_trader') else None,
@@ -383,7 +388,8 @@ async def main():
                 telegram_token=config.TELEGRAM_BOT_TOKEN,
                 chat_id=config.TELEGRAM_CHAT_ID,
                 market_monitor=monitor,  # Para acceso al ML System
-                test_mode=test_mode  # Para comandos de prueba
+                test_mode=test_mode,  # Para comandos de prueba
+                trade_manager=trade_manager if 'trade_manager' in locals() else None  # Para learning stats
             )
             monitor.telegram_commands = telegram_commands
             await telegram_commands.start_command_listener()

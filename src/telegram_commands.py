@@ -19,7 +19,7 @@ class TelegramCommands:
     - /status: Status del sistema autónomo
     """
 
-    def __init__(self, autonomy_controller=None, telegram_token: str = None, chat_id: str = None, market_monitor=None, test_mode=None):
+    def __init__(self, autonomy_controller=None, telegram_token: str = None, chat_id: str = None, market_monitor=None, test_mode=None, trade_manager=None):
         """
         Args:
             autonomy_controller: Instancia del AutonomyController
@@ -27,10 +27,12 @@ class TelegramCommands:
             chat_id: Chat ID para enviar mensajes proactivos
             market_monitor: Instancia del MarketMonitor (para ML System)
             test_mode: Instancia del TestMode (para pruebas automáticas)
+            trade_manager: Instancia del TradeManager (para learning system)
         """
         self.autonomy_controller = autonomy_controller
         self.market_monitor = market_monitor
         self.test_mode = test_mode
+        self.trade_manager = trade_manager
         self.telegram_token = telegram_token
         self.chat_id = chat_id
         self.application = None
@@ -68,6 +70,7 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("test_stop", self.test_stop_command))  # Detener modo prueba
             self.application.add_handler(CommandHandler("test_status", self.test_status_command))  # Estado modo prueba
             self.application.add_handler(CommandHandler("validarends", self.validarends_command))  # Validar endpoints Binance
+            self.application.add_handler(CommandHandler("learning", self.learning_stats_command))  # Estadísticas de aprendizaje del Trade Manager
             self.application.add_handler(CommandHandler("help", self.help_command))
 
             # Handler para recibir archivos (documentos)
@@ -1360,4 +1363,97 @@ class TelegramCommands:
             logger.error(f"Error en comando /validarends: {e}", exc_info=True)
             await update.message.reply_text(
                 f"❌ **Error ejecutando validación**\n\n{str(e)}"
+            )
+
+    async def learning_stats_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Muestra estadísticas del sistema de aprendizaje del Trade Manager
+
+        Comando: /learning
+        """
+        try:
+            logger.info("🧠 Comando /learning recibido")
+
+            # Enviar acción de escritura
+            await update.message.get_bot().send_chat_action(
+                chat_id=update.effective_chat.id,
+                action="typing"
+            )
+
+            # Verificar que trade_manager existe
+            if not hasattr(self, 'trade_manager') or not self.trade_manager:
+                await update.message.reply_text(
+                    "❌ Trade Manager no está disponible",
+                    parse_mode='HTML'
+                )
+                return
+
+            # Obtener estadísticas
+            stats = self.trade_manager.learning.get_statistics()
+            insights = self.trade_manager.learning.get_insights()
+            best_practices = self.trade_manager.learning.get_best_practices()
+
+            # Construir mensaje
+            message = "🧠 <b>TRADE MANAGEMENT LEARNING</b>\n\n"
+
+            # Estadísticas generales
+            total_actions = stats.get('total_actions', 0)
+            total_evaluated = stats.get('total_evaluated', 0)
+            overall_success = stats.get('overall_success_rate', 0)
+
+            message += f"📊 <b>General:</b>\n"
+            message += f"   • Total acciones: {total_actions}\n"
+            message += f"   • Evaluadas: {total_evaluated}\n"
+            message += f"   • Success rate: {overall_success:.1f}%\n\n"
+
+            # Estadísticas por tipo
+            message += "📈 <b>Por tipo de acción:</b>\n"
+
+            for action_type in ['breakeven', 'trailing', 'partial_tp', 'close_adverse', 'reversal']:
+                good = stats.get(f'{action_type}_good', 0)
+                bad = stats.get(f'{action_type}_bad', 0)
+                neutral = stats.get(f'{action_type}_neutral', 0)
+                total = good + bad + neutral
+
+                if total > 0:
+                    success_rate = stats.get(f'{action_type}_success_rate', 0)
+                    emoji = "✅" if success_rate >= 70 else "⚠️" if success_rate >= 50 else "❌"
+
+                    # Formatear nombre
+                    action_name = action_type.replace('_', ' ').upper()
+                    message += f"{emoji} {action_name}: {success_rate:.0f}% "
+                    message += f"({good}✓ {bad}✗ {neutral}○)\n"
+
+            message += "\n"
+
+            # Insights
+            if insights:
+                message += "💡 <b>Insights:</b>\n"
+                for insight in insights[:3]:  # Máximo 3
+                    message += f"   • {insight}\n"
+                message += "\n"
+
+            # Best Practices
+            if best_practices:
+                message += "🎯 <b>Mejores prácticas aprendidas:</b>\n"
+                for action_type, practice in best_practices.items():
+                    if practice:
+                        action_name = action_type.replace('_', ' ').upper()
+                        message += f"   • {action_name}: "
+
+                        # Formatear rango de P&L óptimo
+                        pnl_range = practice.get('optimal_pnl_range', 'N/A')
+                        confidence = practice.get('optimal_confidence', 'N/A')
+                        sample_size = practice.get('sample_size', 0)
+
+                        message += f"~{pnl_range} "
+                        message += f"(conf: {confidence}, n={sample_size})\n"
+
+            await update.message.reply_text(message, parse_mode='HTML')
+
+        except Exception as e:
+            logger.error(f"Error in learning_stats_command: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ Error obteniendo learning stats: {e}",
+                parse_mode='HTML'
             )

@@ -51,8 +51,9 @@ class PositionMonitor:
         # Tracking de posiciones cerradas
         self._closed_positions_ids = set()  # Para no reprocesar
 
-        # Historial de trades cerrados (para el dashboard)
-        self.closed_trades: List[Dict] = []
+        # Historial de trades cerrados (para el dashboard y Trade Manager learning)
+        self.closed_trades: Dict[str, Dict] = {}  # {symbol: {pnl_pct, reason, timestamp}}
+        self.max_closed_trades = 100  # Mantener últimos 100
 
         # Referencia opcional a autonomy_controller (para verificar test_mode_active)
         self.autonomy_controller = None
@@ -104,6 +105,37 @@ class PositionMonitor:
             bool: True si hay posición abierta
         """
         return symbol in self._positions
+
+    def record_closed_trade(self, symbol: str, pnl_pct: float, reason: str):
+        """
+        Guarda información de un trade cerrado para que Trade Manager pueda evaluarlo
+
+        Args:
+            symbol: Símbolo del trade
+            pnl_pct: P&L en porcentaje
+            reason: Razón del cierre (TP_HIT, SL_HIT, MANUAL, etc.)
+        """
+        try:
+            from datetime import datetime
+
+            self.closed_trades[symbol] = {
+                'pnl_pct': pnl_pct,
+                'reason': reason,
+                'timestamp': datetime.now().isoformat(),
+                'symbol': symbol
+            }
+
+            # Mantener solo últimos N trades
+            if len(self.closed_trades) > self.max_closed_trades:
+                # Eliminar el más antiguo
+                oldest = min(self.closed_trades.items(),
+                            key=lambda x: x[1]['timestamp'])
+                del self.closed_trades[oldest[0]]
+
+            logger.debug(f"📝 Trade cerrado registrado: {symbol} ({reason}, {pnl_pct:+.2f}%)")
+
+        except Exception as e:
+            logger.error(f"Error recording closed trade: {e}", exc_info=True)
 
     def _get_real_leverage(self, symbol: str, position_data: Dict) -> int:
         """
@@ -267,23 +299,11 @@ class PositionMonitor:
                                self.autonomy_controller.test_mode_active)
 
             if closed_info and not test_mode_active:
-                trade_record = {
-                    'id': len(self.closed_trades) + 1,
-                    'symbol': closed_info.get('symbol', symbol),
-                    'side': closed_info.get('side', 'UNKNOWN'),
-                    'leverage': closed_info.get('leverage', 1),
-                    'entry_price': closed_info.get('entry_price', 0),
-                    'exit_price': closed_info.get('exit_price', 0),
-                    'quantity': closed_info.get('quantity', 0),
-                    'realized_pnl': closed_info.get('realized_pnl', 0),
-                    'realized_pnl_pct': closed_info.get('realized_pnl_pct', 0),
-                    'reason': closed_info.get('reason', 'Unknown'),
-                    'open_time': prev_pos.get('open_time', datetime.now().isoformat()),
-                    'close_time': datetime.now().isoformat(),
-                    'trade_id': closed_info.get('trade_id', f"{symbol}_{int(time.time())}")
-                }
-                self.closed_trades.append(trade_record)
-                logger.info(f"💾 Trade guardado en historial por Position Monitor (ID: {trade_record['id']})")
+                # Registrar trade cerrado para Trade Manager learning
+                realized_pnl_pct = closed_info.get('realized_pnl_pct', 0)
+                reason = closed_info.get('reason', 'UNKNOWN')
+                self.record_closed_trade(symbol, realized_pnl_pct, reason)
+                logger.info(f"💾 Trade cerrado registrado para learning: {symbol} ({reason}, {realized_pnl_pct:+.2f}%)")
             elif test_mode_active:
                 logger.debug(f"⏭️ No guardando trade (Test Mode activo, ya lo guardó test_mode)")
 
