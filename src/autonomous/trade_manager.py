@@ -1,10 +1,10 @@
 """
-Trade Manager - Gestión inteligente de trades abiertos en tiempo real
-Permite a la IA modificar SL/TP, cerrar posiciones anticipadamente, y ajustar estrategia
+Trade Manager - Gestión INTELIGENTE de trades abiertos en tiempo real
+Usa los 24 servicios del sistema para tomar decisiones basadas en datos, no porcentajes fijos
 """
 import logging
 import asyncio
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -12,14 +12,27 @@ logger = logging.getLogger(__name__)
 
 class TradeManager:
     """
-    Gestor inteligente de trades abiertos.
+    Gestor INTELIGENTE de trades abiertos.
+
+    NUEVA ARQUITECTURA: Decisiones basadas en 24 servicios del sistema:
+    - RL Agent (Q-values para evaluar estado actual)
+    - ML System (predicciones de próximos movimientos)
+    - Sentiment Analyzer (Fear & Greed, News, Social)
+    - Market Regime Detector (Bear/Bull/Sideways)
+    - Feature Aggregator - Arsenal Avanzado:
+      * Liquidation Zones (evitar stop hunts)
+      * Funding Rate (sentiment extremo)
+      * Volume Profile (soporte/resistencia)
+      * Pattern Recognition (reversiones)
+      * Order Flow (momentum institucional)
+      * Session Trading (volatilidad por sesión)
 
     Capacidades:
     - Modificar SL/TP dinámicamente según condiciones de mercado
     - Cerrar posiciones anticipadamente si detecta reversión
-    - Trailing stop loss automático
-    - Partial take profit (cerrar parte de la posición)
-    - Breakeven protection (mover SL a entrada cuando hay +X% ganancia)
+    - Trailing stop loss inteligente
+    - Partial take profit basado en confianza
+    - Breakeven protection adaptativo según régimen
     """
 
     def __init__(
@@ -36,7 +49,7 @@ class TradeManager:
             futures_trader: Trader de Binance Futures
             rl_agent: Agente RL para decisiones
             ml_system: Sistema ML para análisis
-            market_analyzer: Analizador de mercado
+            market_analyzer: Analizador de mercado (contiene todos los servicios)
         """
         self.position_monitor = position_monitor
         self.futures_trader = futures_trader
@@ -44,25 +57,46 @@ class TradeManager:
         self.ml_system = ml_system
         self.market_analyzer = market_analyzer
 
+        # Referencias a servicios específicos (serán asignados dinámicamente)
+        self.sentiment_analyzer = None
+        self.regime_detector = None
+        self.feature_aggregator = None
+        self.orderbook_analyzer = None
+
+        # Intentar obtener servicios del market_analyzer
+        if market_analyzer:
+            self.sentiment_analyzer = getattr(market_analyzer, 'sentiment_system', None)
+            self.regime_detector = getattr(market_analyzer, 'regime_detector', None)
+            self.feature_aggregator = getattr(market_analyzer, 'feature_aggregator', None)
+            self.orderbook_analyzer = getattr(market_analyzer, 'orderbook_analyzer', None)
+
         self._running = False
         self._check_interval = 30  # Revisar cada 30 segundos
 
-        # Configuración de gestión
-        self.config = {
-            'breakeven_trigger_pct': 1.5,  # Mover SL a breakeven cuando +1.5%
-            'trailing_stop_trigger_pct': 3.0,  # Activar trailing stop cuando +3%
-            'trailing_stop_distance_pct': 1.0,  # Distancia del trailing stop
-            'partial_tp_trigger_pct': 4.0,  # Cerrar 50% cuando +4%
-            'max_adverse_move_pct': -1.5,  # Cerrar si cae más de -1.5% desde máximo
-            'reversal_close_confidence': 0.75,  # Cerrar si IA detecta reversión >75%
+        # Configuración DINÁMICA (se ajusta según condiciones de mercado)
+        self.base_config = {
+            'min_confidence_for_action': 0.65,  # Confianza mínima para ejecutar acción
+            'high_confidence_threshold': 0.80,  # Alta confianza
+            'reversal_confidence_threshold': 0.75,  # Para detectar reversiones
+            'min_pnl_for_breakeven': 0.5,  # Mínimo 0.5% ganancia para considerar breakeven
+            'min_pnl_for_partial': 2.0,  # Mínimo 2% para partial TP
+            'max_drawdown_tolerance': 2.0,  # Máximo 2% de caída desde máximo
         }
 
         # Tracking de máximos/mínimos por posición
         self._position_highs = {}  # {symbol: highest_pnl_pct}
         self._position_lows = {}  # {symbol: lowest_pnl_pct}
         self._partial_closed = set()  # Símbolos donde ya se hizo partial TP
+        self._breakeven_set = set()  # Símbolos donde ya se movió a breakeven
 
-        logger.info("✅ Trade Manager inicializado")
+        logger.info("✅ Trade Manager INTELIGENTE inicializado")
+        logger.info("   📊 Servicios integrados:")
+        logger.info(f"      - RL Agent: {'✅' if rl_agent else '❌'}")
+        logger.info(f"      - ML System: {'✅' if ml_system else '❌'}")
+        logger.info(f"      - Sentiment: {'✅' if self.sentiment_analyzer else '❌'}")
+        logger.info(f"      - Regime Detector: {'✅' if self.regime_detector else '❌'}")
+        logger.info(f"      - Feature Aggregator: {'✅' if self.feature_aggregator else '❌'}")
+        logger.info(f"      - OrderBook: {'✅' if self.orderbook_analyzer else '❌'}")
 
     async def start_monitoring(self):
         """Inicia monitoreo activo de trades"""
@@ -71,7 +105,7 @@ class TradeManager:
             return
 
         self._running = True
-        logger.info("🟢 Trade Manager: Iniciando monitoreo activo...")
+        logger.info("🟢 Trade Manager INTELIGENTE: Iniciando monitoreo activo...")
 
         while self._running:
             try:
@@ -110,7 +144,10 @@ class TradeManager:
 
     async def _manage_position(self, symbol: str, position: Dict):
         """
-        Aplica gestión inteligente a una posición específica
+        Aplica gestión INTELIGENTE a una posición específica
+
+        NUEVA LÓGICA: Analiza condiciones de mercado ANTES de cada decisión
+        No usa porcentajes fijos, sino análisis de los 24 servicios
 
         Args:
             symbol: Símbolo del trade
@@ -133,39 +170,472 @@ class TradeManager:
         self._position_lows[symbol] = min(self._position_lows[symbol], pnl_pct)
 
         highest_pnl = self._position_highs[symbol]
+        drawdown_from_high = highest_pnl - pnl_pct
 
         logger.debug(
             f"📊 {symbol}: P&L={pnl_pct:+.2f}% (Max={highest_pnl:+.2f}%), "
-            f"Price=${current_price:.4f}, Side={side}"
+            f"Drawdown={drawdown_from_high:.2f}%, Price=${current_price:.4f}, Side={side}"
         )
 
-        # 1️⃣ Protección de Breakeven
-        if pnl_pct >= self.config['breakeven_trigger_pct']:
-            await self._set_breakeven(symbol, position)
+        # 🧠 ANALIZAR CONDICIONES DE MERCADO (los 24 servicios)
+        market_conditions = await self._analyze_market_conditions(symbol, position)
 
-        # 2️⃣ Trailing Stop
-        if highest_pnl >= self.config['trailing_stop_trigger_pct']:
-            await self._apply_trailing_stop(symbol, position, highest_pnl)
+        # 1️⃣ DECISIÓN INTELIGENTE: Breakeven Protection
+        if pnl_pct >= self.base_config['min_pnl_for_breakeven'] and symbol not in self._breakeven_set:
+            decision = self._get_intelligent_decision('breakeven', position, market_conditions)
 
-        # 3️⃣ Partial Take Profit
-        if pnl_pct >= self.config['partial_tp_trigger_pct'] and symbol not in self._partial_closed:
-            await self._partial_take_profit(symbol, position)
+            if decision['should_execute']:
+                logger.info(
+                    f"🛡️ {symbol}: BREAKEVEN DECISION "
+                    f"(Confidence: {decision['confidence']:.0%}, Risk: {decision['risk_score']:.2f})"
+                )
+                logger.info(f"   Razones: {', '.join(decision['reasons'])}")
+                await self._set_breakeven(symbol, position)
+                self._breakeven_set.add(symbol)
 
-        # 4️⃣ Protección contra movimiento adverso
-        drawdown_from_high = highest_pnl - pnl_pct
-        if drawdown_from_high >= abs(self.config['max_adverse_move_pct']):
-            await self._close_on_adverse_move(symbol, position, drawdown_from_high)
+        # 2️⃣ DECISIÓN INTELIGENTE: Trailing Stop
+        if highest_pnl > 2.0:  # Solo si ya hay ganancia significativa
+            decision = self._get_intelligent_decision('trailing', position, market_conditions)
 
-        # 5️⃣ Detección de reversión por IA
-        await self._check_reversal_signals(symbol, position)
+            if decision['should_execute']:
+                logger.info(
+                    f"📈 {symbol}: TRAILING STOP DECISION "
+                    f"(Confidence: {decision['confidence']:.0%}, Max P&L: {highest_pnl:+.2f}%)"
+                )
+                logger.info(f"   Razones: {', '.join(decision['reasons'])}")
+                await self._apply_trailing_stop(symbol, position, highest_pnl, market_conditions)
+
+        # 3️⃣ DECISIÓN INTELIGENTE: Partial Take Profit
+        if pnl_pct >= self.base_config['min_pnl_for_partial'] and symbol not in self._partial_closed:
+            decision = self._get_intelligent_decision('partial_tp', position, market_conditions)
+
+            if decision['should_execute']:
+                logger.info(
+                    f"💰 {symbol}: PARTIAL TP DECISION "
+                    f"(Confidence: {decision['confidence']:.0%}, P&L: {pnl_pct:+.2f}%)"
+                )
+                logger.info(f"   Razones: {', '.join(decision['reasons'])}")
+                await self._partial_take_profit(symbol, position)
+
+        # 4️⃣ DECISIÓN INTELIGENTE: Protección contra movimiento adverso
+        if drawdown_from_high >= self.base_config['max_drawdown_tolerance']:
+            decision = self._get_intelligent_decision('close_adverse', position, market_conditions)
+
+            if decision['should_execute']:
+                logger.warning(
+                    f"⚠️ {symbol}: CLOSE ADVERSE DECISION "
+                    f"(Confidence: {decision['confidence']:.0%}, Drawdown: {drawdown_from_high:.2f}%)"
+                )
+                logger.warning(f"   Razones: {', '.join(decision['reasons'])}")
+                await self._close_on_adverse_move(symbol, position, drawdown_from_high)
+
+        # 5️⃣ DECISIÓN INTELIGENTE: Detección de reversión
+        decision = self._get_intelligent_decision('reversal', position, market_conditions)
+
+        if decision['should_execute']:
+            logger.warning(
+                f"🔄 {symbol}: REVERSAL DETECTED "
+                f"(Confidence: {decision['confidence']:.0%}, Risk: {decision['risk_score']:.2f})"
+            )
+            logger.warning(f"   Razones: {', '.join(decision['reasons'])}")
+            await self.futures_trader.close_position(symbol, reason='AI_REVERSAL')
+            # Limpiar tracking
+            self._position_highs.pop(symbol, None)
+            self._position_lows.pop(symbol, None)
+            self._partial_closed.discard(symbol)
+            self._breakeven_set.discard(symbol)
+
+    async def _analyze_market_conditions(self, symbol: str, position: Dict) -> Dict:
+        """
+        Analiza condiciones de mercado usando LOS 24 SERVICIOS
+
+        Esta es la función CLAVE que integra toda la inteligencia del sistema
+
+        Returns:
+            Dict con análisis completo:
+            {
+                'should_secure_profits': bool,
+                'should_let_run': bool,
+                'reversal_risk': float (0-1),
+                'continuation_probability': float (0-1),
+                'market_regime': str,
+                'sentiment_score': float (-1 a 1),
+                'ml_prediction': Dict,
+                'rl_q_values': Dict,
+                'arsenal_signals': Dict,
+                'confidence': float (0-1),
+                'reasons': List[str]
+            }
+        """
+        conditions = {
+            'should_secure_profits': False,
+            'should_let_run': False,
+            'reversal_risk': 0.0,
+            'continuation_probability': 0.5,
+            'market_regime': 'UNKNOWN',
+            'sentiment_score': 0.0,
+            'ml_prediction': None,
+            'rl_q_values': None,
+            'arsenal_signals': {},
+            'confidence': 0.0,
+            'reasons': []
+        }
+
+        try:
+            side = position.get('side', 'UNKNOWN')
+            pnl_pct = position.get('unrealized_pnl_pct', 0)
+
+            # 📊 1. RL AGENT ANALYSIS (Q-values del estado actual)
+            if self.rl_agent:
+                try:
+                    state = self._build_rl_state(position, symbol)
+                    q_values = self.rl_agent.get_q_values(state)
+                    conditions['rl_q_values'] = q_values
+
+                    # Analizar Q-values para determinar si mantener o cerrar
+                    if q_values:
+                        hold_value = q_values.get('hold', 0)
+                        close_value = q_values.get('close', 0)
+
+                        if close_value > hold_value + 0.1:  # Margen significativo
+                            conditions['should_secure_profits'] = True
+                            conditions['reasons'].append(f"RL Agent: Close Q={close_value:.2f} > Hold Q={hold_value:.2f}")
+                        elif hold_value > close_value + 0.1:
+                            conditions['should_let_run'] = True
+                            conditions['reasons'].append(f"RL Agent: Hold Q={hold_value:.2f} > Close Q={close_value:.2f}")
+
+                except Exception as e:
+                    logger.debug(f"Error en RL analysis: {e}")
+
+            # 🧠 2. ML SYSTEM PREDICTION (predicción de próximo movimiento)
+            if self.ml_system:
+                try:
+                    features = self._build_ml_features(position, symbol)
+                    prediction = self.ml_system.predict(features)
+                    conditions['ml_prediction'] = prediction
+
+                    if prediction:
+                        action = prediction.get('action', 'HOLD')
+                        confidence = prediction.get('confidence', 0) / 100
+
+                        # Si ML predice movimiento contrario a nuestra posición
+                        if (side == 'LONG' and action == 'SELL') or (side == 'SHORT' and action == 'BUY'):
+                            conditions['reversal_risk'] += confidence * 0.4  # 40% de peso
+                            conditions['reasons'].append(f"ML: Predice {action} (conf={confidence:.0%})")
+                        elif (side == 'LONG' and action == 'BUY') or (side == 'SHORT' and action == 'SELL'):
+                            conditions['continuation_probability'] += confidence * 0.3
+                            conditions['should_let_run'] = True
+                            conditions['reasons'].append(f"ML: Confirma dirección (conf={confidence:.0%})")
+
+                except Exception as e:
+                    logger.debug(f"Error en ML prediction: {e}")
+
+            # 📰 3. SENTIMENT ANALYSIS (Fear & Greed, News, Social)
+            if self.sentiment_analyzer:
+                try:
+                    pair = symbol.replace('USDT', '/USDT')
+                    base_currency = pair.split('/')[0]
+
+                    sentiment_features = self.sentiment_analyzer.get_sentiment_features(pair)
+                    if sentiment_features:
+                        overall_sentiment = sentiment_features.get('overall_sentiment', 'neutral')
+                        fear_greed = sentiment_features.get('fear_greed_index', 50)
+                        news_volume = sentiment_features.get('news_volume', 0)
+
+                        # Mapear sentiment a score (-1 a 1)
+                        sentiment_map = {'bearish': -0.7, 'slightly_bearish': -0.3, 'neutral': 0,
+                                       'slightly_bullish': 0.3, 'bullish': 0.7}
+                        conditions['sentiment_score'] = sentiment_map.get(overall_sentiment, 0)
+
+                        # Fear & Greed extremos
+                        if fear_greed < 20:  # Extreme Fear
+                            if side == 'SHORT':
+                                conditions['should_secure_profits'] = True
+                                conditions['reasons'].append(f"Sentiment: Extreme Fear ({fear_greed}) - LONG opportunity")
+                        elif fear_greed > 80:  # Extreme Greed
+                            if side == 'LONG':
+                                conditions['should_secure_profits'] = True
+                                conditions['reasons'].append(f"Sentiment: Extreme Greed ({fear_greed}) - TOP warning")
+
+                        # Alto volumen de noticias puede indicar volatilidad
+                        if news_volume > 10:
+                            conditions['reasons'].append(f"Sentiment: Alto volumen noticias ({news_volume})")
+
+                except Exception as e:
+                    logger.debug(f"Error en Sentiment analysis: {e}")
+
+            # 📈 4. MARKET REGIME DETECTOR (Bear/Bull/Sideways)
+            if self.regime_detector:
+                try:
+                    # El regime detector está en market_analyzer, obtener régimen actual
+                    regime_info = getattr(self.market_analyzer, 'current_regime', None)
+                    if regime_info:
+                        regime = regime_info.get('regime', 'UNKNOWN')
+                        strength = regime_info.get('strength', 'MEDIUM')
+                        conditions['market_regime'] = regime
+
+                        # Ajustar estrategia según régimen
+                        if regime == 'BEAR' and side == 'LONG':
+                            conditions['should_secure_profits'] = True
+                            conditions['reasons'].append(f"Regime: BEAR market (strength={strength}) - secure LONG")
+                        elif regime == 'BULL' and side == 'SHORT':
+                            conditions['should_secure_profits'] = True
+                            conditions['reasons'].append(f"Regime: BULL market (strength={strength}) - secure SHORT")
+                        elif regime == 'SIDEWAYS':
+                            # En sideways, asegurar ganancias más rápido
+                            if pnl_pct > 1.5:
+                                conditions['should_secure_profits'] = True
+                                conditions['reasons'].append(f"Regime: SIDEWAYS - secure at {pnl_pct:+.1f}%")
+
+                except Exception as e:
+                    logger.debug(f"Error en Regime detection: {e}")
+
+            # 🔧 5. ARSENAL AVANZADO (Feature Aggregator)
+            if self.feature_aggregator:
+                try:
+                    pair = symbol.replace('USDT', '/USDT')
+
+                    # Liquidation Zones (evitar stop hunts)
+                    liquidation_risk = self._check_liquidation_zones(symbol, position)
+                    if liquidation_risk > 0.7:
+                        conditions['reversal_risk'] += 0.2
+                        conditions['reasons'].append(f"Arsenal: Zona liquidación cercana (risk={liquidation_risk:.0%})")
+
+                    # Funding Rate (sentiment extremo)
+                    funding_signal = self._analyze_funding_rate(symbol)
+                    if funding_signal:
+                        conditions['arsenal_signals']['funding'] = funding_signal
+                        conditions['reasons'].append(funding_signal)
+
+                    # Volume Profile (soporte/resistencia)
+                    volume_signal = self._analyze_volume_profile(symbol, position)
+                    if volume_signal:
+                        conditions['arsenal_signals']['volume'] = volume_signal
+                        conditions['reasons'].append(volume_signal)
+
+                    # Pattern Recognition (reversiones)
+                    pattern_signal = self._detect_reversal_patterns(symbol, position)
+                    if pattern_signal:
+                        conditions['reversal_risk'] += 0.3
+                        conditions['reasons'].append(pattern_signal)
+
+                except Exception as e:
+                    logger.debug(f"Error en Arsenal analysis: {e}")
+
+            # 📊 6. ORDER BOOK ANALYSIS (presión buy/sell)
+            if self.orderbook_analyzer:
+                try:
+                    ob_analysis = await self._analyze_orderbook(symbol)
+                    if ob_analysis:
+                        pressure = ob_analysis.get('pressure', 'NEUTRAL')
+
+                        if pressure == 'SELL_PRESSURE' and side == 'LONG':
+                            conditions['reversal_risk'] += 0.15
+                            conditions['reasons'].append("OrderBook: Strong SELL pressure")
+                        elif pressure == 'BUY_PRESSURE' and side == 'SHORT':
+                            conditions['reversal_risk'] += 0.15
+                            conditions['reasons'].append("OrderBook: Strong BUY pressure")
+
+                except Exception as e:
+                    logger.debug(f"Error en OrderBook analysis: {e}")
+
+            # 🎯 CALCULAR CONFIANZA FINAL
+            confidence_score = 0.0
+            total_signals = 0
+
+            if conditions['rl_q_values']:
+                confidence_score += 0.25
+                total_signals += 1
+            if conditions['ml_prediction']:
+                confidence_score += 0.25
+                total_signals += 1
+            if conditions['sentiment_score'] != 0:
+                confidence_score += 0.15
+                total_signals += 1
+            if conditions['market_regime'] != 'UNKNOWN':
+                confidence_score += 0.15
+                total_signals += 1
+            if conditions['arsenal_signals']:
+                confidence_score += 0.20
+                total_signals += 1
+
+            conditions['confidence'] = confidence_score if total_signals > 0 else 0.0
+
+            # Normalizar reversal_risk
+            conditions['reversal_risk'] = min(1.0, conditions['reversal_risk'])
+
+            logger.debug(
+                f"🧠 Market Analysis {symbol}: "
+                f"Confidence={conditions['confidence']:.0%}, "
+                f"Reversal Risk={conditions['reversal_risk']:.0%}, "
+                f"Signals={len(conditions['reasons'])}"
+            )
+
+        except Exception as e:
+            logger.error(f"❌ Error en market analysis: {e}", exc_info=True)
+
+        return conditions
+
+    def _get_intelligent_decision(
+        self,
+        action_type: str,
+        position: Dict,
+        market_conditions: Dict
+    ) -> Dict:
+        """
+        Toma decisión inteligente usando análisis de mercado
+
+        Args:
+            action_type: 'breakeven', 'trailing', 'partial_tp', 'close_adverse', 'reversal'
+            position: Datos de la posición
+            market_conditions: Análisis de condiciones de mercado
+
+        Returns:
+            {
+                'should_execute': bool,
+                'confidence': float (0-1),
+                'reasons': List[str],
+                'risk_score': float (0-1)
+            }
+        """
+        decision = {
+            'should_execute': False,
+            'confidence': 0.0,
+            'reasons': [],
+            'risk_score': 0.0
+        }
+
+        try:
+            pnl_pct = position.get('unrealized_pnl_pct', 0)
+            side = position.get('side', 'UNKNOWN')
+
+            reversal_risk = market_conditions.get('reversal_risk', 0)
+            should_secure = market_conditions.get('should_secure_profits', False)
+            should_let_run = market_conditions.get('should_let_run', False)
+            base_confidence = market_conditions.get('confidence', 0)
+            market_reasons = market_conditions.get('reasons', [])
+
+            if action_type == 'breakeven':
+                # Breakeven: Mover SL a entrada cuando hay señales de asegurar ganancias
+                if should_secure and base_confidence > 0.6:
+                    decision['should_execute'] = True
+                    decision['confidence'] = base_confidence
+                    decision['reasons'] = ['Breakeven: Asegurar ganancias mínimas'] + market_reasons
+                elif pnl_pct > 2.0 and reversal_risk > 0.5:
+                    decision['should_execute'] = True
+                    decision['confidence'] = 0.7
+                    decision['reasons'] = [f'Breakeven: P&L={pnl_pct:.1f}%, Reversal Risk={reversal_risk:.0%}']
+
+            elif action_type == 'trailing':
+                # Trailing: Dejar correr ganancias si continuación probable
+                if should_let_run and base_confidence > 0.65:
+                    decision['should_execute'] = True
+                    decision['confidence'] = base_confidence
+                    decision['reasons'] = ['Trailing: Tendencia fuerte continúa'] + market_reasons
+                elif pnl_pct > 5.0 and reversal_risk < 0.3:
+                    decision['should_execute'] = True
+                    decision['confidence'] = 0.75
+                    decision['reasons'] = [f'Trailing: P&L alto ({pnl_pct:.1f}%), bajo riesgo reversión']
+
+            elif action_type == 'partial_tp':
+                # Partial TP: Tomar ganancias parciales si alta confianza
+                if pnl_pct > 3.0 and (should_secure or reversal_risk > 0.4):
+                    decision['should_execute'] = True
+                    decision['confidence'] = max(base_confidence, 0.7)
+                    decision['reasons'] = [f'Partial TP: P&L={pnl_pct:.1f}%, asegurar 50%'] + market_reasons
+                elif pnl_pct > 6.0:  # P&L muy alto, siempre asegurar algo
+                    decision['should_execute'] = True
+                    decision['confidence'] = 0.85
+                    decision['reasons'] = [f'Partial TP: P&L excepcional ({pnl_pct:.1f}%)']
+
+            elif action_type == 'close_adverse':
+                # Close Adverse: Cerrar si movimiento adverso significativo
+                drawdown = self._position_highs.get(position.get('symbol', ''), 0) - pnl_pct
+                if drawdown > 2.0 or reversal_risk > 0.7:
+                    decision['should_execute'] = True
+                    decision['confidence'] = 0.8
+                    decision['reasons'] = [f'Close: Drawdown={drawdown:.1f}%, Reversal={reversal_risk:.0%}']
+
+            elif action_type == 'reversal':
+                # Reversal: Cerrar si alta probabilidad de reversión
+                if reversal_risk > self.base_config['reversal_confidence_threshold']:
+                    decision['should_execute'] = True
+                    decision['confidence'] = reversal_risk
+                    decision['reasons'] = [f'Reversal: High risk ({reversal_risk:.0%})'] + market_reasons
+
+            decision['risk_score'] = reversal_risk
+
+        except Exception as e:
+            logger.error(f"Error en intelligent decision: {e}", exc_info=True)
+
+        return decision
+
+    def _build_rl_state(self, position: Dict, symbol: str) -> Dict:
+        """Construye estado para RL Agent"""
+        try:
+            return {
+                'symbol': symbol,
+                'side': position.get('side', 'UNKNOWN'),
+                'pnl_pct': position.get('unrealized_pnl_pct', 0),
+                'entry_price': position.get('entry_price', 0),
+                'current_price': position.get('mark_price', 0),
+                'leverage': position.get('leverage', 1),
+                'position_amt': position.get('position_amt', 0),
+            }
+        except Exception as e:
+            logger.debug(f"Error building RL state: {e}")
+            return {}
+
+    def _build_ml_features(self, position: Dict, symbol: str) -> Dict:
+        """Construye features para ML System"""
+        try:
+            return {
+                'symbol': symbol,
+                'pnl_pct': position.get('unrealized_pnl_pct', 0),
+                'price': position.get('mark_price', 0),
+                'side': 1 if position.get('side') == 'LONG' else -1,
+            }
+        except Exception as e:
+            logger.debug(f"Error building ML features: {e}")
+            return {}
+
+    def _check_liquidation_zones(self, symbol: str, position: Dict) -> float:
+        """Verifica proximidad a zonas de liquidación"""
+        # TODO: Implementar cuando feature_aggregator tenga liquidation data
+        return 0.0
+
+    def _analyze_funding_rate(self, symbol: str) -> Optional[str]:
+        """Analiza funding rate para detectar sentiment extremo"""
+        # TODO: Implementar cuando feature_aggregator tenga funding data
+        return None
+
+    def _analyze_volume_profile(self, symbol: str, position: Dict) -> Optional[str]:
+        """Analiza volume profile para soporte/resistencia"""
+        # TODO: Implementar cuando feature_aggregator tenga volume profile
+        return None
+
+    def _detect_reversal_patterns(self, symbol: str, position: Dict) -> Optional[str]:
+        """Detecta patrones de reversión"""
+        # TODO: Implementar cuando feature_aggregator tenga pattern recognition
+        return None
+
+    async def _analyze_orderbook(self, symbol: str) -> Optional[Dict]:
+        """Analiza order book para presión buy/sell"""
+        if not self.orderbook_analyzer:
+            return None
+
+        try:
+            # TODO: Implementar cuando orderbook_analyzer esté disponible
+            return None
+        except Exception as e:
+            logger.debug(f"Error analyzing orderbook: {e}")
+            return None
 
     async def _set_breakeven(self, symbol: str, position: Dict):
         """Mueve stop loss a precio de entrada (breakeven)"""
         try:
             entry_price = position.get('entry_price', 0)
             side = position.get('side', 'UNKNOWN')
-
-            logger.info(f"🛡️ {symbol}: Moviendo SL a breakeven (${entry_price:.4f})")
 
             # Calcular nuevo SL en breakeven
             if side == 'LONG':
@@ -181,12 +651,29 @@ class TradeManager:
         except Exception as e:
             logger.error(f"❌ Error en breakeven para {symbol}: {e}")
 
-    async def _apply_trailing_stop(self, symbol: str, position: Dict, highest_pnl: float):
-        """Aplica trailing stop loss dinámico"""
+    async def _apply_trailing_stop(
+        self,
+        symbol: str,
+        position: Dict,
+        highest_pnl: float,
+        market_conditions: Dict
+    ):
+        """Aplica trailing stop loss DINÁMICO basado en condiciones"""
         try:
             current_price = position.get('mark_price', 0)
             side = position.get('side', 'UNKNOWN')
-            distance_pct = self.config['trailing_stop_distance_pct']
+
+            # Distancia DINÁMICA según confianza
+            confidence = market_conditions.get('confidence', 0.5)
+            base_distance = 1.0
+
+            # Mayor confianza = SL más apretado
+            if confidence > 0.8:
+                distance_pct = base_distance * 0.7  # 0.7%
+            elif confidence > 0.65:
+                distance_pct = base_distance  # 1.0%
+            else:
+                distance_pct = base_distance * 1.3  # 1.3%
 
             # Calcular precio del trailing stop
             if side == 'LONG':
@@ -195,12 +682,12 @@ class TradeManager:
                 new_sl = current_price * (1 + distance_pct / 100)
 
             logger.info(
-                f"📈 {symbol}: Trailing stop activado (Max P&L: {highest_pnl:+.2f}%), "
-                f"nuevo SL=${new_sl:.4f}"
+                f"📈 {symbol}: Trailing stop dinámico "
+                f"(Distance: {distance_pct:.1f}%, Conf: {confidence:.0%})"
             )
 
             await self.futures_trader.modify_stop_loss(symbol, new_sl)
-            logger.info(f"✅ {symbol}: Trailing stop aplicado")
+            logger.info(f"✅ {symbol}: Trailing stop aplicado ${new_sl:.4f}")
 
         except Exception as e:
             logger.error(f"❌ Error en trailing stop para {symbol}: {e}")
@@ -236,46 +723,27 @@ class TradeManager:
             self._position_highs.pop(symbol, None)
             self._position_lows.pop(symbol, None)
             self._partial_closed.discard(symbol)
+            self._breakeven_set.discard(symbol)
 
             logger.info(f"✅ {symbol}: Posición cerrada por movimiento adverso")
 
         except Exception as e:
             logger.error(f"❌ Error cerrando {symbol} por movimiento adverso: {e}")
 
-    async def _check_reversal_signals(self, symbol: str, position: Dict):
-        """Verifica si la IA detecta señales de reversión fuertes"""
-        try:
-            # TODO: Implementar detección de reversión cuando el ML system esté listo
-            # Por ahora, esta funcionalidad está deshabilitada
-            #
-            # Para habilitar, necesitarás:
-            # 1. Un método rápido de análisis de señales (ej: analyze_pair_fast)
-            # 2. Que retorne {'action': 'BUY/SELL/HOLD', 'confidence': 0-100}
-            #
-            # Ejemplo de implementación futura:
-            # pair = symbol.replace('USDT', '/USDT')
-            # market_data = await self.market_analyzer.get_quick_signal(pair)
-            # if market_data:
-            #     signal_action = market_data.get('action', 'HOLD')
-            #     confidence = market_data.get('confidence', 0) / 100
-            #     side = position.get('side', 'UNKNOWN')
-            #     is_reversal = (
-            #         (side == 'LONG' and signal_action == 'SELL' and confidence >= 0.75) or
-            #         (side == 'SHORT' and signal_action == 'BUY' and confidence >= 0.75)
-            #     )
-            #     if is_reversal:
-            #         await self.futures_trader.close_position(symbol, reason='AI_REVERSAL')
-
-            pass  # Funcionalidad deshabilitada por ahora
-
-        except Exception as e:
-            logger.error(f"❌ Error verificando reversión para {symbol}: {e}")
-
     def get_management_stats(self) -> Dict:
         """Obtiene estadísticas de gestión de trades"""
         return {
             'positions_tracked': len(self._position_highs),
             'partial_tps_executed': len(self._partial_closed),
+            'breakevens_set': len(self._breakeven_set),
             'position_highs': self._position_highs.copy(),
-            'config': self.config.copy()
+            'config': self.base_config.copy(),
+            'services_active': {
+                'rl_agent': self.rl_agent is not None,
+                'ml_system': self.ml_system is not None,
+                'sentiment': self.sentiment_analyzer is not None,
+                'regime_detector': self.regime_detector is not None,
+                'feature_aggregator': self.feature_aggregator is not None,
+                'orderbook': self.orderbook_analyzer is not None,
+            }
         }
