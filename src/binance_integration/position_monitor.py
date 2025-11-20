@@ -29,7 +29,7 @@ class PositionMonitor:
     def __init__(
         self,
         client: BinanceClient,
-        update_interval: int = 5,
+        update_interval: int = 10,  # Update interval aumentado de 5s a 10s para evitar rate limiting de Binance
         on_position_closed: Optional[Callable] = None
     ):
         """
@@ -597,7 +597,7 @@ class PositionMonitor:
                 open_positions = {k: v for k, v in positions.items() if float(v.get('position_amt', 0)) != 0}
 
                 if open_positions:
-                    # Log compacto cada ciclo (5s)
+                    # Log compacto cada ciclo (10s)
                     logger.info(f"📊 Position Monitor: {len(open_positions)} posiciones abiertas")
                     for symbol, pos in open_positions.items():
                         pnl = float(pos.get('unrealized_pnl', 0))

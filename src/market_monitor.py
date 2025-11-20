@@ -91,7 +91,7 @@ class MarketMonitor:
                 # Initialize Position Monitor
                 self.position_monitor = PositionMonitor(
                     client=self.binance_client,
-                    update_interval=5,  # Update every 5 seconds
+                    update_interval=10,  # Update every 10 seconds (reducido de 5s para evitar rate limiting)
                     on_position_closed=self._on_position_closed
                 )
                 logger.info("✅ Position Monitor initialized")
