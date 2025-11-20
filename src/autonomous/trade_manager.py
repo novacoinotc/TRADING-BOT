@@ -371,7 +371,7 @@ class TradeManager:
                 decision_info=decision
             )
 
-            await self.futures_trader.close_position(symbol, reason='AI_REVERSAL')
+            self.futures_trader.close_position(symbol, reason='AI_REVERSAL')
             # Limpiar tracking
             self._position_highs.pop(symbol, None)
             self._position_lows.pop(symbol, None)
@@ -974,7 +974,7 @@ class TradeManager:
                 f"cerrando posición por protección"
             )
 
-            await self.futures_trader.close_position(symbol, reason='ADVERSE_MOVE')
+            self.futures_trader.close_position(symbol, reason='ADVERSE_MOVE')
 
             # Limpiar tracking
             self._position_highs.pop(symbol, None)
