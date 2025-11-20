@@ -871,6 +871,18 @@ class MarketMonitor:
                             arsenal_ml_features = {}
                             arsenal_rl_extensions = {}
 
+                        # 🔧 FIX CRÍTICO: Copiar pattern data de ML features a RL extensions
+                        # Los patterns se detectan en get_ml_features pero necesitan estar en RL extensions
+                        # para que el composite score del RL Agent los use
+                        if arsenal_ml_features.get('pattern_detected', False):
+                            arsenal_rl_extensions['pattern_detected'] = True
+                            arsenal_rl_extensions['pattern_type'] = arsenal_ml_features.get('pattern_type', 'NONE')
+                            arsenal_rl_extensions['pattern_confidence'] = arsenal_ml_features.get('pattern_confidence', 0.0)
+                            logger.debug(
+                                f"🎯 Pattern copiado a RL extensions: {arsenal_rl_extensions['pattern_type']} "
+                                f"(conf={arsenal_rl_extensions['pattern_confidence']:.2f})"
+                            )
+
                         # Construir market state para RL Agent - INTEGRACIÓN COMPLETA DE 24 SERVICIOS
                         market_state = {
                             # Indicadores técnicos básicos
@@ -933,6 +945,7 @@ class MarketMonitor:
                             # 21. Pattern Recognition
                             'pattern_detected': arsenal_rl_extensions.get('pattern_detected', False),
                             'pattern_type': arsenal_rl_extensions.get('pattern_type', 'NONE'),
+                            'pattern_confidence': arsenal_rl_extensions.get('pattern_confidence', 0.0),
 
                             # 22. Session-Based Trading
                             'current_session': arsenal_rl_extensions.get('current_session', 'UNKNOWN'),
@@ -1190,6 +1203,16 @@ class MarketMonitor:
                             import traceback
                             logger.debug(f"  ⚡ Arsenal flash preview error: {e}")
                             logger.debug(f"TRACEBACK:\n{traceback.format_exc()}")
+
+                        # 🔧 FIX CRÍTICO: Copiar pattern data de ML features a RL extensions (FLASH)
+                        if arsenal_flash_ml.get('pattern_detected', False):
+                            arsenal_flash_rl['pattern_detected'] = True
+                            arsenal_flash_rl['pattern_type'] = arsenal_flash_ml.get('pattern_type', 'NONE')
+                            arsenal_flash_rl['pattern_confidence'] = arsenal_flash_ml.get('pattern_confidence', 0.0)
+                            logger.debug(
+                                f"🎯 Pattern copiado a RL extensions (flash): {arsenal_flash_rl['pattern_type']} "
+                                f"(conf={arsenal_flash_rl['pattern_confidence']:.2f})"
+                            )
                         # ===== FIN ANÁLISIS FLASH =====
 
                         # ===== ARSENAL AVANZADO: ENRICH FLASH SIGNAL =====

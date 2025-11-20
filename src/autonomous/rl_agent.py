@@ -234,6 +234,37 @@ class RLAgent:
         # ======================================================================
         composite_score = 0.0
 
+        # 🔧 FIX CRÍTICO: BASE SCORE - Confidence general de la señal (peso fundamental: 5.0)
+        # Esta es la base más importante: si la señal tiene alta confidence, el composite debe reflejarlo
+        signal_confidence = market_data.get('confidence', 50)  # 0-100
+        confidence_normalized = signal_confidence / 100.0  # Normalizar a 0-1
+
+        # Convertir confidence a puntos (0-5.0 puntos)
+        confidence_score = confidence_normalized * 5.0
+        composite_score += confidence_score
+        logger.debug(f"🎯 Base confidence: {signal_confidence:.1f}% → {confidence_score:.2f} puntos")
+
+        # 🔧 FIX CRÍTICO: PATTERN DETECTION - Si hay patterns detectados (peso alto: 2.0)
+        pattern_detected = market_data.get('pattern_detected', False)
+        pattern_type = market_data.get('pattern_type', 'UNKNOWN')
+        pattern_confidence = market_data.get('pattern_confidence', 0)
+
+        if pattern_detected and pattern_confidence > 0.8:
+            composite_score += 2.0
+            logger.debug(f"🎯 Pattern detectado: {pattern_type} (conf={pattern_confidence:.2f}) (+2.0)")
+        elif pattern_detected and pattern_confidence > 0.6:
+            composite_score += 1.0
+            logger.debug(f"🎯 Pattern detectado: {pattern_type} (conf={pattern_confidence:.2f}) (+1.0)")
+
+        # 🔧 FIX CRÍTICO: ORDER FLOW BOOST - Si hay boost de order flow (peso moderado: 1.5)
+        order_flow_ratio = market_data.get('order_flow_ratio', 1.0)
+        if order_flow_ratio >= 1.5:  # Boost fuerte (1.5x+)
+            composite_score += 1.5
+            logger.debug(f"💹 Order flow boost fuerte: {order_flow_ratio:.2f}x (+1.5)")
+        elif order_flow_ratio >= 1.2:  # Boost moderado (1.2x+)
+            composite_score += 0.75
+            logger.debug(f"💹 Order flow boost moderado: {order_flow_ratio:.2f}x (+0.75)")
+
         # 1. CryptoPanic pre-pump score (peso alto: 2.0)
         pre_pump_score = market_data.get('pre_pump_score', 0)
         if pre_pump_score > 70:

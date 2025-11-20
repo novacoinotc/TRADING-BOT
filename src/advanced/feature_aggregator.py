@@ -394,6 +394,12 @@ class FeatureAggregator:
         state_extensions['order_flow_bias'] = 'neutral'
         state_extensions['order_flow_ratio'] = 1.0
 
+        # 🔧 FIX CRÍTICO: Añadir pattern detection a RL state extensions
+        # Estos campos son CRÍTICOS para que el RL Agent calcule correctamente el composite score
+        state_extensions['pattern_detected'] = False
+        state_extensions['pattern_type'] = 'NONE'
+        state_extensions['pattern_confidence'] = 0.0
+
         logger.debug(f"🤖 RL state extensions generados para {pair}")
 
         # VALIDACIÓN FINAL: Asegurar que siempre devolvemos un dict
