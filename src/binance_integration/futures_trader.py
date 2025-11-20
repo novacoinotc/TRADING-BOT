@@ -363,21 +363,39 @@ class FuturesTrader:
                 f"   Price: ${float(market_order.get('avgPrice', current_price)):,.2f}"
             )
 
-            # 🔧 FIX: Obtener precio real de entrada consultando la posición
+            # 🔧 FIX CRÍTICO: Obtener precio real de entrada
+            # Binance no retorna avgPrice inmediatamente, hay que consultarlo
             import time
-            time.sleep(0.5)  # Esperar que Binance actualice
+            time.sleep(0.5)  # Dar tiempo a Binance para actualizar
 
-            # Consultar posición abierta para obtener avgPrice real
-            entry_price = current_price  # Default fallback
+            entry_price = current_price  # Fallback por defecto
+            logger.info(f"🔍 Obteniendo precio de entrada real...")
+
             try:
+                # Método 1: Consultar posición abierta (más confiable)
                 positions = self.client.get_position_risk(symbol=symbol)
                 for pos in positions:
-                    if float(pos.get('positionAmt', 0)) != 0:
+                    pos_amt = float(pos.get('positionAmt', 0))
+                    if pos_amt != 0:
                         entry_price = float(pos['entryPrice'])
-                        logger.info(f"✅ Entry price confirmado: ${entry_price:,.2f}")
+                        logger.info(f"✅ Entry price confirmado desde position: ${entry_price:,.4f}")
                         break
+                else:
+                    # Método 2: Si no encontró en position, consultar la orden
+                    logger.debug(f"Position not found, trying order lookup...")
+                    order_info = self.client.get_order(
+                        symbol=symbol,
+                        order_id=market_order['orderId']
+                    )
+                    if order_info and order_info.get('avgPrice'):
+                        entry_price = float(order_info['avgPrice'])
+                        logger.info(f"✅ Entry price confirmado desde order: ${entry_price:,.4f}")
+                    else:
+                        logger.warning(f"⚠️ No se pudo obtener avgPrice, usando current_price: ${current_price:,.4f}")
+
             except Exception as e:
-                logger.warning(f"⚠️ Error obteniendo entry price, usando current_price: {e}")
+                logger.warning(f"⚠️ Error obteniendo entry price: {e}, usando current_price: ${current_price:,.4f}")
+                entry_price = current_price
 
             # PASO 6: Colocar Stop Loss
             logger.info(f"📤 Placing Stop Loss order...")
