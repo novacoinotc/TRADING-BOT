@@ -260,6 +260,15 @@ class PositionMonitor:
         # Obtener posiciones actuales de Binance
         current_positions = self._fetch_positions_from_binance()
 
+        # 🔧 FIX CRÍTICO: Si hay error en fetch (retorna lista vacía pero había posiciones antes),
+        # NO actualizar self._positions para evitar borrar posiciones válidas
+        if len(current_positions) == 0 and len(previous_symbols) > 0:
+            logger.warning(
+                f"⚠️ Fetch returned 0 positions but had {len(previous_symbols)} before. "
+                f"Possible API error. Keeping previous positions to avoid data loss."
+            )
+            return self._positions  # Retornar posiciones anteriores sin modificar
+
         # Actualizar diccionario de posiciones
         new_positions = {}
         current_symbols = set()
