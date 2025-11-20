@@ -580,13 +580,13 @@ class PositionMonitor:
                     # Log compacto cada ciclo (5s)
                     logger.info(f"📊 Position Monitor: {len(open_positions)} posiciones abiertas")
                     for symbol, pos in open_positions.items():
-                        pnl = float(pos.get('unrealizedProfit', 0))
+                        pnl = float(pos.get('unRealizedProfit', 0))
                         entry = float(pos.get('entryPrice', 0))
                         mark = float(pos.get('markPrice', 0))
 
                         # Calcular PNL%
                         position_amt = abs(float(pos.get('positionAmt', 0)))
-                        notional = position_amt * entry
+                        notional = abs(float(pos.get('notional', 0)))
                         pnl_pct = (pnl / notional * 100) if notional > 0 else 0
 
                         emoji = "📈" if pnl >= 0 else "📉"
