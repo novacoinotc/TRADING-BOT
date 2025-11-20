@@ -409,30 +409,50 @@ class PositionMonitor:
                 # Consultar últimas 10 órdenes del símbolo
                 recent_orders = self.client.get_all_orders(symbol=symbol, limit=10)
 
-                # Buscar órdenes FILLED recientes (últimos 15 segundos)
+                # Buscar órdenes FILLED recientes (últimos 30 segundos) con reduceOnly=True
                 now = int(time.time() * 1000)
                 recent_filled = [
                     o for o in recent_orders
-                    if o['status'] == 'FILLED' and (now - o['updateTime']) < 15000
+                    if o['status'] == 'FILLED' and (now - o['updateTime']) < 30000
                 ]
 
-                # Detectar tipo de cierre basado en el tipo de orden
-                for order in recent_filled:
+                # 🔧 FIX CRÍTICO: Ordenar por updateTime descendente (más reciente primero)
+                recent_filled = sorted(recent_filled, key=lambda x: x.get('updateTime', 0), reverse=True)
+
+                # Filtrar solo órdenes que cierran posición (reduceOnly=True o side opuesto)
+                closing_orders = [
+                    o for o in recent_filled
+                    if o.get('reduceOnly', False) or o.get('type') in ['STOP_MARKET', 'TAKE_PROFIT_MARKET']
+                ]
+
+                logger.debug(f"🔍 Órdenes de cierre encontradas: {len(closing_orders)}")
+                for order in closing_orders:
+                    logger.debug(f"   - {order.get('type')}: {order.get('orderId')} (reduceOnly={order.get('reduceOnly')})")
+
+                # Detectar tipo de cierre basado en el tipo de orden MÁS RECIENTE
+                for order in closing_orders:
                     order_type = order.get('type', '')
+                    order_id = order.get('orderId')
+
                     if order_type == 'STOP_MARKET':
                         reason = 'STOP_LOSS'
-                        logger.info(f"🛑 Cierre detectado: STOP_LOSS (order_id={order.get('orderId')})")
+                        logger.info(f"🛑 Cierre detectado: STOP_LOSS (order_id={order_id})")
                         break
                     elif order_type == 'TAKE_PROFIT_MARKET':
                         reason = 'TAKE_PROFIT'
-                        logger.info(f"🎯 Cierre detectado: TAKE_PROFIT (order_id={order.get('orderId')})")
+                        logger.info(f"🎯 Cierre detectado: TAKE_PROFIT (order_id={order_id})")
                         break
                     elif order_type == 'MARKET' and order.get('reduceOnly'):
                         reason = 'MANUAL'
-                        logger.info(f"👤 Cierre detectado: MANUAL (order_id={order.get('orderId')})")
+                        logger.info(f"👤 Cierre detectado: MANUAL (order_id={order_id})")
+                        break
+                    elif order_type == 'LIMIT' and order.get('reduceOnly'):
+                        reason = 'LIMIT_CLOSE'
+                        logger.info(f"📊 Cierre detectado: LIMIT ORDER (order_id={order_id})")
                         break
                 else:
-                    logger.debug(f"ℹ️ No se pudo determinar razón específica, usando AUTO_CLOSE")
+                    # Si no encontramos órdenes de cierre específicas, es AUTO_CLOSE
+                    logger.debug(f"ℹ️ No se encontró orden de cierre específica, usando AUTO_CLOSE")
 
             except Exception as e:
                 logger.warning(f"⚠️ No se pudo determinar razón de cierre para {symbol}: {e}")
