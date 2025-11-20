@@ -363,6 +363,22 @@ class FuturesTrader:
                 f"   Price: ${float(market_order.get('avgPrice', current_price)):,.2f}"
             )
 
+            # 🔧 FIX: Obtener precio real de entrada consultando la posición
+            import time
+            time.sleep(0.5)  # Esperar que Binance actualice
+
+            # Consultar posición abierta para obtener avgPrice real
+            entry_price = current_price  # Default fallback
+            try:
+                positions = self.client.get_position_risk(symbol=symbol)
+                for pos in positions:
+                    if float(pos.get('positionAmt', 0)) != 0:
+                        entry_price = float(pos['entryPrice'])
+                        logger.info(f"✅ Entry price confirmado: ${entry_price:,.2f}")
+                        break
+            except Exception as e:
+                logger.warning(f"⚠️ Error obteniendo entry price, usando current_price: {e}")
+
             # PASO 6: Colocar Stop Loss
             logger.info(f"📤 Placing Stop Loss order...")
             sl_side = 'SELL' if side == 'BUY' else 'BUY'  # Opuesto a la posición
@@ -414,7 +430,7 @@ class FuturesTrader:
                 'side': side,
                 'leverage': leverage,
                 'quantity': quantity,
-                'entry_price': float(market_order.get('avgPrice', current_price)),
+                'entry_price': entry_price,
                 'stop_loss': stop_loss_price,
                 'take_profit': take_profit_price,  # Puede ser None
                 'usdt_amount': usdt_amount,
