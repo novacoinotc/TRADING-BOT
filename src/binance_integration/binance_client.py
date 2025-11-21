@@ -51,7 +51,7 @@ class BinanceClient:
         api_key: str,
         api_secret: str,
         base_url: str = "https://fapi.binance.com",
-        timeout: int = 10,
+        timeout: int = 30,  # Aumentado de 10s a 30s para proxy lento de Railway
         proxies: Optional[Dict] = None
     ):
         """
@@ -73,25 +73,46 @@ class BinanceClient:
         self._exchange_info_timestamp = 0
         self._exchange_info_ttl = 3600  # 1 hora
 
-        # Server time offset
+        # Server time offset y sincronización automática
         self._time_offset = 0
+        self._last_sync = 0  # Timestamp de última sincronización
+        self._sync_interval = 1800  # Re-sync cada 30 minutos
         self._sync_time()
 
-        logger.info(f"✅ Binance Client inicializado: {base_url}")
+        logger.info(f"✅ Binance Client inicializado: {base_url} (timeout={timeout}s para Railway proxy)")
 
     def _sync_time(self):
-        """Sincroniza tiempo con servidor de Binance"""
+        """
+        Sincroniza tiempo con servidor de Binance.
+        Previene error -1021 (timestamp outside recvWindow).
+        """
         try:
             server_time = self.get_server_time()
             local_time = int(time.time() * 1000)
             self._time_offset = server_time - local_time
-            logger.info(f"🕐 Tiempo sincronizado. Offset: {self._time_offset}ms")
+            self._last_sync = time.time()
+
+            logger.info(f"⏰ Tiempo sincronizado con Binance: offset={self._time_offset}ms")
+
+            if abs(self._time_offset) > 1000:
+                logger.warning(f"⚠️ Offset de tiempo alto: {self._time_offset}ms (>1s) - Railway proxy puede causar latencia")
+
         except Exception as e:
-            logger.warning(f"⚠️ No se pudo sincronizar tiempo: {e}")
+            logger.error(f"❌ Error sincronizando tiempo con Binance: {e}")
             self._time_offset = 0
+            self._last_sync = time.time()  # Evitar retry loop
 
     def _get_adjusted_timestamp(self) -> int:
-        """Obtiene timestamp ajustado con offset del servidor"""
+        """
+        Obtiene timestamp corregido con offset de Binance.
+        Re-sincroniza automáticamente cada 30 minutos.
+        """
+        # Re-sincronizar si ha pasado el intervalo
+        current_time = time.time()
+        if current_time - self._last_sync > self._sync_interval:
+            logger.info(f"⏰ Re-sincronizando tiempo (han pasado {int(current_time - self._last_sync)}s)")
+            self._sync_time()
+
         return get_timestamp() + self._time_offset
 
     def _make_request(
@@ -117,8 +138,8 @@ class BinanceClient:
             BinanceAPIError: Si la API retorna error
             BinanceClientError: Si hay error de conexión
         """
-        max_retries = 3
-        base_delay = 2  # segundos
+        max_retries = 5  # Aumentado de 3 a 5 para Railway proxy lento
+        base_delay = 1  # segundos (exponential: 1s, 2s, 4s, 8s, 16s)
 
         for attempt in range(max_retries):
             try:
@@ -179,31 +200,63 @@ class BinanceClient:
 
                     # Manejar errores específicos
                     if error_code == -1021:  # Timestamp out of sync
-                        logger.warning("⚠️ Timestamp desincronizado. Re-sincronizando...")
+                        logger.error(f"🕐 ERROR TIMESTAMP (-1021): Request expiró")
+                        logger.info(f"   └─ Forzando re-sincronización de tiempo...")
                         self._sync_time()
                         # Retry para timestamp errors
                         if attempt < max_retries - 1:
-                            logger.info(f"🔄 Reintentando después de sync timestamp (attempt {attempt+1}/{max_retries})")
-                            import time
-                            time.sleep(1)
+                            logger.warning(f"   └─ ⏳ Retry inmediato con timestamp corregido (attempt {attempt+1}/{max_retries})")
+                            time.sleep(1)  # Solo 1s de espera para -1021
                             continue
+                        else:
+                            logger.error(f"❌ Error -1021 persistente después de {max_retries} intentos")
 
                     raise BinanceAPIError(error_code, error_msg)
 
                 return data
 
-            except (requests.exceptions.ProxyError,
-                    requests.exceptions.ConnectTimeout,
-                    requests.exceptions.ConnectionError,
-                    requests.exceptions.Timeout) as e:
-                # Errores de conexión: aplicar exponential backoff
+            except requests.exceptions.ProxyError as pe:
+                # Error específico de proxy (Railway)
+                delay = min(base_delay * (2 ** attempt), 30)  # Cap en 30s
+                logger.error(f"🌐 PROXY ERROR detectado:")
+                logger.error(f"   └─ Proxy: Railway (posible timeout de conexión)")
+                logger.error(f"   └─ Endpoint: {endpoint}")
+                logger.error(f"   └─ Intento: {attempt + 1}/{max_retries}")
+
                 if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)  # 2s, 4s, 8s
+                    logger.warning(f"   └─ ⏳ Retry en {delay}s...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"❌ PROXY: Todos los retries fallaron después de {max_retries} intentos")
+                    raise BinanceClientError(f"Proxy error después de {max_retries} intentos: {pe}")
+
+            except requests.exceptions.Timeout as te:
+                # Timeout específico
+                delay = min(base_delay * (2 ** attempt), 30)
+                logger.error(f"⏱️ TIMEOUT después de esperar {self.timeout}s:")
+                logger.error(f"   └─ Endpoint: {endpoint}")
+                logger.error(f"   └─ Intento: {attempt + 1}/{max_retries}")
+
+                if attempt < max_retries - 1:
+                    logger.warning(f"   └─ ⏳ Retry en {delay}s...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    logger.error(f"❌ TIMEOUT: Max retries alcanzado")
+                    raise BinanceClientError(f"Timeout después de {max_retries} intentos: {te}")
+
+            except (requests.exceptions.ConnectTimeout,
+                    requests.exceptions.ConnectionError) as e:
+                # Otros errores de conexión: aplicar exponential backoff
+                delay = min(base_delay * (2 ** attempt), 30)  # Cap en 30s
+                if attempt < max_retries - 1:
                     logger.warning(
-                        f"⚠️ Connection error on {endpoint}, "
-                        f"retry {attempt+1}/{max_retries} in {delay}s: {e}"
+                        f"⚠️ Connection error on {endpoint}:\n"
+                        f"   └─ Error: {type(e).__name__}\n"
+                        f"   └─ Intento: {attempt+1}/{max_retries}\n"
+                        f"   └─ ⏳ Retry en {delay}s..."
                     )
-                    import time
                     time.sleep(delay)
                     continue
                 else:
