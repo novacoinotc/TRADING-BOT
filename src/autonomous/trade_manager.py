@@ -958,7 +958,7 @@ class TradeManager:
             logger.info(f"💰 {symbol}: Ejecutando partial TP - Cerrando 50% ({partial_qty:.4f} qty)")
 
             # Cerrar 50% de la posición
-            await self.futures_trader.close_partial_position(symbol, partial_qty)
+            self.futures_trader.close_partial_position(symbol, partial_qty)
 
             self._partial_closed.add(symbol)
             logger.info(f"✅ {symbol}: Partial TP ejecutado exitosamente")

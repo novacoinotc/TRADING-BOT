@@ -58,6 +58,9 @@ class PositionMonitor:
         # Referencia opcional a autonomy_controller (para verificar test_mode_active)
         self.autonomy_controller = None
 
+        # Cache para retry resiliente
+        self._last_positions_cache = []
+
         logger.info(f"✅ Position Monitor inicializado (update interval: {update_interval}s)")
 
     def get_open_positions(self) -> Dict[str, Dict]:
@@ -81,6 +84,63 @@ class PositionMonitor:
         except Exception as e:
             logger.error(f"❌ Error en get_open_positions(): {e}", exc_info=True)
             return {}  # SIEMPRE devolver dict vacío en caso de error
+
+    def _fetch_positions_with_retry(self, max_retries=3):
+        """
+        Fetch positions con retry y exponential backoff
+
+        Args:
+            max_retries: Número máximo de reintentos
+
+        Returns:
+            Lista de positions o cache previo si todo falla
+        """
+        import time
+
+        for attempt in range(max_retries):
+            try:
+                positions = self.client.get_position_risk()
+
+                # Validar que no está vacío si teníamos posiciones antes
+                if not positions and hasattr(self, '_last_positions_cache') and self._last_positions_cache:
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 2  # 2s, 4s, 6s
+                        logger.warning(
+                            f"⚠️ Fetch returned empty positions, retry {attempt + 1}/{max_retries} "
+                            f"in {wait_time}s"
+                        )
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        logger.error(
+                            f"❌ Fetch failed after {max_retries} retries, "
+                            f"usando cache previo"
+                        )
+                        return self._last_positions_cache
+
+                # Guardar cache exitoso
+                if positions:
+                    self._last_positions_cache = positions
+
+                return positions
+
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 2
+                    logger.warning(
+                        f"⚠️ Error fetching positions: {e}, "
+                        f"retry {attempt + 1}/{max_retries} in {wait_time}s"
+                    )
+                    time.sleep(wait_time)
+                else:
+                    logger.error(f"❌ Failed to fetch positions after {max_retries} retries: {e}")
+                    # Retornar cache previo si existe
+                    if hasattr(self, '_last_positions_cache'):
+                        logger.warning("⚠️ Usando cache previo de positions")
+                        return self._last_positions_cache
+                    return []
+
+        return []
 
     def get_position(self, symbol: str) -> Optional[Dict]:
         """
@@ -183,7 +243,7 @@ class PositionMonitor:
             List: Lista de posiciones abiertas (con positionAmt != 0)
         """
         try:
-            all_positions = self.client.get_position_risk()
+            all_positions = self._fetch_positions_with_retry()
 
             # Filtrar solo posiciones abiertas
             open_positions = []
