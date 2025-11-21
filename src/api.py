@@ -258,17 +258,27 @@ async def get_portfolio() -> Dict[str, Any]:
                 if hasattr(_market_monitor.position_monitor, 'closed_trades'):
                     closed_trades_raw = _market_monitor.position_monitor.closed_trades
 
-                    # Convertir a formato del dashboard
-                    for trade in closed_trades_raw:
-                        closed_trades.append({
-                            'id': trade.get('id', len(closed_trades)),
-                            'symbol': trade.get('symbol', 'UNKNOWN'),
-                            'side': trade.get('side', 'LONG'),
-                            'leverage': trade.get('leverage', 1),
-                            'pnl': trade.get('realized_pnl', 0),
-                            'pnl_pct': trade.get('realized_pnl_pct', 0),
-                            'timestamp': trade.get('close_time', datetime.now().isoformat())
-                        })
+                    # 🔧 VALIDACIÓN: Asegurar que closed_trades_raw es iterable correctamente
+                    if not isinstance(closed_trades_raw, dict):
+                        logger.error(f"❌ closed_trades no es dict, es {type(closed_trades_raw)}: {closed_trades_raw}")
+                    else:
+                        # Convertir a formato del dashboard
+                        # closed_trades es Dict[str, Dict], iterar sobre .values()
+                        for trade in closed_trades_raw.values():
+                            # Validar que cada trade es un dict
+                            if not isinstance(trade, dict):
+                                logger.warning(f"⚠️ Trade no es dict, es {type(trade)}: {trade}")
+                                continue
+
+                            closed_trades.append({
+                                'id': trade.get('id', len(closed_trades)),
+                                'symbol': trade.get('symbol', 'UNKNOWN'),
+                                'side': trade.get('side', 'LONG'),
+                                'leverage': trade.get('leverage', 1),
+                                'pnl': trade.get('realized_pnl', 0),
+                                'pnl_pct': trade.get('realized_pnl_pct', 0),
+                                'timestamp': trade.get('close_time', datetime.now().isoformat())
+                            })
         except Exception as e:
             logger.error(f"Error getting closed trades: {e}")
 

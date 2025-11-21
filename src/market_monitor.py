@@ -1049,9 +1049,19 @@ class MarketMonitor:
                                     # Validar que sl_price sea numérico
                                     if isinstance(sl_price, (int, float)) and sl_price > 0:
                                         stop_loss_pct = abs((sl_price - current_price) / current_price * 100)
+
+                                        # 🔧 VALIDACIÓN CRÍTICA: SL debe estar a distancia mínima segura
+                                        # Mínimo 1.5% para considerar: volatilidad normal + comisiones (0.04%) + spread
+                                        min_sl_pct = 1.5
+                                        if stop_loss_pct < min_sl_pct:
+                                            logger.warning(
+                                                f"⚠️ SL demasiado cerca del entry ({stop_loss_pct:.3f}% < {min_sl_pct}%), "
+                                                f"ajustando a mínimo seguro de 2.5%"
+                                            )
+                                            stop_loss_pct = 2.5  # Usar 2.5% como mínimo seguro
                                     else:
-                                        logger.warning(f"⚠️ stop_loss inválido: {sl_price}, usando default 2%")
-                                        stop_loss_pct = 2.0
+                                        logger.warning(f"⚠️ stop_loss inválido: {sl_price}, usando default 2.5%")
+                                        stop_loss_pct = 2.5
 
                                 if 'take_profit' in signals and signals['take_profit']:
                                     tp_price = signals['take_profit']

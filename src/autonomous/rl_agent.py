@@ -377,8 +377,28 @@ class RLAgent:
             self.exploration_rate = min(0.8, self.exploration_rate * 2.0)
             logger.info(f"⚠️ Señal DÉBIL (score {composite_score:.2f}): favoreciendo SKIP")
 
-        # Elegir acción usando Q-learning (con exploration_rate ajustado)
-        chosen_action = self.choose_action(state, available_actions)
+        # 🔧 NUEVO: Bypass RL para señales extremadamente fuertes
+        # Si score > 7.0 Y estado desconocido, forzar OPEN para aprender
+        if composite_score >= 7.0:
+            if state not in self.q_table:
+                logger.warning(f"⚡ FORZANDO trade en señal ultra fuerte (score {composite_score:.2f}) - Estado nuevo, aprender!")
+                # Elegir mejor acción disponible basada en score
+                if 'FUTURES_HIGH' in available_actions and max_leverage >= 5:
+                    chosen_action = 'FUTURES_HIGH'
+                elif 'FUTURES_MEDIUM' in available_actions:
+                    chosen_action = 'FUTURES_MEDIUM'
+                elif 'FUTURES_LOW' in available_actions:
+                    chosen_action = 'FUTURES_LOW'
+                elif 'SPOT' in available_actions:
+                    chosen_action = 'SPOT'
+                else:
+                    chosen_action = self.choose_action(state, available_actions)
+            else:
+                # Estado conocido, usar lógica normal
+                chosen_action = self.choose_action(state, available_actions)
+        else:
+            # Score normal, usar lógica estándar
+            chosen_action = self.choose_action(state, available_actions)
 
         # Restaurar exploration_rate original
         self.exploration_rate = original_exploration
@@ -460,7 +480,9 @@ class RLAgent:
             Confianza entre 0 y 1
         """
         if state not in self.q_table or action not in self.q_table[state]:
-            return 0.3  # Baja confianza para estados/acciones nuevos
+            # 🔧 Aumentado de 0.3 a 0.6 para permitir operar en estados similares
+            # Con 116M estados posibles y 224 trades, necesitamos interpolar
+            return 0.6  # Confianza moderada - permitir aprendizaje activo
 
         q_value = self.q_table[state][action]
         all_q_values = list(self.q_table[state].values())
@@ -478,7 +500,8 @@ class RLAgent:
         normalized = (q_value - min_q) / (max_q - min_q)
 
         # Ajustar confianza basado en experiencia
-        experience_factor = min(1.0, self.total_trades / 100)  # Más confianza con más trades
+        # 🔧 Reducido de 100 a 50 para alcanzar max confidence más rápido
+        experience_factor = min(1.0, self.total_trades / 50)  # Más confianza con más trades
 
         return 0.3 + (normalized * 0.7 * experience_factor)
 
