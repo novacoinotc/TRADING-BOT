@@ -683,6 +683,31 @@ class FuturesTrader:
                 f"{'='*60}\n"
             )
 
+            # 🔧 FIX: Cancelar todas las órdenes abiertas del símbolo
+            # Esto evita que queden Stop Loss / Take Profit huérfanos
+            try:
+                logger.info(f"🗑️ Cancelando órdenes abiertas de {symbol}...")
+                open_orders = self.client.get_open_orders(symbol=symbol)
+
+                if open_orders:
+                    for order in open_orders:
+                        try:
+                            self.client.cancel_order(
+                                symbol=symbol,
+                                order_id=order['orderId']
+                            )
+                            logger.info(f"✅ Orden cancelada: {order['orderId']} ({order['type']})")
+                        except Exception as e:
+                            logger.warning(f"⚠️ No se pudo cancelar orden {order['orderId']}: {e}")
+
+                    logger.info(f"✅ {len(open_orders)} órdenes canceladas para {symbol}")
+                else:
+                    logger.debug(f"No hay órdenes abiertas para {symbol}")
+
+            except Exception as e:
+                logger.warning(f"⚠️ Error cancelando órdenes abiertas: {e}")
+                # No fallar el cierre por esto
+
             return close_info
 
         except BinanceAPIError as e:
