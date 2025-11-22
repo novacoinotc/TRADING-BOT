@@ -24,13 +24,18 @@ class AdvancedTechnicalAnalyzer:
         self.rsi_oversold = config.RSI_OVERSOLD
         self.rsi_overbought = config.RSI_OVERBOUGHT
 
-    def analyze_multi_timeframe(self, dfs: Dict[str, pd.DataFrame]) -> dict:
+    def analyze_multi_timeframe(
+        self,
+        dfs: Dict[str, pd.DataFrame],
+        dynamic_threshold: float = None
+    ) -> dict:
         """
         Perform multi-timeframe analysis
 
         Args:
             dfs: Dictionary of DataFrames {timeframe: df}
                  e.g., {'1h': df_1h, '4h': df_4h, '1d': df_1d}
+            dynamic_threshold: Threshold dinámico para señales (opcional)
 
         Returns:
             Complete analysis with signals, indicators, and recommendations
@@ -66,8 +71,8 @@ class AdvancedTechnicalAnalyzer:
         atr = self._calculate_atr(df_1h)
         indicators['atr'] = atr
 
-        # Generate advanced signals with scoring
-        signals = self._generate_advanced_signals(indicators, df_1h)
+        # Generate advanced signals with scoring (usa threshold dinámico si disponible)
+        signals = self._generate_advanced_signals(indicators, df_1h, dynamic_threshold)
 
         # Calculate stop-loss and take-profit levels
         if signals['action'] != 'HOLD':
@@ -276,9 +281,19 @@ class AdvancedTechnicalAnalyzer:
         )
         return round(atr_indicator.average_true_range().iloc[-1], 2)
 
-    def _generate_advanced_signals(self, indicators: dict, df: pd.DataFrame) -> dict:
+    def _generate_advanced_signals(
+        self,
+        indicators: dict,
+        df: pd.DataFrame,
+        dynamic_threshold: float = None
+    ) -> dict:
         """
         Generate advanced trading signals with 0-10 scoring system
+
+        Args:
+            indicators: Diccionario de indicadores calculados
+            df: DataFrame con datos OHLCV
+            dynamic_threshold: Threshold dinámico (opcional, usa config si None)
         """
         score = 0.0
         max_score = 10.0
@@ -393,8 +408,8 @@ class AdvancedTechnicalAnalyzer:
         # Normalize score to 0-10 range
         final_score = max(0, min(abs(score), max_score))
 
-        # Determine action (usa threshold dinámico del config)
-        threshold = config.CONSERVATIVE_THRESHOLD
+        # Determine action (usa threshold dinámico si está disponible)
+        threshold = dynamic_threshold if dynamic_threshold is not None else config.CONSERVATIVE_THRESHOLD
         if score >= threshold:
             action = 'BUY'
             risk_level = 'LOW' if indicators['volume_ratio'] > 1.2 else 'MEDIUM'

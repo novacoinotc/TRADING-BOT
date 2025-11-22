@@ -20,6 +20,7 @@ from src.sentiment.sentiment_integration import SentimentIntegration
 from src.orderbook.orderbook_analyzer import OrderBookAnalyzer
 from src.market_regime.regime_detector import RegimeDetector
 from src.advanced.feature_aggregator import FeatureAggregator
+from src.trading.dynamic_threshold import get_dynamic_threshold_manager
 
 # Binance Futures Integration (v2.0)
 from src.binance_integration.binance_client import BinanceClient
@@ -158,6 +159,9 @@ class MarketMonitor:
         self.auto_trade = config.AUTO_TRADE  # v2.0: Auto-trading con Binance
         self.autonomy_controller = None  # Will be set by main.py if autonomous mode enabled
 
+        # Dynamic Threshold Manager - Experimenta con thresholds adaptativos
+        self.dynamic_threshold_manager = get_dynamic_threshold_manager()
+
     def _initialize_exchange(self) -> ccxt.Exchange:
         """
         Initialize exchange connection with optional proxy support
@@ -234,6 +238,50 @@ class MarketMonitor:
                         self.autonomy_controller.update_from_trade_result(closed_info, reward)
                 except Exception as e:
                     logger.error(f"❌ Error updating RL Agent: {e}")
+
+            # ========== DYNAMIC THRESHOLD LEARNING ==========
+            # Registrar resultado para que el sistema de threshold aprenda
+            try:
+                won = closed_info['realized_pnl'] > 0
+                threshold_used = self.dynamic_threshold_manager.current_threshold
+
+                # Construir condiciones de mercado del momento del trade
+                market_conditions = {
+                    'fear_greed_index': 50,  # Default, se actualizará con datos reales si están disponibles
+                    'current_session': 'UNKNOWN',
+                    'volatility': 'medium',
+                    'confidence': 50
+                }
+
+                # Intentar obtener datos actuales del sentimiento
+                if self.sentiment_system:
+                    try:
+                        base_currency = closed_info['symbol'].replace('USDT', '').replace('/USDT', '')
+                        sentiment = self.sentiment_system.get_sentiment_features(f"{base_currency}/USDT")
+                        if sentiment:
+                            market_conditions['fear_greed_index'] = sentiment.get('fear_greed_index', 50)
+                    except Exception:
+                        pass
+
+                # Obtener sesión actual
+                if self.feature_aggregator and self.feature_aggregator.session_trading:
+                    current_session, _ = self.feature_aggregator.session_trading.get_current_session()
+                    market_conditions['current_session'] = current_session
+
+                # Registrar experiencia
+                self.dynamic_threshold_manager.record_trade_result(
+                    won=won,
+                    threshold_used=threshold_used,
+                    market_conditions=market_conditions
+                )
+
+                logger.info(
+                    f"🎚️ Threshold learning: {'WIN' if won else 'LOSS'} @ threshold={threshold_used:.2f} | "
+                    f"Rachas: {self.dynamic_threshold_manager.consecutive_wins}W/{self.dynamic_threshold_manager.consecutive_losses}L"
+                )
+
+            except Exception as e:
+                logger.warning(f"⚠️ Error registrando experiencia de threshold: {e}")
 
         except Exception as e:
             logger.error(f"❌ Error in _on_position_closed callback: {e}")
@@ -573,8 +621,43 @@ class MarketMonitor:
                 logger.warning(f"Insufficient data for {pair}")
                 return
 
-            # Perform advanced multi-timeframe analysis
-            analysis = self.analyzer.analyze_multi_timeframe(dfs)
+            # ========== THRESHOLD DINÁMICO ==========
+            # Calcular threshold adaptativo basado en condiciones de mercado
+            dynamic_threshold = None
+            threshold_explanation = ""
+            try:
+                # Obtener datos para el threshold dinámico
+                fear_greed = sentiment_data.get('fear_greed_index', 50) if sentiment_data else 50
+                current_session = 'UNKNOWN'
+                if self.feature_aggregator and self.feature_aggregator.session_trading:
+                    current_session, _ = self.feature_aggregator.session_trading.get_current_session()
+
+                # Determinar volatilidad del régimen
+                volatility = 'medium'
+                if regime_data:
+                    vol_regime = regime_data.get('volatility', 'NORMAL')
+                    if vol_regime in ['LOW', 'BAJA']:
+                        volatility = 'low'
+                    elif vol_regime in ['HIGH', 'ALTA', 'EXTREME', 'EXTREMA']:
+                        volatility = 'high'
+
+                # Calcular threshold dinámico
+                dynamic_threshold, threshold_explanation = self.dynamic_threshold_manager.calculate_threshold(
+                    fear_greed_index=fear_greed,
+                    current_session=current_session,
+                    volatility=volatility,
+                    ml_confidence=sentiment_data.get('sentiment_strength', 50) if sentiment_data else 50,
+                    recent_win_rate=self.dynamic_threshold_manager.get_recent_win_rate()
+                )
+
+                logger.info(f"🎚️ {pair}: {threshold_explanation}")
+
+            except Exception as e:
+                logger.warning(f"Error calculando threshold dinámico: {e}, usando default")
+                dynamic_threshold = None  # Usará config.CONSERVATIVE_THRESHOLD
+
+            # Perform advanced multi-timeframe analysis (con threshold dinámico)
+            analysis = self.analyzer.analyze_multi_timeframe(dfs, dynamic_threshold=dynamic_threshold)
 
             if analysis:
                 current_price = analysis['indicators']['current_price']
