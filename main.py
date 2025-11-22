@@ -262,6 +262,8 @@ async def main():
     """
     Main function to start the trading bot
     """
+    import os
+
     # Setup logging
     setup_logging()
     logger = logging.getLogger(__name__)
@@ -269,6 +271,39 @@ async def main():
     logger.info("=" * 60)
     logger.info("Trading Signal Bot Starting...")
     logger.info("=" * 60)
+
+    # ========== VERIFICACIÓN DE ESTADO INICIAL ==========
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("🔍 VERIFICACIÓN DE ESTADO INICIAL")
+    logger.info("=" * 60)
+
+    # Verificar Paper Trading (si existe la variable)
+    paper_trading = getattr(config, 'PAPER_TRADING', False)
+    logger.info(f"📊 Paper Trading: {'HABILITADO ⚠️' if paper_trading else 'DESHABILITADO ✅'}")
+    logger.info(f"💰 Auto Trade: {'HABILITADO ✅' if config.AUTO_TRADE else 'DESHABILITADO ❌'}")
+    logger.info(f"🎚️ Threshold Base: {config.CONSERVATIVE_THRESHOLD}")
+    logger.info(f"🌐 Binance Mode: {'TESTNET ⚠️' if config.BINANCE_TESTNET else 'LIVE ✅'}")
+
+    # Verificar si hay datos previos de paper trading
+    rl_state_exists = os.path.exists('data/autonomous/rl_agent_state.json')
+    threshold_exp_exists = os.path.exists('data/threshold_experiences.json')
+    trade_mgmt_exists = os.path.exists('data/trade_management_learning.json')
+
+    if rl_state_exists or threshold_exp_exists or trade_mgmt_exists:
+        logger.warning("⚠️ ENCONTRADOS DATOS PREVIOS:")
+        if rl_state_exists:
+            logger.warning("   - data/autonomous/rl_agent_state.json (RL Agent state)")
+        if threshold_exp_exists:
+            logger.warning("   - data/threshold_experiences.json (Threshold experiences)")
+        if trade_mgmt_exists:
+            logger.warning("   - data/trade_management_learning.json (Trade Manager learning)")
+        logger.warning("   Estos datos serán usados para continuar el aprendizaje")
+    else:
+        logger.info("✅ ESTADO LIMPIO: Empezando desde cero (sin datos previos)")
+
+    logger.info("=" * 60)
+    logger.info("")
 
     # Verify configuration
     if not config.TELEGRAM_BOT_TOKEN:

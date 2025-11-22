@@ -627,7 +627,8 @@ class MarketMonitor:
             threshold_explanation = ""
             try:
                 # Obtener datos para el threshold dinámico
-                fear_greed = sentiment_data.get('fear_greed_index', 50) if sentiment_data else 50
+                # IMPORTANTE: Usar fear_greed_index_raw (0-100), NO fear_greed_index (0-1)
+                fear_greed = sentiment_data.get('fear_greed_index_raw', 50) if sentiment_data else 50
                 current_session = 'UNKNOWN'
                 if self.feature_aggregator and self.feature_aggregator.session_trading:
                     current_session, _ = self.feature_aggregator.session_trading.get_current_session()

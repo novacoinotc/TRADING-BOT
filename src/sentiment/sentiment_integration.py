@@ -183,7 +183,8 @@ class SentimentIntegration:
             'news_negative_ratio': general.get('negative_news', 0) / max(general.get('total_news', 1), 1),
 
             # Fear & Greed
-            'fear_greed_index': fear_greed.get('value', 50) / 100.0,  # Normalizar a 0-1
+            'fear_greed_index': fear_greed.get('value', 50) / 100.0,  # Normalizar a 0-1 para ML
+            'fear_greed_index_raw': fear_greed.get('value', 50),  # Valor crudo 0-100 para threshold dinámico
             'fear_greed_extreme_fear': 1 if fear_greed.get('value', 50) < 25 else 0,
             'fear_greed_extreme_greed': 1 if fear_greed.get('value', 50) > 75 else 0,
 
@@ -531,6 +532,7 @@ class SentimentIntegration:
             'news_positive_ratio': 0.5,
             'news_negative_ratio': 0.5,
             'fear_greed_index': 0.5,
+            'fear_greed_index_raw': 50,  # Valor crudo 0-100
             'fear_greed_extreme_fear': 0,
             'fear_greed_extreme_greed': 0,
             'pair_sentiment': 0.5,
