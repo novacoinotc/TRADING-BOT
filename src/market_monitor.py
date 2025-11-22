@@ -954,6 +954,11 @@ class MarketMonitor:
                             # 23. Order Flow Imbalance
                             'order_flow_bias': arsenal_rl_extensions.get('order_flow_bias', 'neutral'),
                             'order_flow_ratio': arsenal_rl_extensions.get('order_flow_ratio', 1.0),
+
+                            # 🔧 FIX CRÍTICO: Confidence para RL Agent composite score
+                            # El RL Agent usa confidence (0-100) para el base score
+                            # Si signals tiene confidence, usarlo; sino, convertir score (0-10) a 0-100
+                            'confidence': signals.get('confidence', signals.get('score', 50) * 10),
                         }
                         # ===== FIN ARSENAL EXTENSIONS =====
 
@@ -980,6 +985,20 @@ class MarketMonitor:
 
                         # Decidir si ejecutar trade basado en RL Agent
                         should_execute_trade = rl_decision.get('should_trade', True)
+
+                        # 🔍 DEBUG: Log resultado de decisión del RL Agent
+                        composite = rl_decision.get('composite_score', 0)
+                        chosen_action = rl_decision.get('chosen_action', 'UNKNOWN')
+                        if should_execute_trade:
+                            logger.info(
+                                f"✅ RL APROBÓ trade {pair}: {chosen_action} | "
+                                f"composite={composite:.2f} | leverage={rl_decision.get('leverage', 1)}x"
+                            )
+                        else:
+                            logger.warning(
+                                f"❌ RL BLOQUEÓ trade {pair}: {chosen_action} | "
+                                f"composite={composite:.2f} | SKIP - señal no suficientemente fuerte"
+                            )
 
                         # Aplicar parámetros del RL Agent (tamaño, trade_type, leverage)
                         if should_execute_trade and 'position_size_multiplier' in rl_decision:
@@ -1324,7 +1343,9 @@ class MarketMonitor:
                                     'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
                                     'regime_strength': regime_data.get('regime_strength', 'MEDIUM') if regime_data else 'MEDIUM',
                                     'orderbook': orderbook_status_flash,
-                                    'volatility': 'high' if flash_analysis['indicators'].get('atr', 0) > flash_price * 0.02 else 'medium'
+                                    'volatility': 'high' if flash_analysis['indicators'].get('atr', 0) > flash_price * 0.02 else 'medium',
+                                    # 🔧 FIX CRÍTICO: Confidence para RL Agent composite score
+                                    'confidence': flash_signals.get('confidence', flash_signals.get('score', 50) * 10),
                                 }
 
                                 # Obtener portfolio metrics (v2.0: desde Binance)

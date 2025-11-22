@@ -229,6 +229,19 @@ class RLAgent:
         # Obtener representación del estado
         state = self.get_state_representation(market_data)
 
+        # 🔍 DEBUG: Log valores de entrada para diagnóstico
+        pair = market_data.get('pair', 'UNKNOWN')
+        side = market_data.get('side', 'NEUTRAL')
+        input_confidence = market_data.get('confidence', 50)
+        logger.info(
+            f"🔍 RL INPUT: {pair} {side} | "
+            f"confidence={input_confidence} | "
+            f"rsi={market_data.get('rsi', 50):.0f} | "
+            f"regime={market_data.get('regime', 'N/A')} | "
+            f"ml_conf={market_data.get('ml_confidence', 0):.2f} | "
+            f"fg={market_data.get('fear_greed_index', 50)}"
+        )
+
         # ======================================================================
         # COMPOSITE SCORE: Calcular score de oportunidad usando LOS 16 SERVICIOS
         # ======================================================================
@@ -340,7 +353,13 @@ class RLAgent:
         if regime_confidence > 0.75:
             composite_score += 0.5
 
-        logger.info(f"🎯 COMPOSITE SCORE: {composite_score:.2f} (integración de 16 servicios)")
+        # 🔍 DEBUG: Log detallado del composite score breakdown
+        logger.info(
+            f"🎯 COMPOSITE SCORE: {composite_score:.2f}/18 | "
+            f"base_conf={confidence_score:.1f}/5 | "
+            f"ml={'+2.5' if (ml_confidence > 0.7 and ((ml_prediction == 'BUY' and side == 'BUY') or (ml_prediction == 'SELL' and side == 'SELL'))) else '0'} | "
+            f"multilayer={'+3' if multi_layer_alignment > 0.8 else ('+1.5' if multi_layer_alignment > 0.6 else '0')}"
+        )
 
         # Acciones disponibles para trading (SPOT + FUTURES)
         available_actions = [
