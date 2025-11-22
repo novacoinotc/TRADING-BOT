@@ -1,7 +1,19 @@
 """
-Dynamic Threshold Manager - Sistema de threshold adaptativo
-Permite experimentar con thresholds más bajos durante condiciones favorables
-mientras mantiene seguridad durante condiciones adversas.
+Dynamic Threshold Manager - MODO EXPLORACIÓN
+Sistema de threshold adaptativo que permite al RL Agent aprender del mercado real.
+
+FILOSOFÍA:
+- Explorar libremente en ENTRADA (threshold bajo, sin restricciones)
+- Proteger agresivamente DURANTE el trade (Trade Manager)
+- RL Agent aprende rápido de éxitos Y errores
+
+El Trade Manager es nuestra red de seguridad 24/7:
+- Stop Loss dinámico
+- Breakeven protection
+- Trailing stop
+- Detección de reversiones
+
+Por lo tanto, NO necesitamos sobre-restringir la ENTRADA.
 """
 import logging
 import json
@@ -16,51 +28,45 @@ class DynamicThresholdManager:
     """
     Gestiona thresholds dinámicos para señales de trading.
 
+    MODO EXPLORACIÓN:
+    - Threshold BASE: 4.5 (accesible)
+    - Threshold MIN: 3.5 (permite exploración)
+    - Threshold MAX: 5.5 (sin sobre-restricción)
+
     Filosofía:
-    - Threshold BASE (conservador): 5.5
-    - Threshold EXPERIMENTAL (buenas condiciones): 4.0 - 4.5
-    - El sistema aprende de sus experiencias y ajusta automáticamente
+    - NO HAY BLOQUEOS - solo ajustes suaves
+    - Trade Manager protege DURANTE el trade
+    - RL Agent necesita experiencias para aprender
 
-    Condiciones para BAJAR threshold (más trades):
-    - Sesión US/European (mejor liquidez)
-    - Fear & Greed > 25 (mercado no en pánico)
-    - Volatilidad moderada (no extrema)
-    - ML confidence > 50%
-    - Win rate reciente > 45%
-
-    Condiciones para SUBIR threshold (más conservador):
-    - Sesión asiática (menor liquidez)
-    - Fear & Greed < 20 (miedo extremo)
-    - Alta volatilidad
-    - 3+ pérdidas consecutivas
-    - Win rate reciente < 35%
-
-    Reglas de SEGURIDAD:
-    - NUNCA menos de 4.0
-    - NUNCA bajar si F&G < 20
-    - NUNCA bajar si 3+ pérdidas consecutivas
+    Ajustes (informativos, no restrictivos):
+    - Sesión US/EU: más agresivo (-0.7)
+    - Sesión Asia: ligeramente conservador (+0.2)
+    - F&G positivo: más agresivo (-0.4)
+    - F&G bajo: ajuste mínimo (+0.1)
+    - Racha de wins: aprovechar momentum (-0.3)
+    - Racha de losses: ajuste suave (+0.2)
     """
 
-    # Thresholds límites
-    MIN_THRESHOLD = 4.0  # NUNCA menos que esto
-    MAX_THRESHOLD = 6.0  # Máximo conservador
-    DEFAULT_THRESHOLD = 5.5  # Base conservador
+    # Thresholds límites - MODO EXPLORACIÓN
+    MIN_THRESHOLD = 3.5  # Permite exploración (pero no locura)
+    MAX_THRESHOLD = 5.5  # Sin sobre-restricción
+    DEFAULT_THRESHOLD = 4.5  # Base accesible
 
-    # Ajustes por factor
+    # Ajustes por factor - MÁS AGRESIVOS para exploración
     ADJUSTMENTS = {
-        'session_us_eu': -0.5,      # US/EU: bajar 0.5
-        'session_asia': +0.3,       # Asia: subir 0.3
-        'fear_greed_good': -0.3,    # F&G > 40: bajar 0.3
-        'fear_greed_moderate': -0.1, # F&G 25-40: bajar 0.1
-        'fear_greed_extreme': +0.5,  # F&G < 20: subir 0.5
-        'volatility_low': -0.2,      # Baja volatilidad: bajar 0.2
-        'volatility_high': +0.4,     # Alta volatilidad: subir 0.4
-        'confidence_high': -0.3,     # ML conf > 60%: bajar 0.3
-        'confidence_low': +0.2,      # ML conf < 40%: subir 0.2
-        'winrate_good': -0.2,        # Win rate > 55%: bajar 0.2
-        'winrate_bad': +0.3,         # Win rate < 40%: subir 0.3
-        'consecutive_losses': +0.5,  # 3+ pérdidas: subir 0.5
-        'consecutive_wins': -0.2,    # 3+ ganancias: bajar 0.2
+        'session_us_eu': -0.7,      # Más agresivo en mejores sesiones (antes -0.5)
+        'session_asia': +0.2,       # Menos penalización (antes +0.3)
+        'fear_greed_good': -0.4,    # Más agresivo con F&G positivo (antes -0.3)
+        'fear_greed_moderate': -0.2, # Más agresivo (antes -0.1)
+        'fear_greed_low': +0.1,      # Casi sin penalización (antes +0.5 bloqueante)
+        'volatility_low': -0.3,      # Más agresivo en volatilidad baja (antes -0.2)
+        'volatility_high': +0.2,     # Menos restrictivo (antes +0.4)
+        'confidence_high': -0.4,     # Mucho más agresivo con ML alta (antes -0.3)
+        'confidence_low': +0.1,      # Menos restrictivo (antes +0.2)
+        'winrate_good': -0.3,        # Aprovechar momentum (antes -0.2)
+        'winrate_bad': +0.2,         # Menos restrictivo (antes +0.3)
+        'consecutive_losses': +0.2,  # Suave, no bloqueante (antes +0.5 bloqueante)
+        'consecutive_wins': -0.3,    # Aprovechar racha (antes -0.2)
     }
 
     def __init__(self, experience_file: str = 'data/threshold_experiences.json'):
@@ -82,10 +88,23 @@ class DynamicThresholdManager:
         # Cargar experiencias previas
         self._load_experiences()
 
-        logger.info(
-            f"🎚️ DynamicThresholdManager inicializado | "
-            f"Base={self.DEFAULT_THRESHOLD} | Min={self.MIN_THRESHOLD} | Max={self.MAX_THRESHOLD}"
-        )
+        # Log de filosofía del modo exploración
+        logger.info("=" * 60)
+        logger.info("🚀 MODO EXPLORACIÓN ACTIVADO")
+        logger.info("=" * 60)
+        logger.info("Filosofía: Explorar libremente, aprender de errores")
+        logger.info(f"Threshold Base: {self.DEFAULT_THRESHOLD} (accesible)")
+        logger.info(f"Threshold Min: {self.MIN_THRESHOLD} (exploración)")
+        logger.info(f"Threshold Max: {self.MAX_THRESHOLD} (sin sobre-restricción)")
+        logger.info("")
+        logger.info("🛡️ PROTECCIÓN: Trade Manager monitorea 24/7")
+        logger.info("   - Stop Loss dinámico")
+        logger.info("   - Breakeven protection")
+        logger.info("   - Trailing stop")
+        logger.info("   - Detección de reversiones")
+        logger.info("")
+        logger.info("🎯 OBJETIVO: RL Agent aprende del mercado REAL")
+        logger.info("=" * 60)
 
     def calculate_threshold(
         self,
@@ -97,6 +116,9 @@ class DynamicThresholdManager:
     ) -> Tuple[float, str]:
         """
         Calcula el threshold óptimo basado en condiciones actuales.
+
+        MODO EXPLORACIÓN: Sin bloqueos, solo ajustes suaves.
+        El Trade Manager protege durante el trade.
 
         Args:
             fear_greed_index: Fear & Greed (0-100)
@@ -111,87 +133,78 @@ class DynamicThresholdManager:
         threshold = self.DEFAULT_THRESHOLD
         reasons = []
 
-        # ============== REGLAS DE SEGURIDAD (PRIMERO) ==============
+        # 🚀 MODO EXPLORACIÓN: Sin bloqueos, solo ajustes informativos
+        # El Trade Manager protege durante el trade, no necesitamos restringir entrada
 
-        # REGLA 1: Si Fear & Greed < 20, NO experimentar
+        # ============== AJUSTES POR FEAR & GREED ==============
         if fear_greed_index < 20:
-            threshold = max(self.DEFAULT_THRESHOLD, threshold)
-            threshold += self.ADJUSTMENTS['fear_greed_extreme']
-            reasons.append(f"SEGURIDAD: F&G={fear_greed_index} (miedo extremo) -> +0.5")
-            self.current_threshold = min(self.MAX_THRESHOLD, threshold)
-            self.last_adjustment_reasons = reasons
-            explanation = self._build_explanation(threshold, reasons, "CONSERVADOR")
-            logger.warning(f"🔒 Threshold BLOQUEADO en modo conservador: {threshold:.2f} | F&G={fear_greed_index}")
-            return threshold, explanation
-
-        # REGLA 2: Si 3+ pérdidas consecutivas, NO experimentar
-        if self.consecutive_losses >= 3:
-            threshold = max(self.DEFAULT_THRESHOLD, threshold)
-            threshold += self.ADJUSTMENTS['consecutive_losses']
-            reasons.append(f"SEGURIDAD: {self.consecutive_losses} pérdidas consecutivas -> +0.5")
-            self.current_threshold = min(self.MAX_THRESHOLD, threshold)
-            self.last_adjustment_reasons = reasons
-            explanation = self._build_explanation(threshold, reasons, "CONSERVADOR")
-            logger.warning(f"🔒 Threshold BLOQUEADO por pérdidas: {threshold:.2f} | Losses={self.consecutive_losses}")
-            return threshold, explanation
+            # Ajuste suave, NO bloqueante
+            threshold += self.ADJUSTMENTS['fear_greed_low']
+            reasons.append(f"F&G={fear_greed_index} (bajo) -> +0.1")
+        elif fear_greed_index >= 40:
+            # Más agresivo en mercado positivo
+            threshold += self.ADJUSTMENTS['fear_greed_good']
+            reasons.append(f"F&G={fear_greed_index} (positivo) -> -0.4")
+        elif fear_greed_index >= 25:
+            threshold += self.ADJUSTMENTS['fear_greed_moderate']
+            reasons.append(f"F&G={fear_greed_index} (moderado) -> -0.2")
 
         # ============== AJUSTES POR SESIÓN ==============
         session_upper = current_session.upper()
-        if session_upper in ['US', 'EUROPE', 'US_OPEN', 'EU_OPEN', 'LONDON', 'NEW_YORK']:
+        if session_upper in ['US', 'EUROPE', 'US_OPEN', 'EU_OPEN', 'EU_US_OVERLAP', 'LONDON', 'NEW_YORK']:
             threshold += self.ADJUSTMENTS['session_us_eu']
-            reasons.append(f"Sesión {session_upper} (alta liquidez) -> -0.5")
-        elif session_upper in ['ASIA', 'TOKYO', 'SYDNEY', 'ASIAN']:
+            reasons.append(f"Sesión {session_upper} (alta liquidez) -> -0.7")
+        elif session_upper in ['ASIA', 'ASIAN', 'TOKYO', 'SYDNEY']:
             threshold += self.ADJUSTMENTS['session_asia']
-            reasons.append(f"Sesión {session_upper} (baja liquidez) -> +0.3")
-
-        # ============== AJUSTES POR FEAR & GREED ==============
-        if fear_greed_index > 40:
-            threshold += self.ADJUSTMENTS['fear_greed_good']
-            reasons.append(f"F&G={fear_greed_index} (optimista) -> -0.3")
-        elif fear_greed_index >= 25:
-            threshold += self.ADJUSTMENTS['fear_greed_moderate']
-            reasons.append(f"F&G={fear_greed_index} (moderado) -> -0.1")
-        # < 20 ya se manejó arriba como regla de seguridad
+            reasons.append(f"Sesión {session_upper} -> +0.2")
 
         # ============== AJUSTES POR VOLATILIDAD ==============
         vol_lower = volatility.lower()
         if vol_lower in ['low', 'baja']:
             threshold += self.ADJUSTMENTS['volatility_low']
-            reasons.append(f"Volatilidad baja -> -0.2")
+            reasons.append(f"Volatilidad baja -> -0.3")
         elif vol_lower in ['high', 'alta', 'extreme', 'extrema']:
             threshold += self.ADJUSTMENTS['volatility_high']
-            reasons.append(f"Volatilidad alta -> +0.4")
+            reasons.append(f"Volatilidad alta -> +0.2")
 
         # ============== AJUSTES POR ML CONFIDENCE ==============
         if ml_confidence > 60:
             threshold += self.ADJUSTMENTS['confidence_high']
-            reasons.append(f"ML confidence={ml_confidence:.0f}% (alta) -> -0.3")
+            reasons.append(f"ML conf={ml_confidence:.0f}% (alta) -> -0.4")
         elif ml_confidence < 40:
             threshold += self.ADJUSTMENTS['confidence_low']
-            reasons.append(f"ML confidence={ml_confidence:.0f}% (baja) -> +0.2")
+            reasons.append(f"ML conf={ml_confidence:.0f}% (baja) -> +0.1")
 
         # ============== AJUSTES POR WIN RATE ==============
         if recent_win_rate is not None:
             if recent_win_rate > 55:
                 threshold += self.ADJUSTMENTS['winrate_good']
-                reasons.append(f"Win rate={recent_win_rate:.0f}% (bueno) -> -0.2")
+                reasons.append(f"Win rate={recent_win_rate:.0f}% (bueno) -> -0.3")
             elif recent_win_rate < 40:
                 threshold += self.ADJUSTMENTS['winrate_bad']
-                reasons.append(f"Win rate={recent_win_rate:.0f}% (malo) -> +0.3")
+                reasons.append(f"Win rate={recent_win_rate:.0f}% (malo) -> +0.2")
 
         # ============== AJUSTES POR RACHA ==============
+        # Racha de pérdidas: ajuste SUAVE, no bloqueante
+        if self.consecutive_losses >= 3:
+            threshold += self.ADJUSTMENTS['consecutive_losses']
+            reasons.append(f"{self.consecutive_losses} pérdidas -> +0.2")
+            logger.info(f"⚠️ Racha de {self.consecutive_losses} pérdidas detectada (ajuste suave, NO bloqueo)")
+
+        # Racha de ganancias: aprovechar momentum
         if self.consecutive_wins >= 3:
             threshold += self.ADJUSTMENTS['consecutive_wins']
-            reasons.append(f"{self.consecutive_wins} wins consecutivos -> -0.2")
+            reasons.append(f"{self.consecutive_wins} wins -> -0.3 (momentum)")
+            logger.info(f"🔥 Racha de {self.consecutive_wins} wins - aprovechando momentum")
 
         # ============== APLICAR LÍMITES ==============
         threshold = max(self.MIN_THRESHOLD, min(self.MAX_THRESHOLD, threshold))
 
         # Determinar modo
-        if threshold <= 4.5:
-            mode = "EXPERIMENTAL"
-        elif threshold >= 5.5:
-            mode = "CONSERVADOR"
+        if threshold <= 4.0:
+            mode = "EXPLORACIÓN"
+        elif threshold >= 5.0:
+            mode = "CAUTELOSO"
         else:
             mode = "BALANCEADO"
 
@@ -201,7 +214,7 @@ class DynamicThresholdManager:
         explanation = self._build_explanation(threshold, reasons, mode)
 
         logger.info(
-            f"🎚️ Threshold calculado: {threshold:.2f} | Modo: {mode} | "
+            f"🎚️ Threshold: {threshold:.2f} ({mode}) | "
             f"F&G={fear_greed_index} | Session={current_session} | Vol={volatility}"
         )
 
@@ -278,6 +291,7 @@ class DynamicThresholdManager:
     def get_status(self) -> Dict:
         """Retorna estado actual del manager."""
         return {
+            'mode': 'EXPLORACIÓN',
             'current_threshold': self.current_threshold,
             'default_threshold': self.DEFAULT_THRESHOLD,
             'min_threshold': self.MIN_THRESHOLD,
