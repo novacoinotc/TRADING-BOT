@@ -316,6 +316,36 @@ class AutonomyController:
             except Exception as e:
                 logger.warning(f"⚠️ Error restaurando ML buffer: {e}")
 
+            # ========== Restaurar Trade Management Learning ==========
+            logger.info("📊 Restaurando Trade Management Learning...")
+
+            try:
+                if 'trade_management_learning' in state and state['trade_management_learning']:
+                    tm_learning = state['trade_management_learning']
+
+                    # Si trade_manager existe, restaurar directamente
+                    if hasattr(self, 'trade_manager') and self.trade_manager:
+                        if hasattr(self.trade_manager, 'learning'):
+                            self.trade_manager.learning.stats = tm_learning.get('statistics', {})
+                            self.trade_manager.learning.actions_history = tm_learning.get('actions_history', [])
+                            logger.info(f"  ✅ Trade Management Learning restaurado:")
+                            logger.info(f"     • {len(tm_learning.get('actions_history', []))} acciones en historial")
+                            logger.info(f"     • Total evaluadas: {tm_learning.get('statistics', {}).get('total_evaluated', 0)}")
+                    else:
+                        # Guardar en archivo para que Trade Manager lo cargue después
+                        from pathlib import Path
+                        import json
+                        filepath = 'data/trade_management_learning.json'
+                        Path(filepath).parent.mkdir(parents=True, exist_ok=True)
+                        with open(filepath, 'w') as f:
+                            json.dump(tm_learning, f, indent=2)
+                        logger.info(f"  ✅ Trade Management Learning guardado en {filepath}")
+                        logger.info(f"     (Se cargará cuando Trade Manager inicie)")
+                else:
+                    logger.info("  ℹ️ No hay Trade Management Learning en export")
+            except Exception as e:
+                logger.warning(f"⚠️ Error restaurando Trade Management Learning: {e}")
+
             # ========== VALIDACIÓN FINAL ==========
             logger.info("🎯 Validación final de sincronización...")
 
@@ -842,6 +872,11 @@ class AutonomyController:
                     ml_training_buffer = ml_system.training_buffer
                     logger.debug(f"🧠 ML Training Buffer incluido en export: {len(ml_training_buffer)} features")
 
+        # Guardar learning del Trade Manager
+        trade_management_learning = self.get_trade_management_learning_data()
+        if trade_management_learning:
+            logger.info(f"📊 Trade Management Learning incluido: {trade_management_learning.get('total_actions_recorded', 0)} acciones")
+
         success = self.persistence.save_full_state(
             rl_agent_state=rl_state,
             optimizer_state=optimizer_state,
@@ -849,7 +884,8 @@ class AutonomyController:
             change_history=self.change_history,  # Histórico de cambios con razonamiento
             metadata=metadata,
             paper_trading=paper_trading_state,  # NUEVO: incluir paper trading
-            ml_training_buffer=ml_training_buffer  # NUEVO: incluir training buffer
+            ml_training_buffer=ml_training_buffer,  # NUEVO: incluir training buffer
+            trade_management_learning=trade_management_learning  # NUEVO: incluir learning del Trade Manager
         )
 
         if success:
