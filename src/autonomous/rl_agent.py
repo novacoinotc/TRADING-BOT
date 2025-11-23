@@ -452,18 +452,28 @@ class RLAgent:
             }
         elif chosen_action.startswith('FUTURES'):
             # Acciones de FUTURES
-            if chosen_action == 'FUTURES_LOW':
-                # 20-40% del max leverage
-                leverage = max(2, int(max_leverage * 0.3))
-                multiplier = 0.5  # Tamaño conservador
-            elif chosen_action == 'FUTURES_MEDIUM':
-                # 40-70% del max leverage
-                leverage = max(2, int(max_leverage * 0.55))
-                multiplier = 1.0  # Tamaño normal
-            else:  # FUTURES_HIGH
-                # 70-100% del max leverage
-                leverage = max(2, int(max_leverage * 0.85))
-                multiplier = 1.5  # Tamaño agresivo
+            # 🔧 FIX: Cuando max_leverage es bajo (<=5), usar directamente
+            # para evitar que int(3 * 0.3) = 0 → max(2, 0) = 2
+            if max_leverage <= 5:
+                # Con leverage bajo, usar max_leverage directamente
+                leverage = max_leverage
+                if chosen_action == 'FUTURES_LOW':
+                    multiplier = 0.5
+                elif chosen_action == 'FUTURES_MEDIUM':
+                    multiplier = 1.0
+                else:  # FUTURES_HIGH
+                    multiplier = 1.5
+            else:
+                # Con leverage alto, escalar proporcionalmente
+                if chosen_action == 'FUTURES_LOW':
+                    leverage = max(3, int(max_leverage * 0.3))
+                    multiplier = 0.5
+                elif chosen_action == 'FUTURES_MEDIUM':
+                    leverage = max(3, int(max_leverage * 0.55))
+                    multiplier = 1.0
+                else:  # FUTURES_HIGH
+                    leverage = max(3, int(max_leverage * 0.85))
+                    multiplier = 1.5
 
             decision = {
                 'should_trade': True,
