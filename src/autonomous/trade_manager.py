@@ -105,9 +105,21 @@ class TradeManager:
         logger.info(f"      - ML System: {'✅' if ml_system else '❌'}")
         logger.info(f"      - Sentiment: {'✅' if self.sentiment_analyzer else '❌'}")
         logger.info(f"      - Regime Detector: {'✅' if self.regime_detector else '❌'}")
-        logger.info(f"      - Feature Aggregator: {'✅' if self.feature_aggregator else '❌'}")
         logger.info(f"      - OrderBook: {'✅' if self.orderbook_analyzer else '❌'}")
         logger.info(f"      - Learning System: ✅ ({len(self.learning.actions_history)} acciones en historial)")
+
+        # Log de módulos del Arsenal (Feature Aggregator)
+        if self.feature_aggregator:
+            logger.info("   🔧 Arsenal Avanzado:")
+            logger.info(f"      - Liquidation Heatmap: {'✅' if hasattr(self.feature_aggregator, 'liquidation_heatmap') else '❌'}")
+            logger.info(f"      - Funding Rate Analyzer: {'✅' if hasattr(self.feature_aggregator, 'funding_rate_analyzer') else '❌'}")
+            logger.info(f"      - Volume Profile: {'✅' if hasattr(self.feature_aggregator, 'volume_profile') else '❌'}")
+            logger.info(f"      - Pattern Recognition: {'✅' if hasattr(self.feature_aggregator, 'pattern_recognition') else '❌'}")
+            logger.info(f"      - Order Flow: {'✅' if hasattr(self.feature_aggregator, 'order_flow') else '❌'}")
+            logger.info(f"      - Session Trading: {'✅' if hasattr(self.feature_aggregator, 'session_trading') else '❌'}")
+            logger.info(f"      - Correlation Matrix: {'✅' if hasattr(self.feature_aggregator, 'correlation_matrix') else '❌'}")
+        else:
+            logger.warning("   ⚠️ Feature Aggregator NO disponible - Arsenal desactivado")
 
     async def start_monitoring(self):
         """Inicia monitoreo activo de trades"""
@@ -572,30 +584,53 @@ class TradeManager:
             if self.feature_aggregator:
                 try:
                     pair = symbol.replace('USDT', '/USDT')
+                    current_price = position.get('mark_price', 0)
 
-                    # Liquidation Zones (evitar stop hunts)
+                    # 5.1 Liquidation Zones (evitar stop hunts)
                     liquidation_risk = self._check_liquidation_zones(symbol, position)
+                    conditions['arsenal_signals']['liquidation_risk'] = liquidation_risk
                     if liquidation_risk > 0.7:
                         conditions['reversal_risk'] += 0.2
                         conditions['reasons'].append(f"Arsenal: Zona liquidación cercana (risk={liquidation_risk:.0%})")
 
-                    # Funding Rate (sentiment extremo)
-                    funding_signal = self._analyze_funding_rate(symbol)
-                    if funding_signal:
-                        conditions['arsenal_signals']['funding'] = funding_signal
-                        conditions['reasons'].append(funding_signal)
+                    # 5.2 Funding Rate (sentiment extremo)
+                    funding_data = self._analyze_funding_rate_detailed(symbol)
+                    if funding_data:
+                        conditions['arsenal_signals']['funding'] = funding_data
+                        if funding_data.get('is_extreme'):
+                            conditions['reasons'].append(f"Arsenal: Funding {funding_data['sentiment']} ({funding_data['rate']:.4f}%)")
 
-                    # Volume Profile (soporte/resistencia)
+                    # 5.3 Volume Profile (soporte/resistencia)
                     volume_signal = self._analyze_volume_profile(symbol, position)
                     if volume_signal:
                         conditions['arsenal_signals']['volume'] = volume_signal
                         conditions['reasons'].append(volume_signal)
 
-                    # Pattern Recognition (reversiones)
+                    # 5.4 Pattern Recognition (reversiones)
                     pattern_signal = self._detect_reversal_patterns(symbol, position)
                     if pattern_signal:
                         conditions['reversal_risk'] += 0.3
+                        conditions['arsenal_signals']['patterns'] = pattern_signal
                         conditions['reasons'].append(pattern_signal)
+
+                    # 5.5 Order Flow Imbalance (presión compradora/vendedora)
+                    order_flow_data = self._analyze_order_flow(symbol, position)
+                    if order_flow_data:
+                        conditions['arsenal_signals']['order_flow'] = order_flow_data
+                        if order_flow_data.get('imbalance_significant'):
+                            # Si el imbalance va contra nuestra posición
+                            if (side == 'LONG' and order_flow_data['direction'] == 'SELL') or \
+                               (side == 'SHORT' and order_flow_data['direction'] == 'BUY'):
+                                conditions['reversal_risk'] += 0.2
+                                conditions['reasons'].append(f"Arsenal: Order Flow contrario ({order_flow_data['direction']})")
+
+                    # 5.6 Session Trading (volatilidad por sesión)
+                    session_data = self._analyze_session(symbol)
+                    if session_data:
+                        conditions['arsenal_signals']['session'] = session_data
+                        # En sesiones de alta volatilidad, ser más conservador
+                        if session_data.get('volatility_multiplier', 1.0) > 1.3:
+                            conditions['should_secure_profits'] = conditions.get('should_secure_profits', False) or (pnl_pct > 1.0)
 
                 except Exception as e:
                     logger.debug(f"Error en Arsenal analysis: {e}")
@@ -642,12 +677,70 @@ class TradeManager:
             # Normalizar reversal_risk
             conditions['reversal_risk'] = min(1.0, conditions['reversal_risk'])
 
+            # 🎯 LOG COMPLETO DEL ANÁLISIS MULTI-SERVICIO
+            arsenal = conditions.get('arsenal_signals', {})
+
+            # Construir resumen de indicadores
+            indicators_summary = []
+
+            # Fear & Greed
+            if conditions.get('sentiment_score', 0) != 0:
+                fg_value = "N/A"
+                if self.sentiment_analyzer:
+                    try:
+                        sf = self.sentiment_analyzer.get_sentiment_features(symbol.replace('USDT', '/USDT'))
+                        if sf:
+                            fg_value = sf.get('fear_greed_index', 'N/A')
+                    except:
+                        pass
+                indicators_summary.append(f"F&G: {fg_value}")
+
+            # Regime
+            if conditions.get('market_regime', 'UNKNOWN') != 'UNKNOWN':
+                indicators_summary.append(f"Regime: {conditions['market_regime']}")
+
+            # Funding
+            if 'funding' in arsenal:
+                funding = arsenal['funding']
+                indicators_summary.append(f"Funding: {funding.get('rate', 0):.4f}% ({funding.get('sentiment', 'N/A')})")
+
+            # Liquidation Risk
+            if 'liquidation_risk' in arsenal:
+                liq = arsenal['liquidation_risk']
+                liq_status = '⚠️ ALTO' if liq > 0.7 else ('⚡ Medio' if liq > 0.3 else '✅ Bajo')
+                indicators_summary.append(f"Liq Risk: {liq_status}")
+
+            # Order Flow
+            if 'order_flow' in arsenal:
+                of = arsenal['order_flow']
+                indicators_summary.append(f"Order Flow: {of.get('direction', 'N/A')} (ratio={of.get('ratio', 1.0):.2f})")
+
+            # Session
+            if 'session' in arsenal:
+                sess = arsenal['session']
+                indicators_summary.append(f"Session: {sess.get('name', 'N/A')} (vol={sess.get('volatility_multiplier', 1.0):.1f}x)")
+
+            # ML Prediction
+            if conditions.get('ml_prediction'):
+                ml = conditions['ml_prediction']
+                indicators_summary.append(f"ML: {ml.get('action', 'N/A')} ({ml.get('confidence', 0):.0f}%)")
+
+            # Log principal
             logger.info(
                 f"🧠 Market Analysis {symbol}: "
                 f"Confidence={conditions['confidence']:.0%}, "
                 f"Reversal Risk={conditions['reversal_risk']:.0%}, "
                 f"Signals={len(conditions['reasons'])}"
             )
+
+            # Log de indicadores si hay datos
+            if indicators_summary:
+                logger.info(f"   📊 {' | '.join(indicators_summary)}")
+
+            # Log de razones específicas si hay
+            if conditions['reasons']:
+                for reason in conditions['reasons'][:3]:  # Max 3 razones para no saturar logs
+                    logger.info(f"   • {reason}")
 
         except Exception as e:
             logger.error(f"❌ Error en market analysis: {e}", exc_info=True)
@@ -826,6 +919,99 @@ class TradeManager:
 
         except Exception as e:
             logger.debug(f"Error analyzing funding rate: {e}")
+            return None
+
+    def _analyze_funding_rate_detailed(self, symbol: str) -> Optional[Dict]:
+        """Analiza funding rate con detalles completos"""
+        try:
+            if not self.feature_aggregator:
+                return None
+
+            pair = symbol.replace('USDT', '/USDT')
+
+            if not hasattr(self.feature_aggregator, 'funding_rate_analyzer'):
+                return None
+
+            funding_analyzer = self.feature_aggregator.funding_rate_analyzer
+            sentiment, strength, signal = funding_analyzer.get_funding_sentiment(pair)
+
+            # Obtener rate actual si está disponible
+            rate = 0.0
+            if hasattr(funding_analyzer, 'get_current_rate'):
+                rate = funding_analyzer.get_current_rate(pair) or 0.0
+            elif hasattr(funding_analyzer, '_funding_cache') and pair in funding_analyzer._funding_cache:
+                rate = funding_analyzer._funding_cache[pair].get('rate', 0)
+
+            return {
+                'sentiment': sentiment,
+                'strength': strength,
+                'signal': signal,
+                'rate': rate * 100,  # Convertir a porcentaje
+                'is_extreme': strength == 'STRONG' and sentiment != 'neutral'
+            }
+
+        except Exception as e:
+            logger.debug(f"Error analyzing funding rate detailed: {e}")
+            return None
+
+    def _analyze_order_flow(self, symbol: str, position: Dict) -> Optional[Dict]:
+        """Analiza order flow imbalance"""
+        try:
+            if not self.feature_aggregator:
+                return None
+
+            pair = symbol.replace('USDT', '/USDT')
+
+            if not hasattr(self.feature_aggregator, 'order_flow'):
+                return None
+
+            order_flow = self.feature_aggregator.order_flow
+
+            # Obtener imbalance si está disponible
+            if hasattr(order_flow, 'get_imbalance'):
+                imbalance_data = order_flow.get_imbalance(pair)
+                if imbalance_data:
+                    ratio = imbalance_data.get('ratio', 1.0)
+                    direction = 'BUY' if ratio > 1.2 else ('SELL' if ratio < 0.8 else 'NEUTRAL')
+
+                    return {
+                        'ratio': ratio,
+                        'direction': direction,
+                        'buy_volume': imbalance_data.get('buy_volume', 0),
+                        'sell_volume': imbalance_data.get('sell_volume', 0),
+                        'imbalance_significant': ratio > 1.5 or ratio < 0.67
+                    }
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"Error analyzing order flow: {e}")
+            return None
+
+    def _analyze_session(self, symbol: str) -> Optional[Dict]:
+        """Analiza sesión de trading actual"""
+        try:
+            if not self.feature_aggregator:
+                return None
+
+            if not hasattr(self.feature_aggregator, 'session_trading'):
+                return None
+
+            session_trading = self.feature_aggregator.session_trading
+
+            if hasattr(session_trading, 'get_current_session'):
+                session_name, session_info = session_trading.get_current_session()
+
+                return {
+                    'name': session_name,
+                    'volatility_multiplier': session_info.get('volatility_multiplier', 1.0) if session_info else 1.0,
+                    'is_active': session_info.get('is_active', True) if session_info else True
+                }
+
+            return None
+
+        except Exception as e:
+            logger.debug(f"Error analyzing session: {e}")
             return None
 
     def _analyze_volume_profile(self, symbol: str, position: Dict) -> Optional[str]:
