@@ -24,8 +24,7 @@ venv/
 # Logs (se crean en runtime)
 logs/*.log
 
-# Test files
-test_*.py
+# Test directory (pero NO test_mode.py que es código de producción)
 tests/
 
 # Documentation
