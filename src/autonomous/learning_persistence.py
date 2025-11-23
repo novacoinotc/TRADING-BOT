@@ -67,7 +67,8 @@ class LearningPersistence:
         metadata: Optional[Dict] = None,
         paper_trading: Optional[Dict] = None,
         ml_training_buffer: Optional[list] = None,
-        advanced_modules_state: Optional[Dict] = None
+        advanced_modules_state: Optional[Dict] = None,
+        trade_management_learning: Optional[Dict] = None
     ) -> bool:
         """
         Guarda estado completo del sistema autónomo
@@ -81,6 +82,7 @@ class LearningPersistence:
             paper_trading: Estado del paper trading (balance, trades, etc.)
             ml_training_buffer: Training buffer del ML System (features para entrenamiento)
             advanced_modules_state: Estado del arsenal avanzado (correlation, liquidation, funding, etc.)
+            trade_management_learning: Historial de aprendizaje del Trade Manager (decisiones y resultados)
 
         Returns:
             True si guardado fue exitoso
@@ -105,7 +107,8 @@ class LearningPersistence:
                 'ml_training_buffer': ml_training_buffer or [],  # Training buffer del ML System
                 'ml_training_data': ml_training_buffer or [],  # Compatibilidad con train_ml
                 'ml_training_data': ml_training_buffer or [],  # Para compatibilidad con train_ml
-                'advanced_modules': advanced_modules_state or {}  # NUEVO: Estado del arsenal avanzado (7 módulos)
+                'advanced_modules': advanced_modules_state or {},  # NUEVO: Estado del arsenal avanzado (7 módulos)
+                'trade_management_learning': trade_management_learning or {}  # Historial de aprendizaje del Trade Manager
             }
 
             # Calcular checksum para validación

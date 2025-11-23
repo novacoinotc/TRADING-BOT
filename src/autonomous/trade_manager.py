@@ -74,6 +74,7 @@ class TradeManager:
 
         self._running = False
         self._check_interval = 30  # Revisar cada 30 segundos
+        self._check_counter = 0  # Contador para heartbeat
 
         # Configuración DINÁMICA (se ajusta según condiciones de mercado)
         self.base_config = {
@@ -203,6 +204,7 @@ class TradeManager:
 
     async def _check_all_positions(self):
         """Revisa todas las posiciones abiertas y aplica gestión inteligente"""
+        self._check_counter += 1
 
         # 🔍 PRIMERO: Detectar trades que cerraron
         await self._detect_closed_positions()
@@ -211,9 +213,12 @@ class TradeManager:
         positions = self.position_monitor.get_open_positions()
 
         if not positions:
+            # Heartbeat cada 10 ciclos (~5 minutos) para mostrar que está activo
+            if self._check_counter % 10 == 0:
+                logger.info(f"💓 Trade Manager activo (ciclo #{self._check_counter}) - Sin posiciones abiertas")
             return
 
-        logger.debug(f"🔍 Trade Manager: Revisando {len(positions)} posición(es) abierta(s)")
+        logger.info(f"🔍 Trade Manager: Revisando {len(positions)} posición(es) abierta(s)")
 
         for symbol, position in positions.items():
             try:
@@ -254,7 +259,7 @@ class TradeManager:
         highest_pnl = self._position_highs[symbol]
         drawdown_from_high = highest_pnl - pnl_pct
 
-        logger.debug(
+        logger.info(
             f"📊 {symbol}: P&L={pnl_pct:+.2f}% (Max={highest_pnl:+.2f}%), "
             f"Drawdown={drawdown_from_high:.2f}%, Price=${current_price:.4f}, Side={side}"
         )
@@ -637,7 +642,7 @@ class TradeManager:
             # Normalizar reversal_risk
             conditions['reversal_risk'] = min(1.0, conditions['reversal_risk'])
 
-            logger.debug(
+            logger.info(
                 f"🧠 Market Analysis {symbol}: "
                 f"Confidence={conditions['confidence']:.0%}, "
                 f"Reversal Risk={conditions['reversal_risk']:.0%}, "
