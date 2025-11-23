@@ -378,45 +378,61 @@ class RLAgent:
         if max_leverage <= 1:
             available_actions = [a for a in available_actions if not a.startswith('FUTURES')]
 
-        # USAR COMPOSITE SCORE para influenciar la decisión
-        # Si score muy alto (>6), forzar explotar (0 exploration) para aprovechar señal fuerte
-        # Si score muy bajo (<1), favorecer SKIP
+        # ======================================================================
+        # MODO EXPLORACIÓN: Decisión basada en composite score
+        # ======================================================================
+        # Threshold dinámico del sistema es ~4.5, usamos eso como referencia
+        EXPLORATION_THRESHOLD = 4.5  # Consistente con DynamicThresholdManager
+
         original_exploration = self.exploration_rate
 
-        if composite_score > 6.0:
-            # Señal MUY fuerte: favorecer FUTURES si está disponible
-            self.exploration_rate = 0.0  # 100% explotación
-            logger.info(f"🚀 Señal ULTRA FUERTE (score {composite_score:.2f}): favoreciendo trades agresivos")
-        elif composite_score > 4.0:
-            # Señal fuerte: reducir exploración
-            self.exploration_rate = max(0.05, self.exploration_rate * 0.3)
-            logger.info(f"✅ Señal FUERTE (score {composite_score:.2f}): reduciendo exploración")
-        elif composite_score < 1.0:
-            # Señal débil: favorecer SKIP aumentando exploración
-            self.exploration_rate = min(0.8, self.exploration_rate * 2.0)
-            logger.info(f"⚠️ Señal DÉBIL (score {composite_score:.2f}): favoreciendo SKIP")
+        # 🚀 MODO EXPLORACIÓN: Si score >= threshold, FORZAR trade (no SKIP)
+        if composite_score >= EXPLORATION_THRESHOLD:
+            # Score por encima del threshold = señal válida, NO permitir SKIP
+            actions_without_skip = [a for a in available_actions if a != 'SKIP']
 
-        # 🔧 NUEVO: Bypass RL para señales extremadamente fuertes
-        # Si score > 7.0 Y estado desconocido, forzar OPEN para aprender
-        if composite_score >= 7.0:
-            if state not in self.q_table:
-                logger.warning(f"⚡ FORZANDO trade en señal ultra fuerte (score {composite_score:.2f}) - Estado nuevo, aprender!")
-                # Elegir mejor acción disponible basada en score
-                if 'FUTURES_HIGH' in available_actions and max_leverage >= 5:
+            if composite_score >= 6.0:
+                # Señal ULTRA fuerte: 100% explotación, preferir FUTURES_HIGH
+                self.exploration_rate = 0.0
+                logger.info(f"🚀 Señal ULTRA FUERTE (score {composite_score:.2f}): favoreciendo FUTURES agresivo")
+
+                # Elegir mejor acción de FUTURES disponible
+                if 'FUTURES_HIGH' in actions_without_skip and max_leverage >= 5:
                     chosen_action = 'FUTURES_HIGH'
-                elif 'FUTURES_MEDIUM' in available_actions:
+                elif 'FUTURES_MEDIUM' in actions_without_skip:
                     chosen_action = 'FUTURES_MEDIUM'
-                elif 'FUTURES_LOW' in available_actions:
+                elif 'FUTURES_LOW' in actions_without_skip:
                     chosen_action = 'FUTURES_LOW'
-                elif 'SPOT' in available_actions:
-                    chosen_action = 'SPOT'
                 else:
-                    chosen_action = self.choose_action(state, available_actions)
+                    chosen_action = self.choose_action(state, actions_without_skip)
+
+            elif composite_score >= 5.0:
+                # Señal MUY fuerte: reducir exploración, preferir FUTURES_MEDIUM
+                self.exploration_rate = max(0.05, self.exploration_rate * 0.2)
+                logger.info(f"✅ Señal MUY FUERTE (score {composite_score:.2f}): favoreciendo FUTURES")
+
+                if 'FUTURES_MEDIUM' in actions_without_skip:
+                    chosen_action = 'FUTURES_MEDIUM'
+                elif 'FUTURES_LOW' in actions_without_skip:
+                    chosen_action = 'FUTURES_LOW'
+                else:
+                    chosen_action = self.choose_action(state, actions_without_skip)
+
             else:
-                # Estado conocido, usar lógica normal
-                chosen_action = self.choose_action(state, available_actions)
+                # Señal BUENA (4.5-5.0): permitir exploración pero sin SKIP
+                self.exploration_rate = max(0.1, self.exploration_rate * 0.5)
+                logger.info(f"👍 Señal BUENA (score {composite_score:.2f}): explorando sin SKIP")
+                chosen_action = self.choose_action(state, actions_without_skip)
+
+        elif composite_score < 2.0:
+            # Score muy bajo: favorecer SKIP
+            self.exploration_rate = min(0.9, self.exploration_rate * 2.0)
+            logger.info(f"⚠️ Señal DÉBIL (score {composite_score:.2f}): favoreciendo SKIP")
+            chosen_action = self.choose_action(state, available_actions)
+
         else:
-            # Score normal, usar lógica estándar
+            # Score intermedio (2.0-4.5): lógica normal con SKIP disponible
+            logger.info(f"🤔 Señal INTERMEDIA (score {composite_score:.2f}): decisión RL normal")
             chosen_action = self.choose_action(state, available_actions)
 
         # Restaurar exploration_rate original

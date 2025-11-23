@@ -66,12 +66,13 @@ TRADING_PAIRS = [
     'OP/USDT',     # Optimism - $200M+ volumen, Layer 2 de Ethereum
 
     # Meme Coins - MÁXIMA Volatilidad
-    'DOGE/USDT',   # Dogecoin - $1B+ volumen
-    'SHIB/USDT',   # Shiba Inu - $500M+ volumen
-    'PEPE/USDT',   # Pepe - $400M+ volumen
-    'NOT/USDT',    # Notcoin - $300M+ volumen, MUY nuevo y volátil
-    'WIF/USDT',    # Dogwifhat - $200M+ volumen, MUY volátil
-    'BONK/USDT',   # Bonk - $150M+ volumen
+    # NOTA: En Binance Futures, algunos tokens se negocian con prefijo "1000"
+    'DOGE/USDT',      # Dogecoin - $1B+ volumen
+    '1000SHIB/USDT',  # Shiba Inu - Binance Futures usa 1000SHIBUSDT
+    '1000PEPE/USDT',  # Pepe - Binance Futures usa 1000PEPEUSDT
+    'NOT/USDT',       # Notcoin - $300M+ volumen, MUY nuevo y volátil
+    'WIF/USDT',       # Dogwifhat - $200M+ volumen, MUY volátil
+    '1000BONK/USDT',  # Bonk - Binance Futures usa 1000BONKUSDT
 
     # DeFi Tokens - Alta Volatilidad
     'UNI/USDT',    # Uniswap - $300M+ volumen

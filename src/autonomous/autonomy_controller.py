@@ -146,19 +146,28 @@ class AutonomyController:
         """
         Calcula max leverage basado en total_trades_all_time.
 
+        MODO EXPLORACIÓN: Empieza con leverage 3x mínimo para permitir
+        que el RL Agent explore FUTURES desde el inicio.
+
         Returns:
-            int: Leverage máximo desbloqueado (1-20x)
+            int: Leverage máximo desbloqueado (3-20x)
         """
+        from config import config
+
         total = self.total_trades_all_time
 
+        # MODO EXPLORACIÓN: Mínimo leverage = DEFAULT_LEVERAGE (3x)
+        # Esto permite FUTURES desde el inicio para aprendizaje real
+        min_leverage = getattr(config, 'DEFAULT_LEVERAGE', 3)
+
         if total < 10:
-            return 1
+            return min_leverage  # Empieza con 3x (MODO EXPLORACIÓN)
         elif total < 20:
-            return 2
+            return max(min_leverage, 3)
         elif total < 30:
-            return 3
+            return max(min_leverage, 4)
         elif total < 50:
-            return 5
+            return max(min_leverage, 5)
         elif total < 100:
             return 7
         elif total < 150:
