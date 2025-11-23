@@ -307,46 +307,7 @@ class FuturesTrader:
 
             logger.info(f"📊 Quantity: {quantity} {symbol}")
 
-            # PASO 4: Calcular SL y TP
-            if side == 'BUY':  # LONG
-                stop_loss_price = current_price * (1 - stop_loss_pct / 100)
-                take_profit_price = current_price * (1 + take_profit_pct / 100)
-            else:  # SELL (SHORT)
-                stop_loss_price = current_price * (1 + stop_loss_pct / 100)
-                take_profit_price = current_price * (1 - take_profit_pct / 100)
-
-            # 🔍 VALIDACIÓN CRÍTICA: Verificar distancia mínima de TP
-            min_distance_pct = 0.1  # Mínimo 0.1% de diferencia
-            actual_tp_distance = abs((take_profit_price - current_price) / current_price) * 100
-
-            if actual_tp_distance < min_distance_pct:
-                logger.warning(
-                    f"⚠️ TP demasiado cerca del entry ({actual_tp_distance:.3f}% < {min_distance_pct}%), "
-                    f"NO se colocará orden de Take Profit"
-                )
-                take_profit_price = None  # No colocar TP
-            else:
-                # Validar y redondear precio de TP
-                try:
-                    take_profit_price = self._validate_and_round_price(symbol, take_profit_price)
-                except ValueError as e:
-                    logger.error(f"❌ Invalid TP price: {e}")
-                    take_profit_price = None
-
-            # Validar y redondear precio de SL
-            try:
-                stop_loss_price = self._validate_and_round_price(symbol, stop_loss_price)
-            except ValueError as e:
-                logger.error(f"❌ Invalid SL price: {e}")
-                return None
-
-            logger.info(f"🛑 Stop Loss: ${stop_loss_price:,.2f}")
-            if take_profit_price:
-                logger.info(f"🎯 Take Profit: ${take_profit_price:,.2f}")
-            else:
-                logger.info(f"🎯 Take Profit: NO colocado (distancia < {min_distance_pct}%)")
-
-            # PASO 5: Abrir posición MARKET
+            # PASO 4: Abrir posición MARKET (ANTES de calcular SL/TP)
             logger.info(f"📤 Sending MARKET order...")
             market_order = self.client.create_order(
                 symbol=symbol,
@@ -396,6 +357,57 @@ class FuturesTrader:
             except Exception as e:
                 logger.warning(f"⚠️ Error obteniendo entry price: {e}, usando current_price: ${current_price:,.4f}")
                 entry_price = current_price
+
+            # PASO 5: Calcular SL y TP basados en entry_price REAL (FIX error -2021)
+            # 🔧 CRÍTICO: Usar entry_price real, NO current_price pre-order
+            logger.info(f"📊 Calculando SL/TP basados en entry_price real: ${entry_price:,.4f}")
+
+            if side == 'BUY':  # LONG
+                stop_loss_price = entry_price * (1 - stop_loss_pct / 100)
+                take_profit_price = entry_price * (1 + take_profit_pct / 100)
+            else:  # SELL (SHORT)
+                stop_loss_price = entry_price * (1 + stop_loss_pct / 100)
+                take_profit_price = entry_price * (1 - take_profit_pct / 100)
+
+            # 🔍 VALIDACIÓN CRÍTICA: Verificar distancia mínima de TP vs precio actual
+            # Obtener precio actual DESPUÉS del trade para verificar
+            try:
+                actual_price = self.client.get_price(symbol)
+            except Exception:
+                actual_price = entry_price
+
+            min_distance_pct = 0.1  # Mínimo 0.1% de diferencia
+            actual_tp_distance = abs((take_profit_price - actual_price) / actual_price) * 100
+
+            if actual_tp_distance < min_distance_pct:
+                logger.warning(
+                    f"⚠️ TP demasiado cerca del precio actual ({actual_tp_distance:.3f}% < {min_distance_pct}%), "
+                    f"NO se colocará orden de Take Profit"
+                )
+                take_profit_price = None  # No colocar TP
+            else:
+                # Validar y redondear precio de TP
+                try:
+                    take_profit_price = self._validate_and_round_price(symbol, take_profit_price)
+                except ValueError as e:
+                    logger.error(f"❌ Invalid TP price: {e}")
+                    take_profit_price = None
+
+            # Validar y redondear precio de SL
+            try:
+                stop_loss_price = self._validate_and_round_price(symbol, stop_loss_price)
+            except ValueError as e:
+                logger.error(f"❌ Invalid SL price: {e}")
+                # Si SL es inválido, cerrar posición inmediatamente
+                logger.error(f"❌ SL inválido, cerrando posición para evitar riesgo...")
+                self.close_position(symbol, reason='INVALID_SL')
+                return None
+
+            logger.info(f"🛑 Stop Loss: ${stop_loss_price:,.4f} (-{stop_loss_pct}% desde entry)")
+            if take_profit_price:
+                logger.info(f"🎯 Take Profit: ${take_profit_price:,.4f} (+{take_profit_pct}% desde entry)")
+            else:
+                logger.info(f"🎯 Take Profit: NO colocado (distancia < {min_distance_pct}%)")
 
             # PASO 6: Colocar Stop Loss
             logger.info(f"📤 Placing Stop Loss order...")
