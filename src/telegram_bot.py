@@ -13,6 +13,35 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def format_price(price: float) -> str:
+    """
+    Formatea precio con decimales apropiados según el valor.
+
+    Para cryptos necesitamos precisión variable:
+    - BTC, ETH (>$100): 2 decimales
+    - Precio medio ($10-100): 3 decimales
+    - Precio bajo ($1-10): 4 decimales
+    - Precio muy bajo ($0.1-1): 5 decimales
+    - Memecoins (<$0.1): 6+ decimales
+    """
+    if price is None:
+        return "N/A"
+    if price >= 1000:
+        return f"${price:,.2f}"
+    elif price >= 100:
+        return f"${price:,.2f}"
+    elif price >= 10:
+        return f"${price:,.3f}"
+    elif price >= 1:
+        return f"${price:,.4f}"
+    elif price >= 0.1:
+        return f"${price:,.5f}"
+    elif price >= 0.01:
+        return f"${price:,.6f}"
+    else:
+        return f"${price:,.8f}"
+
+
 class TelegramNotifier:
     """
     Handles Telegram notifications for trading signals
@@ -208,25 +237,25 @@ class TelegramNotifier:
 
         # Price and entry info
         current_price = indicators['current_price']
-        message += f"💰 <b>Precio actual:</b> ${current_price:,.2f}\n"
+        message += f"💰 <b>Precio actual:</b> {format_price(current_price)}\n"
 
         # Entry range (±0.5%)
         if signals['action'] != 'HOLD':
             entry_low = current_price * 0.995
             entry_high = current_price * 1.005
-            message += f"📍 <b>{entry_label}:</b> ${entry_low:,.2f} - ${entry_high:,.2f}\n\n"
+            message += f"📍 <b>{entry_label}:</b> {format_price(entry_low)} - {format_price(entry_high)}\n\n"
 
         # Stop Loss and Take Profit
         if 'stop_loss' in signals and signals['stop_loss']:
             sl = signals['stop_loss']
             tp = signals['take_profit']
             message += f"🎯 <b>Take Profit:</b>\n"
-            message += f"   TP1: ${tp['tp1']:,.2f} ({((tp['tp1']/current_price-1)*100):+.1f}%)\n"
-            message += f"   TP2: ${tp['tp2']:,.2f} ({((tp['tp2']/current_price-1)*100):+.1f}%)\n"
-            message += f"   TP3: ${tp['tp3']:,.2f} ({((tp['tp3']/current_price-1)*100):+.1f}%)\n\n"
+            message += f"   TP1: {format_price(tp['tp1'])} ({((tp['tp1']/current_price-1)*100):+.1f}%)\n"
+            message += f"   TP2: {format_price(tp['tp2'])} ({((tp['tp2']/current_price-1)*100):+.1f}%)\n"
+            message += f"   TP3: {format_price(tp['tp3'])} ({((tp['tp3']/current_price-1)*100):+.1f}%)\n\n"
 
             sl_pct = ((sl/current_price-1)*100) if signals['action'] == 'BUY' else ((current_price/sl-1)*100)
-            message += f"🛡️ <b>Stop Loss:</b> ${sl:,.2f} ({sl_pct:+.1f}%)\n"
+            message += f"🛡️ <b>Stop Loss:</b> {format_price(sl)} ({sl_pct:+.1f}%)\n"
             message += f"📊 <b>Ratio R/R:</b> 1:{signals.get('risk_reward', 0)}\n\n"
 
         # Multi-timeframe analysis
@@ -273,8 +302,8 @@ class TelegramNotifier:
         # Support/Resistance
         sr = indicators.get('support_resistance', {})
         if sr:
-            message += f"• Soporte: ${sr.get('nearest_support', 0):,.2f}\n"
-            message += f"• Resistencia: ${sr.get('nearest_resistance', 0):,.2f}\n"
+            message += f"• Soporte: {format_price(sr.get('nearest_support', 0))}\n"
+            message += f"• Resistencia: {format_price(sr.get('nearest_resistance', 0))}\n"
 
         message += "\n"
 
@@ -325,13 +354,13 @@ class TelegramNotifier:
             bid_walls = orderbook_data.get('bid_walls', [])
             if bid_walls and len(bid_walls) > 0:
                 nearest_wall = bid_walls[0]
-                message += f"• Pared Compra: ${nearest_wall['price']:,.2f} ({nearest_wall['distance_pct']:.1f}% away) 🛡️\n"
+                message += f"• Pared Compra: {format_price(nearest_wall['price'])} ({nearest_wall['distance_pct']:.1f}% away) 🛡️\n"
 
             # Ask walls
             ask_walls = orderbook_data.get('ask_walls', [])
             if ask_walls and len(ask_walls) > 0:
                 nearest_wall = ask_walls[0]
-                message += f"• Pared Venta: ${nearest_wall['price']:,.2f} ({nearest_wall['distance_pct']:.1f}% away) 🚧\n"
+                message += f"• Pared Venta: {format_price(nearest_wall['price'])} ({nearest_wall['distance_pct']:.1f}% away) 🚧\n"
 
             message += "\n"
 
@@ -467,10 +496,10 @@ class TelegramNotifier:
                 liquidation_price = trade_data.get('liquidation_price')
                 message += f"📈 <b>Apalancamiento:</b> {leverage}x\n"
                 if liquidation_price:
-                    message += f"⚠️ <b>Precio Liquidación:</b> ${liquidation_price:,.4f}\n"
+                    message += f"⚠️ <b>Precio Liquidación:</b> {format_price(liquidation_price)}\n"
 
             message += (
-                f"💰 <b>Precio Entrada:</b> ${entry_price:,.4f}\n"
+                f"💰 <b>Precio Entrada:</b> {format_price(entry_price)}\n"
                 f"📦 <b>Cantidad:</b> {quantity:.6f}\n"
                 f"💵 <b>Valor Posición:</b> ${position_value:,.2f}\n"
             )
@@ -485,19 +514,19 @@ class TelegramNotifier:
                 message += f"\n🎯 <b>Take Profits:</b>\n"
                 if tp1:
                     tp1_pct = ((tp1 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp1 - 1) * 100)
-                    message += f"   TP1: ${tp1:,.4f} ({tp1_pct:+.2f}%)\n"
+                    message += f"   TP1: {format_price(tp1)} ({tp1_pct:+.2f}%)\n"
                 if tp2:
                     tp2_pct = ((tp2 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp2 - 1) * 100)
-                    message += f"   TP2: ${tp2:,.4f} ({tp2_pct:+.2f}%)\n"
+                    message += f"   TP2: {format_price(tp2)} ({tp2_pct:+.2f}%)\n"
                 if tp3:
                     tp3_pct = ((tp3 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp3 - 1) * 100)
-                    message += f"   TP3: ${tp3:,.4f} ({tp3_pct:+.2f}%)\n"
+                    message += f"   TP3: {format_price(tp3)} ({tp3_pct:+.2f}%)\n"
 
             # Add SL if available
             stop_loss = trade_data.get('stop_loss')
             if stop_loss:
                 sl_pct = ((stop_loss / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / stop_loss - 1) * 100)
-                message += f"\n🛡️ <b>Stop Loss:</b> ${stop_loss:,.4f} ({sl_pct:+.2f}%)"
+                message += f"\n🛡️ <b>Stop Loss:</b> {format_price(stop_loss)} ({sl_pct:+.2f}%)"
 
             await self.send_status_message(message)
 
@@ -545,8 +574,8 @@ class TelegramNotifier:
                 message += "\n"
 
             message += (
-                f"💰 <b>Entrada:</b> ${entry_price:,.4f}\n"
-                f"💰 <b>Salida:</b> ${exit_price:,.4f}\n"
+                f"💰 <b>Entrada:</b> {format_price(entry_price)}\n"
+                f"💰 <b>Salida:</b> {format_price(exit_price)}\n"
                 f"📈 <b>P&L:</b> ${pnl:,.2f} (<b>{pnl_pct:+.2f}%</b>)\n"
                 f"🏁 <b>Razón:</b> {reason}\n"
             )
