@@ -61,6 +61,7 @@ class RLAgent:
         self.current_action = None
 
         logger.info(f"🧠 RL Agent inicializado (LR={learning_rate}, Gamma={discount_factor}, Epsilon={exploration_rate})")
+        logger.info("✅ Aprendizaje continuo ACTIVO - Q-table se actualiza con cada trade")
 
     def get_state_representation(self, market_data: Dict) -> str:
         """

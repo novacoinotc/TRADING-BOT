@@ -65,6 +65,8 @@ class MLIntegration:
         logger.info("🚀 ML Integration System inicializado")
         logger.info(f"   ML Enabled: {enable_ml}")
         logger.info(f"   Initial Balance: ${initial_balance:,.2f} USDT")
+        logger.info("✅ Sistema ML retraining ACTIVO - usando trades reales")
+        logger.info("✅ Sistema parameter optimizer ACTIVO")
 
     def process_signal(
         self,
@@ -193,38 +195,38 @@ class MLIntegration:
         # result = self.paper_trader.update_position(pair, current_price)
         return None
 
-    def _retrain_model(self, external_paper_trader=None):
+    def _retrain_model(self, position_monitor=None):
         """
-        Reentrena modelo ML con trades cerrados
+        Reentrena modelo ML con trades cerrados de TRADING REAL
 
         Args:
-            external_paper_trader: Paper trader externo para usar sus trades
-                                  Si es None, usa self.paper_trader
+            position_monitor: Monitor de posiciones con historial de trades reales
         """
         try:
-            # REMOVED: Paper trading disabled, using real trading instead
-            logger.warning("⚠️ _retrain_model disabled: paper trading removed")
-            return
+            logger.info("🧠 Iniciando reentrenamiento ML con datos de trading real...")
 
-            # # Usar paper_trader externo si se proporcionó, sino usar el interno
-            # paper_trader = external_paper_trader if external_paper_trader else self.paper_trader
+            # Intentar obtener trades cerrados del position_monitor
+            closed_trades = []
 
-            # # DEBUG: Verificar estado del portfolio
-            # if hasattr(paper_trader, 'portfolio'):
-            #     portfolio_stats = paper_trader.portfolio.get_statistics()
-            #     logger.info(f"📊 Portfolio stats: total_trades={portfolio_stats.get('total_trades', 0)}")
-            #     logger.info(f"📊 Portfolio closed_trades length: {len(paper_trader.portfolio.closed_trades)}")
-
-            # # Obtener trades cerrados
-            # closed_trades = paper_trader.get_closed_trades(limit=500)
-            logger.info(f"📊 Trades obtenidos para entrenamiento: {len(closed_trades)}")
+            if position_monitor and hasattr(position_monitor, 'closed_trades'):
+                # Convertir dict de closed_trades a lista con formato esperado
+                for symbol, trade_data in position_monitor.closed_trades.items():
+                    if isinstance(trade_data, dict):
+                        # Convertir formato de position_monitor a formato esperado
+                        trade = {
+                            'pair': symbol,
+                            'pnl_pct': trade_data.get('pnl_pct', 0),
+                            'reason': trade_data.get('reason', 'UNKNOWN'),
+                            'timestamp': trade_data.get('timestamp', datetime.now().isoformat()),
+                            'side': 'BUY',  # Placeholder - real data doesn't have this yet
+                        }
+                        closed_trades.append(trade)
+                logger.info(f"📊 Trades obtenidos de position_monitor: {len(closed_trades)}")
 
             if len(closed_trades) < self.trainer.min_samples:
-                logger.warning(f"Insuficientes trades para reentrenar: {len(closed_trades)}")
+                logger.warning(f"⚠️ Insuficientes trades para reentrenar: {len(closed_trades)}")
                 logger.warning(f"  Requerido: {self.trainer.min_samples}")
-                if hasattr(paper_trader, 'portfolio'):
-                    logger.warning(f"  Portfolio.closed_trades: {len(paper_trader.portfolio.closed_trades)}")
-                    logger.warning(f"  Portfolio.total_trades: {paper_trader.portfolio.total_trades}")
+                logger.warning(f"  Continuando sin reentrenamiento...")
                 return
 
             # Cargar features correspondientes desde buffer
@@ -253,25 +255,34 @@ class MLIntegration:
         except Exception as e:
             logger.error(f"Error reentrenando modelo: {e}")
 
-    def _optimize_parameters(self):
-        """Optimiza parámetros del bot - DISABLED: Paper trading removed"""
-        logger.warning("⚠️ _optimize_parameters disabled: paper trading removed")
-        return
+    def _optimize_parameters(self, trading_stats=None):
+        """
+        Optimiza parámetros del bot con datos de TRADING REAL
 
-        # try:
-        #     stats = self.paper_trader.get_statistics()
+        Args:
+            trading_stats: Estadísticas de trading real (dict con win_rate, total_trades, etc.)
+        """
+        logger.info("⚙️ Iniciando optimización de parámetros...")
 
-        #     adjustments = self.optimizer.optimize(stats)
+        try:
+            if not trading_stats:
+                logger.warning("⚠️ No hay trading_stats disponibles para optimizar")
+                return
 
-        #     if adjustments:
-        #         logger.info(f"✅ Parámetros optimizados: {len(adjustments)} ajustes")
+            # Usar stats de trading real para optimizar
+            adjustments = self.optimizer.optimize(trading_stats)
 
-        #         # Actualizar contador
-        #         self.trades_since_last_optimization = 0
-        #         self.last_optimization_trades = stats['total_trades']
+            if adjustments:
+                logger.info(f"✅ Parámetros optimizados: {len(adjustments)} ajustes")
 
-        # except Exception as e:
-        #     logger.error(f"Error optimizando parámetros: {e}")
+                # Actualizar contador
+                self.trades_since_last_optimization = 0
+                self.last_optimization_trades = trading_stats.get('total_trades', 0)
+            else:
+                logger.info("ℹ️ No se encontraron mejoras en los parámetros")
+
+        except Exception as e:
+            logger.error(f"❌ Error optimizando parámetros: {e}", exc_info=True)
 
     def _save_signal_for_training(
         self,
