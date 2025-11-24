@@ -819,7 +819,31 @@ class RLAgent:
         composite_score = self._calculate_composite_score(market_data)
         confidence = self._calculate_confidence_from_score(composite_score)
 
+        # =====================================================
+        # 🛡️ LEVERAGE PROGRESIVO POR EXPERIENCIA
+        # =====================================================
+        # CRÍTICO: Limitar leverage basado en trades realizados
+        # Protege contra pérdidas excesivas en sistema sin experiencia
+        total_exp = self.total_trades
+
+        if total_exp < 10:
+            max_allowed_leverage = 3    # Principiante: máximo 3x
+            exp_level = "NOVATO"
+        elif total_exp < 30:
+            max_allowed_leverage = 5    # Básico: máximo 5x
+            exp_level = "BÁSICO"
+        elif total_exp < 75:
+            max_allowed_leverage = 8    # Intermedio: máximo 8x
+            exp_level = "INTERMEDIO"
+        elif total_exp < 150:
+            max_allowed_leverage = 12   # Avanzado: máximo 12x
+            exp_level = "AVANZADO"
+        else:
+            max_allowed_leverage = 17   # Experto: máximo 17x
+            exp_level = "EXPERTO"
+
         logger.info(f"🤖 AUTONOMÍA: Score={composite_score:.2f}, Confidence={confidence:.1%}")
+        logger.info(f"📊 Experiencia: {total_exp} trades → Nivel {exp_level} → Max leverage: {max_allowed_leverage}x")
 
         # =====================================================
         # DECISIÓN AUTÓNOMA: Basada en composite score
@@ -840,7 +864,8 @@ class RLAgent:
 
         # Score 3.0-4.5 = FUTURES_LOW (conservador)
         elif composite_score < 4.5:
-            leverage = random.randint(1, 3)
+            raw_leverage = random.randint(1, 3)
+            leverage = min(raw_leverage, max_allowed_leverage)  # 🛡️ Aplicar límite
             tp_percentages = [
                 random.uniform(0.25, 0.4),   # TP1: 0.25-0.4% (scalping rápido)
                 random.uniform(0.6, 0.8),    # TP2: 0.6-0.8%
@@ -850,13 +875,14 @@ class RLAgent:
             chosen_action = 'FUTURES_LOW'
 
             logger.info(
-                f"📊 FUTURES_LOW: Lev={leverage}x, TPs={[f'{tp:.2f}%' for tp in tp_percentages]}, "
-                f"Size={position_size_pct:.1f}%"
+                f"📊 FUTURES_LOW: Lev={leverage}x (max={max_allowed_leverage}x), "
+                f"TPs={[f'{tp:.2f}%' for tp in tp_percentages]}, Size={position_size_pct:.1f}%"
             )
 
         # Score 4.5-6.0 = FUTURES_MEDIUM (moderado)
         elif composite_score < 6.0:
-            leverage = random.randint(5, 10)
+            raw_leverage = random.randint(5, 10)
+            leverage = min(raw_leverage, max_allowed_leverage)  # 🛡️ Aplicar límite
             tp_percentages = [
                 random.uniform(0.3, 0.5),    # TP1: 0.3-0.5%
                 random.uniform(0.8, 1.2),    # TP2: 0.8-1.2%
@@ -866,8 +892,8 @@ class RLAgent:
             chosen_action = 'FUTURES_MEDIUM'
 
             logger.info(
-                f"📈 FUTURES_MEDIUM: Lev={leverage}x, TPs={[f'{tp:.2f}%' for tp in tp_percentages]}, "
-                f"Size={position_size_pct:.1f}%"
+                f"📈 FUTURES_MEDIUM: Lev={leverage}x (max={max_allowed_leverage}x), "
+                f"TPs={[f'{tp:.2f}%' for tp in tp_percentages]}, Size={position_size_pct:.1f}%"
             )
 
         # Score >= 6.0 = FUTURES_HIGH (agresivo - solo con alta confianza)
@@ -875,7 +901,8 @@ class RLAgent:
             # Verificar confianza mínima para ser agresivo
             if confidence < 0.7:
                 # Downgrade a MEDIUM si confianza insuficiente
-                leverage = random.randint(5, 10)
+                raw_leverage = random.randint(5, 10)
+                leverage = min(raw_leverage, max_allowed_leverage)  # 🛡️ Aplicar límite
                 tp_percentages = [
                     random.uniform(0.3, 0.5),
                     random.uniform(0.8, 1.2),
@@ -883,9 +910,10 @@ class RLAgent:
                 ]
                 position_size_pct = random.uniform(4.0, 6.0)
                 chosen_action = 'FUTURES_MEDIUM'
-                logger.info(f"⚠️ Downgrade a MEDIUM (confidence {confidence:.1%} < 70%)")
+                logger.info(f"⚠️ Downgrade a MEDIUM (confidence {confidence:.1%} < 70%), Lev={leverage}x (max={max_allowed_leverage}x)")
             else:
-                leverage = random.randint(12, 20)
+                raw_leverage = random.randint(12, 20)
+                leverage = min(raw_leverage, max_allowed_leverage)  # 🛡️ Aplicar límite
                 tp_percentages = [
                     random.uniform(0.4, 0.6),    # TP1: 0.4-0.6%
                     random.uniform(1.0, 1.5),    # TP2: 1.0-1.5%
@@ -895,8 +923,8 @@ class RLAgent:
                 chosen_action = 'FUTURES_HIGH'
 
                 logger.info(
-                    f"🚀 FUTURES_HIGH: Lev={leverage}x, TPs={[f'{tp:.2f}%' for tp in tp_percentages]}, "
-                    f"Size={position_size_pct:.1f}%"
+                    f"🚀 FUTURES_HIGH: Lev={leverage}x (max={max_allowed_leverage}x), "
+                    f"TPs={[f'{tp:.2f}%' for tp in tp_percentages]}, Size={position_size_pct:.1f}%"
                 )
 
         return {
