@@ -83,7 +83,7 @@ class TradeManager:
             'reversal_confidence_threshold': 0.75,  # Para detectar reversiones
             'min_pnl_for_breakeven': 0.5,  # Mínimo 0.5% ganancia para considerar breakeven
             'min_pnl_for_partial': 2.0,  # Mínimo 2% para partial TP
-            'max_drawdown_tolerance': 3.0,  # Máximo 3% de caída desde máximo (aumentado de 2%)
+            'max_drawdown_tolerance': 5.0,  # 🤖 AUTONOMÍA: 5% tolerancia (la IA decide, no restricciones)
         }
 
         # Tracking de máximos/mínimos por posición
