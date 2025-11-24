@@ -12,7 +12,7 @@ from src.ml.predictor import MLPredictor
 from src.ml.model_trainer import ModelTrainer
 from src.ml.feature_engineer import FeatureEngineer
 from src.ml.optimizer import AutoOptimizer
-from src.trading.paper_trader import PaperTrader
+# from src.trading.paper_trader import PaperTrader  # REMOVED: Using real trading instead
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +39,8 @@ class MLIntegration:
         self.feature_engineer = FeatureEngineer()
         self.optimizer = AutoOptimizer()
 
-        # Paper Trading
-        self.paper_trader = PaperTrader(initial_balance=initial_balance)
+        # Paper Trading - REMOVED: Using real trading instead
+        # self.paper_trader = PaperTrader(initial_balance=initial_balance)
 
         # Telegram notifier para alertas de trades
         self.telegram_notifier = telegram_notifier
@@ -115,12 +115,13 @@ class MLIntegration:
         optimized_params = self.optimizer.get_current_params()
         enhanced_signal['optimized_params'] = optimized_params
 
-        # 3. Ejecutar en paper trading
-        trade_result = self.paper_trader.process_signal(
-            pair=pair,
-            signal=enhanced_signal,
-            current_price=current_price
-        )
+        # 3. Ejecutar en paper trading - REMOVED: Using real trading instead
+        # trade_result = self.paper_trader.process_signal(
+        #     pair=pair,
+        #     signal=enhanced_signal,
+        #     current_price=current_price
+        # )
+        trade_result = None  # Paper trading disabled
 
         # 4. Si se abrió un trade, guardar features para entrenamiento futuro
         if trade_result and trade_result.get('status') == 'OPEN':
@@ -161,24 +162,25 @@ class MLIntegration:
                 except Exception as e:
                     logger.error(f"Error enviando notificación de trade cerrado: {e}")
 
-            # Verificar si reentrenar modelo
-            stats = self.paper_trader.get_statistics()
-            total_trades = stats['total_trades']
+            # Verificar si reentrenar modelo - REMOVED: Paper trading disabled
+            # stats = self.paper_trader.get_statistics()
+            # total_trades = stats['total_trades']
 
-            if self.trainer.should_retrain(total_trades, self.last_trained_samples):
-                logger.info("🧠 Iniciando reentrenamiento de modelo ML...")
-                self._retrain_model()
+            # if self.trainer.should_retrain(total_trades, self.last_trained_samples):
+            #     logger.info("🧠 Iniciando reentrenamiento de modelo ML...")
+            #     self._retrain_model()
 
-            # Verificar si optimizar parámetros
-            if self.optimizer.should_optimize(total_trades, self.trades_since_last_optimization):
-                logger.info("🤖 Iniciando optimización de parámetros...")
-                self._optimize_parameters()
+            # # Verificar si optimizar parámetros
+            # if self.optimizer.should_optimize(total_trades, self.trades_since_last_optimization):
+            #     logger.info("🤖 Iniciando optimización de parámetros...")
+            #     self._optimize_parameters()
+            pass
 
         return trade_result
 
     def update_position(self, pair: str, current_price: float) -> Optional[Dict]:
         """
-        Actualiza posición existente
+        Actualiza posición existente - DISABLED: Paper trading removed
 
         Args:
             pair: Par de trading
@@ -187,34 +189,9 @@ class MLIntegration:
         Returns:
             Trade cerrado si alcanzó SL/TP, None otherwise
         """
-        result = self.paper_trader.update_position(pair, current_price)
-
-        # Si se cerró trade, incrementar contadores
-        if result and result.get('status') == 'CLOSED':
-            self.trades_since_last_training += 1
-            self.trades_since_last_optimization += 1
-
-            # Notificar cierre de trade por Telegram
-            if self.telegram_notifier:
-                try:
-                    import asyncio
-                    asyncio.create_task(
-                        self.telegram_notifier.send_trade_closed(result)
-                    )
-                except Exception as e:
-                    logger.error(f"Error enviando notificación de trade cerrado: {e}")
-
-            # Verificar reentrenamiento y optimización
-            stats = self.paper_trader.get_statistics()
-            total_trades = stats['total_trades']
-
-            if self.trainer.should_retrain(total_trades, self.last_trained_samples):
-                self._retrain_model()
-
-            if self.optimizer.should_optimize(total_trades, self.trades_since_last_optimization):
-                self._optimize_parameters()
-
-        return result
+        # REMOVED: Paper trading disabled, using real trading instead
+        # result = self.paper_trader.update_position(pair, current_price)
+        return None
 
     def _retrain_model(self, external_paper_trader=None):
         """
@@ -225,17 +202,21 @@ class MLIntegration:
                                   Si es None, usa self.paper_trader
         """
         try:
-            # Usar paper_trader externo si se proporcionó, sino usar el interno
-            paper_trader = external_paper_trader if external_paper_trader else self.paper_trader
+            # REMOVED: Paper trading disabled, using real trading instead
+            logger.warning("⚠️ _retrain_model disabled: paper trading removed")
+            return
 
-            # DEBUG: Verificar estado del portfolio
-            if hasattr(paper_trader, 'portfolio'):
-                portfolio_stats = paper_trader.portfolio.get_statistics()
-                logger.info(f"📊 Portfolio stats: total_trades={portfolio_stats.get('total_trades', 0)}")
-                logger.info(f"📊 Portfolio closed_trades length: {len(paper_trader.portfolio.closed_trades)}")
+            # # Usar paper_trader externo si se proporcionó, sino usar el interno
+            # paper_trader = external_paper_trader if external_paper_trader else self.paper_trader
 
-            # Obtener trades cerrados
-            closed_trades = paper_trader.get_closed_trades(limit=500)
+            # # DEBUG: Verificar estado del portfolio
+            # if hasattr(paper_trader, 'portfolio'):
+            #     portfolio_stats = paper_trader.portfolio.get_statistics()
+            #     logger.info(f"📊 Portfolio stats: total_trades={portfolio_stats.get('total_trades', 0)}")
+            #     logger.info(f"📊 Portfolio closed_trades length: {len(paper_trader.portfolio.closed_trades)}")
+
+            # # Obtener trades cerrados
+            # closed_trades = paper_trader.get_closed_trades(limit=500)
             logger.info(f"📊 Trades obtenidos para entrenamiento: {len(closed_trades)}")
 
             if len(closed_trades) < self.trainer.min_samples:
@@ -273,21 +254,24 @@ class MLIntegration:
             logger.error(f"Error reentrenando modelo: {e}")
 
     def _optimize_parameters(self):
-        """Optimiza parámetros del bot"""
-        try:
-            stats = self.paper_trader.get_statistics()
+        """Optimiza parámetros del bot - DISABLED: Paper trading removed"""
+        logger.warning("⚠️ _optimize_parameters disabled: paper trading removed")
+        return
 
-            adjustments = self.optimizer.optimize(stats)
+        # try:
+        #     stats = self.paper_trader.get_statistics()
 
-            if adjustments:
-                logger.info(f"✅ Parámetros optimizados: {len(adjustments)} ajustes")
+        #     adjustments = self.optimizer.optimize(stats)
 
-                # Actualizar contador
-                self.trades_since_last_optimization = 0
-                self.last_optimization_trades = stats['total_trades']
+        #     if adjustments:
+        #         logger.info(f"✅ Parámetros optimizados: {len(adjustments)} ajustes")
 
-        except Exception as e:
-            logger.error(f"Error optimizando parámetros: {e}")
+        #         # Actualizar contador
+        #         self.trades_since_last_optimization = 0
+        #         self.last_optimization_trades = stats['total_trades']
+
+        # except Exception as e:
+        #     logger.error(f"Error optimizando parámetros: {e}")
 
     def _save_signal_for_training(
         self,
@@ -437,8 +421,9 @@ class MLIntegration:
 
     def get_comprehensive_stats(self) -> Dict:
         """Retorna estadísticas completas del sistema"""
-        # Stats de paper trading
-        trading_stats = self.paper_trader.get_statistics()
+        # Stats de paper trading - REMOVED: Using real trading instead
+        # trading_stats = self.paper_trader.get_statistics()
+        trading_stats = {'status': 'paper_trading_disabled'}
 
         # Stats de ML
         model_info = self.trainer.get_model_info()
