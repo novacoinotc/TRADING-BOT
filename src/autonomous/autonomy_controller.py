@@ -1428,41 +1428,46 @@ class AutonomyController:
                     ml_system = self.market_monitor.ml_system
 
                     # Verificar si tenemos trades y features
-                    if hasattr(self, 'paper_trader') and self.paper_trader:
-                        paper_trader = self.paper_trader
-                        stats = paper_trader.portfolio.get_statistics()
-                        total_trades = stats.get('total_trades', 0)
-                        buffer_size = len(ml_system.training_buffer)
-                        imported_features_size = len(ml_system.imported_features)
+                    # Usar position_monitor para obtener historial de trades reales
+                    position_monitor = None
+                    if hasattr(self.market_monitor, 'position_monitor'):
+                        position_monitor = self.market_monitor.position_monitor
 
-                        logger.info(f"🤖 Verificando posibilidad de auto-entrenamiento ML:")
-                        logger.info(f"   • Trades: {total_trades}")
-                        logger.info(f"   • Training buffer: {buffer_size} registros")
-                        logger.info(f"   • Features importadas: {imported_features_size} trades")
+                    total_trades = 0
+                    if position_monitor and hasattr(position_monitor, 'closed_trades_history'):
+                        total_trades = len(position_monitor.closed_trades_history)
 
-                        # Entrenar si tenemos 40+ trades y al menos 25 features
-                        if total_trades >= 40 and (buffer_size >= 25 or imported_features_size >= 25):
-                            logger.info("🚀 Iniciando auto-entrenamiento ML con datos importados...")
+                    buffer_size = len(ml_system.training_buffer)
+                    imported_features_size = len(ml_system.imported_features)
 
-                            # Forzar entrenamiento con threshold reducido
-                            ml_system.force_retrain(
-                                min_samples_override=25,
-                                external_paper_trader=paper_trader
-                            )
+                    logger.info(f"🤖 Verificando posibilidad de auto-entrenamiento ML:")
+                    logger.info(f"   • Trades cerrados: {total_trades}")
+                    logger.info(f"   • Training buffer: {buffer_size} registros")
+                    logger.info(f"   • Features importadas: {imported_features_size} trades")
 
-                            # Verificar resultado
-                            model_info = ml_system.trainer.get_model_info()
-                            if model_info.get('available'):
-                                metrics = model_info.get('metrics', {})
-                                logger.info("✅ ML ENTRENADO EXITOSAMENTE con datos importados:")
-                                logger.info(f"   • Accuracy: {metrics.get('test_accuracy', 0):.1%}")
-                                logger.info(f"   • Precision: {metrics.get('test_precision', 0):.1%}")
-                                logger.info(f"   • F1 Score: {metrics.get('test_f1', 0):.3f}")
-                            else:
-                                logger.warning("⚠️ Auto-entrenamiento completado pero modelo no disponible")
+                    # Entrenar si tenemos suficientes datos
+                    if (buffer_size >= 25 or imported_features_size >= 25 or total_trades >= 25):
+                        logger.info("🚀 Iniciando auto-entrenamiento ML con datos disponibles...")
+
+                        # Forzar entrenamiento con threshold reducido
+                        ml_system.force_retrain(
+                            min_samples_override=25,
+                            position_monitor=position_monitor
+                        )
+
+                        # Verificar resultado
+                        model_info = ml_system.trainer.get_model_info()
+                        if model_info.get('available'):
+                            metrics = model_info.get('metrics', {})
+                            logger.info("✅ ML ENTRENADO EXITOSAMENTE con datos disponibles:")
+                            logger.info(f"   • Accuracy: {metrics.get('test_accuracy', 0):.1%}")
+                            logger.info(f"   • Precision: {metrics.get('test_precision', 0):.1%}")
+                            logger.info(f"   • F1 Score: {metrics.get('test_f1', 0):.3f}")
                         else:
-                            logger.info("ℹ️  No hay suficientes datos para auto-entrenamiento ML")
-                            logger.info("   El ML entrenará automáticamente cuando haya 40+ trades")
+                            logger.warning("⚠️ Auto-entrenamiento completado pero modelo no disponible")
+                    else:
+                        logger.info("ℹ️  No hay suficientes datos para auto-entrenamiento ML")
+                        logger.info("   El ML entrenará automáticamente cuando haya más datos")
 
         except Exception as e:
             logger.error(f"❌ Error en auto-entrenamiento ML: {e}", exc_info=True)
