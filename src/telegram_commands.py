@@ -748,13 +748,9 @@ class TelegramCommands:
                 )
                 return
 
-            # Forzar entrenamiento con threshold reducido
-            # Usar position_monitor para obtener closed_trades_history
+            # Forzar entrenamiento ML - force_retrain busca los datos internamente
             logger.info(f"Forzando entrenamiento ML con {total_samples} muestras")
-            ml_system.force_retrain(
-                min_samples_override=25,
-                position_monitor=self.market_monitor.position_monitor
-            )
+            ml_system.force_retrain()
 
             # Obtener info del modelo entrenado
             model_info = ml_system.trainer.get_model_info()
