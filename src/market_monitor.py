@@ -1215,11 +1215,56 @@ class MarketMonitor:
                                 # Determinar cantidad en USDT por trade
                                 usdt_amount = getattr(config, 'TRADE_AMOUNT_USDT', 100.0)  # Default $100
 
-                                # Calcular stop loss y take profit desde signals
+                                # =====================================================
+                                # 🎯 STOP LOSS DINÁMICO POR VOLATILIDAD (ATR-based)
+                                # =====================================================
+                                # El SL debe adaptarse a la volatilidad del mercado:
+                                # - Alta volatilidad → SL más amplio (evitar stop hunts)
+                                # - Baja volatilidad → SL más ajustado (proteger ganancias)
+
                                 stop_loss_pct = 2.0  # Default 2%
                                 take_profit_pct = 3.0  # Default 3%
 
-                                if 'stop_loss' in signals and signals['stop_loss']:
+                                # Obtener ATR si está disponible
+                                atr_value = None
+                                volatility_regime = 'medium'
+
+                                if analysis and 'indicators' in analysis:
+                                    atr_value = analysis['indicators'].get('atr', None)
+                                    volatility_regime = analysis['indicators'].get('volatility_regime', 'NORMAL')
+                                    if volatility_regime == 'NORMAL':
+                                        volatility_regime = 'medium'
+                                    volatility_regime = volatility_regime.lower() if isinstance(volatility_regime, str) else 'medium'
+
+                                # Calcular SL dinámico basado en ATR
+                                if atr_value and isinstance(atr_value, (int, float)) and atr_value > 0 and current_price > 0:
+                                    # ATR como % del precio
+                                    atr_pct = (atr_value / current_price) * 100
+
+                                    # Multiplicador según volatilidad del régimen
+                                    if volatility_regime == 'high':
+                                        atr_multiplier = 2.0  # Alta volatilidad: SL más amplio
+                                    elif volatility_regime == 'low':
+                                        atr_multiplier = 1.2  # Baja volatilidad: SL más ajustado
+                                    else:
+                                        atr_multiplier = 1.5  # Normal
+
+                                    # SL dinámico = ATR * multiplicador
+                                    dynamic_sl_pct = atr_pct * atr_multiplier
+
+                                    # Límites de seguridad para SCALPING
+                                    min_sl_pct = 1.0  # Mínimo 1% para scalping
+                                    max_sl_pct = 4.0  # Máximo 4% para proteger capital
+
+                                    stop_loss_pct = max(min_sl_pct, min(max_sl_pct, dynamic_sl_pct))
+
+                                    logger.info(
+                                        f"🎯 SL DINÁMICO: ATR={atr_pct:.2f}% × {atr_multiplier:.1f} = {dynamic_sl_pct:.2f}% "
+                                        f"→ Ajustado: {stop_loss_pct:.2f}% (volatilidad: {volatility_regime})"
+                                    )
+
+                                # Si hay SL en signals, usarlo pero validar
+                                elif 'stop_loss' in signals and signals['stop_loss']:
                                     # Manejar si es dict o float
                                     sl_price = signals['stop_loss']
                                     if isinstance(sl_price, dict):
@@ -1231,17 +1276,33 @@ class MarketMonitor:
                                         stop_loss_pct = abs((sl_price - current_price) / current_price * 100)
 
                                         # 🔧 VALIDACIÓN CRÍTICA: SL debe estar a distancia mínima segura
-                                        # Mínimo 1.5% para considerar: volatilidad normal + comisiones (0.04%) + spread
-                                        min_sl_pct = 1.5
+                                        min_sl_pct = 1.0  # Reducido para scalping
+                                        max_sl_pct = 4.0  # Máximo para proteger capital
+
                                         if stop_loss_pct < min_sl_pct:
                                             logger.warning(
-                                                f"⚠️ SL demasiado cerca del entry ({stop_loss_pct:.3f}% < {min_sl_pct}%), "
-                                                f"ajustando a mínimo seguro de 2.5%"
+                                                f"⚠️ SL demasiado cerca ({stop_loss_pct:.3f}% < {min_sl_pct}%), "
+                                                f"ajustando a {min_sl_pct}%"
                                             )
-                                            stop_loss_pct = 2.5  # Usar 2.5% como mínimo seguro
+                                            stop_loss_pct = min_sl_pct
+                                        elif stop_loss_pct > max_sl_pct:
+                                            logger.warning(
+                                                f"⚠️ SL demasiado lejos ({stop_loss_pct:.2f}% > {max_sl_pct}%), "
+                                                f"ajustando a {max_sl_pct}%"
+                                            )
+                                            stop_loss_pct = max_sl_pct
                                     else:
-                                        logger.warning(f"⚠️ stop_loss inválido: {sl_price}, usando default 2.5%")
+                                        logger.warning(f"⚠️ stop_loss inválido: {sl_price}, usando default 2%")
+                                        stop_loss_pct = 2.0
+                                else:
+                                    # Default basado en volatilidad general
+                                    if volatility_regime == 'high':
                                         stop_loss_pct = 2.5
+                                    elif volatility_regime == 'low':
+                                        stop_loss_pct = 1.5
+                                    else:
+                                        stop_loss_pct = 2.0
+                                    logger.debug(f"📊 SL default por volatilidad ({volatility_regime}): {stop_loss_pct}%")
 
                                 if 'take_profit' in signals and signals['take_profit']:
                                     tp_price = signals['take_profit']
@@ -1604,11 +1665,42 @@ class MarketMonitor:
                                         # Determinar cantidad en USDT (flash signals suelen usar menos)
                                         usdt_amount = getattr(config, 'FLASH_TRADE_AMOUNT_USDT', 50.0)  # Default $50 para flash
 
-                                        # Calcular stop loss y take profit
-                                        stop_loss_pct = 2.5  # Flash = SL más amplio
+                                        # =====================================================
+                                        # 🎯 STOP LOSS DINÁMICO PARA FLASH TRADES (ATR-based)
+                                        # =====================================================
+                                        stop_loss_pct = 2.5  # Default Flash = SL más amplio
                                         take_profit_pct = 2.0  # Flash = TP más cercano
 
-                                        if 'stop_loss' in flash_signals and flash_signals['stop_loss']:
+                                        # Obtener ATR si está disponible en flash_analysis
+                                        flash_atr = None
+                                        flash_volatility = 'high'  # Flash trades inherentemente volátiles
+
+                                        if flash_analysis and 'indicators' in flash_analysis:
+                                            flash_atr = flash_analysis['indicators'].get('atr', None)
+
+                                        # Calcular SL dinámico basado en ATR para flash
+                                        if flash_atr and isinstance(flash_atr, (int, float)) and flash_atr > 0 and flash_price > 0:
+                                            # ATR como % del precio
+                                            flash_atr_pct = (flash_atr / flash_price) * 100
+
+                                            # Flash trades: multiplicador más alto (más volatilidad)
+                                            flash_atr_multiplier = 2.0
+
+                                            # SL dinámico = ATR * multiplicador
+                                            dynamic_flash_sl = flash_atr_pct * flash_atr_multiplier
+
+                                            # Límites para flash trades (más amplios)
+                                            min_flash_sl = 1.5  # Mínimo 1.5% para flash
+                                            max_flash_sl = 5.0  # Máximo 5% para flash
+
+                                            stop_loss_pct = max(min_flash_sl, min(max_flash_sl, dynamic_flash_sl))
+
+                                            logger.info(
+                                                f"🎯 FLASH SL DINÁMICO: ATR={flash_atr_pct:.2f}% × {flash_atr_multiplier:.1f} "
+                                                f"= {dynamic_flash_sl:.2f}% → Ajustado: {stop_loss_pct:.2f}%"
+                                            )
+
+                                        elif 'stop_loss' in flash_signals and flash_signals['stop_loss']:
                                             sl_price = flash_signals['stop_loss']
                                             # 🔧 FIX: Validar que sl_price es un número
                                             if isinstance(sl_price, dict):
@@ -1616,6 +1708,8 @@ class MarketMonitor:
                                                 sl_price = sl_price.get('price', sl_price.get('value', 0))
                                             if isinstance(sl_price, (int, float)) and sl_price > 0:
                                                 stop_loss_pct = abs((sl_price - flash_price) / flash_price * 100)
+                                                # Limitar para flash
+                                                stop_loss_pct = max(1.5, min(5.0, stop_loss_pct))
 
                                         if 'take_profit' in flash_signals and flash_signals['take_profit']:
                                             tp_price = flash_signals['take_profit']
