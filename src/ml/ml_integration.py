@@ -524,16 +524,15 @@ Señales en buffer: {stats['training_buffer_size']}
         self.predictor.disable()
         logger.info("❌ Predicciones ML deshabilitadas")
 
-    def force_retrain(self, min_samples_override: int = None, external_paper_trader=None):
+    def force_retrain(self, min_samples_override: int = None, position_monitor=None):
         """
         Fuerza reentrenamiento inmediato, opcionalmente con threshold reducido
 
         Args:
             min_samples_override: Si se proporciona, usa este threshold temporalmente
                                  Útil para entrenar con menos datos (ej: 25 en lugar de 30)
-            external_paper_trader: Paper trader externo para usar sus trades
-                                  (útil cuando el ML System tiene portfolio vacío pero
-                                   autonomy_controller tiene portfolio restaurado)
+            position_monitor: Position monitor con historial de trades reales
+                             (útil cuando necesitas pasar un monitor específico)
         """
         logger.info("🔄 Forzando reentrenamiento de modelo...")
 
@@ -547,7 +546,7 @@ Señales en buffer: {stats['training_buffer_size']}
                 self.trainer.min_samples = min_samples_override
 
             # Ejecutar reentrenamiento
-            self._retrain_model(external_paper_trader=external_paper_trader)
+            self._retrain_model(position_monitor=position_monitor)
 
         finally:
             # Restaurar threshold original SIEMPRE
