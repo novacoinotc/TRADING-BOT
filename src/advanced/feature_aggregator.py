@@ -454,3 +454,209 @@ class FeatureAggregator:
             'session_trading': self.session_trading.enabled,
             'order_flow': self.order_flow.enabled
         }
+
+    # ========================================
+    # 🧠 MÉTODOS PARA DECISION BRAIN
+    # ========================================
+
+    def get_liquidation_levels(self, symbol: str) -> Optional[Dict]:
+        """
+        Obtiene niveles de liquidación para DecisionBrain
+
+        Args:
+            symbol: Par de trading
+
+        Returns:
+            Dict con datos de liquidación o None
+        """
+        try:
+            # Obtener precio actual desde el heatmap si está disponible
+            current_price = self.liquidation_heatmap.last_prices.get(symbol, 0)
+            if current_price == 0:
+                return None
+
+            is_near, details = self.liquidation_heatmap.is_near_liquidation_zone(symbol, current_price)
+            bias, confidence = self.liquidation_heatmap.get_liquidation_bias(symbol, current_price)
+
+            return {
+                'is_near_zone': is_near,
+                'details': details,
+                'bias': bias,
+                'confidence': confidence
+            }
+        except Exception as e:
+            logger.debug(f"Error en get_liquidation_levels: {e}")
+            return None
+
+    def get_funding_analysis(self, symbol: str) -> Optional[Dict]:
+        """
+        Obtiene análisis de funding rate para DecisionBrain
+
+        Args:
+            symbol: Par de trading
+
+        Returns:
+            Dict con análisis de funding o None
+        """
+        try:
+            sentiment, strength, signal = self.funding_rate_analyzer.get_funding_sentiment(symbol)
+            rate = self.funding_rate_analyzer.fetch_funding_rate(symbol)
+
+            return {
+                'sentiment': sentiment,
+                'strength': strength,
+                'signal': signal,
+                'rate': rate or 0.0,
+                'is_extreme': abs(rate or 0) > 0.1
+            }
+        except Exception as e:
+            logger.debug(f"Error en get_funding_analysis: {e}")
+            return None
+
+    def get_volume_profile(self, symbol: str) -> Optional[Dict]:
+        """
+        Obtiene análisis de volume profile para DecisionBrain
+
+        Args:
+            symbol: Par de trading
+
+        Returns:
+            Dict con datos de volume profile o None
+        """
+        try:
+            if symbol not in self.volume_profile.volume_profiles:
+                return None
+
+            current_price = self.liquidation_heatmap.last_prices.get(symbol, 0)
+            if current_price == 0:
+                return None
+
+            is_near_poc, poc_distance = self.volume_profile.is_near_poc(symbol, current_price)
+            in_value_area = self.volume_profile.is_in_value_area(symbol, current_price)
+
+            return {
+                'is_near_poc': is_near_poc,
+                'poc_distance_pct': poc_distance,
+                'in_value_area': in_value_area
+            }
+        except Exception as e:
+            logger.debug(f"Error en get_volume_profile: {e}")
+            return None
+
+    def detect_patterns(self, symbol: str, ohlc_data: Optional[Dict] = None) -> Optional[List[Dict]]:
+        """
+        Detecta patrones para DecisionBrain
+
+        Args:
+            symbol: Par de trading
+            ohlc_data: Datos OHLCV (opcional)
+
+        Returns:
+            Lista de patrones detectados o None
+        """
+        try:
+            if ohlc_data is None:
+                return None
+
+            patterns = self.pattern_recognition.detect_all_patterns(ohlc_data)
+
+            if patterns:
+                return [
+                    {
+                        'pattern': p['pattern'],
+                        'type': p['type'],
+                        'confidence': p['confidence'],
+                        'signal': p['signal']
+                    }
+                    for p in patterns
+                ]
+            return None
+        except Exception as e:
+            logger.debug(f"Error en detect_patterns: {e}")
+            return None
+
+    def analyze_order_flow(self, symbol: str, orderbook: Optional[Dict] = None) -> Optional[Dict]:
+        """
+        Analiza order flow para DecisionBrain
+
+        Args:
+            symbol: Par de trading
+            orderbook: Datos del orderbook (opcional)
+
+        Returns:
+            Dict con análisis de order flow o None
+        """
+        try:
+            if orderbook is None:
+                return None
+
+            bias, ratio, strength = self.order_flow.analyze_orderbook(orderbook)
+
+            return {
+                'bias': bias,
+                'bid_ask_ratio': ratio,
+                'strength': strength
+            }
+        except Exception as e:
+            logger.debug(f"Error en analyze_order_flow: {e}")
+            return None
+
+    def get_session_analysis(self) -> Dict:
+        """
+        Obtiene análisis de sesión actual para DecisionBrain
+
+        Returns:
+            Dict con información de sesión
+        """
+        try:
+            session, multiplier = self.session_trading.get_current_session()
+
+            return {
+                'name': session,
+                'multiplier': multiplier,
+                'is_us_session': session == 'US',
+                'is_asia_session': session == 'ASIA',
+                'is_europe_session': session == 'EUROPE'
+            }
+        except Exception as e:
+            logger.debug(f"Error en get_session_analysis: {e}")
+            return {'name': 'UNKNOWN', 'multiplier': 1.0}
+
+    def get_correlations(self, symbol: str, open_positions: Optional[List[str]] = None) -> Optional[Dict]:
+        """
+        Obtiene correlaciones para DecisionBrain
+
+        Args:
+            symbol: Par de trading
+            open_positions: Lista de posiciones abiertas
+
+        Returns:
+            Dict con datos de correlación o None
+        """
+        try:
+            if not open_positions:
+                return {
+                    'diversification_score': 1.0,
+                    'correlated_count': 0,
+                    'can_open': True
+                }
+
+            diversification = self.correlation_matrix.get_diversification_score(open_positions)
+            can_open, reason = self.correlation_matrix.can_open_position(symbol, open_positions)
+
+            # Contar posiciones correlacionadas
+            correlated_count = 0
+            for pos in open_positions:
+                corr = self.correlation_matrix.get_correlation(symbol, pos)
+                if corr is not None and abs(corr) > 0.7:
+                    correlated_count += 1
+
+            return {
+                'diversification_score': diversification,
+                'correlated_count': correlated_count,
+                'can_open': can_open,
+                'reason': reason
+            }
+        except Exception as e:
+            logger.debug(f"Error en get_correlations: {e}")
+            return None
