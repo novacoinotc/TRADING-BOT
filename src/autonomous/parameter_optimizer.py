@@ -574,6 +574,117 @@ class ParameterOptimizer:
             'exploration_exhaustion': min(self.total_trials / 100.0, 1.0)  # 0-1
         }
 
+    def analyze_performance(self, current_metrics: Dict) -> Dict:
+        """
+        🧠 Analiza performance actual y sugiere cambios en tiempo real
+
+        Esta función se llama desde DecisionBrain para obtener sugerencias
+        de ajustes de parámetros basadas en el rendimiento actual.
+
+        Args:
+            current_metrics: Dict con métricas actuales
+                - win_rate: % de trades ganadores
+                - avg_profit: promedio de ganancia por trade
+                - total_trades: total de trades ejecutados
+                - CONSERVATIVE_THRESHOLD: threshold actual (si disponible)
+                - TP1_BASE_PCT: take profit base actual (si disponible)
+
+        Returns:
+            Dict con sugerencias:
+                - immediate_changes: cambios a aplicar inmediatamente
+                - recommended_changes: cambios sugeridos para considerar
+                - performance_analysis: análisis del rendimiento
+        """
+        suggestions = {
+            'immediate_changes': {},
+            'recommended_changes': {},
+            'performance_analysis': {}
+        }
+
+        win_rate = current_metrics.get('win_rate', 0)
+        avg_profit = current_metrics.get('avg_profit', 0)
+        total_trades = current_metrics.get('total_trades', 0)
+
+        # No sugerir cambios si no hay suficientes trades
+        if total_trades < 10:
+            suggestions['performance_analysis']['status'] = 'insufficient_data'
+            suggestions['performance_analysis']['message'] = 'Necesitan más trades para análisis'
+            return suggestions
+
+        # ========================================
+        # ANÁLISIS DE WIN RATE
+        # ========================================
+        if win_rate < 50:
+            # Win rate muy bajo - ser más selectivo
+            suggestions['performance_analysis']['win_rate_status'] = 'critical'
+            suggestions['immediate_changes']['CONSERVATIVE_THRESHOLD'] = min(
+                self.parameter_ranges.get('CONSERVATIVE_THRESHOLD', (3.0, 8.0, 'float'))[1],
+                current_metrics.get('CONSERVATIVE_THRESHOLD', 5.0) + 0.5
+            )
+            suggestions['recommended_changes']['FLASH_MIN_CONFIDENCE'] = min(
+                self.parameter_ranges.get('FLASH_MIN_CONFIDENCE', (40, 80, 'int'))[1],
+                current_metrics.get('FLASH_MIN_CONFIDENCE', 50) + 5
+            )
+
+        elif win_rate < 60:
+            # Win rate bajo - ajustar moderadamente
+            suggestions['performance_analysis']['win_rate_status'] = 'low'
+            suggestions['recommended_changes']['CONSERVATIVE_THRESHOLD'] = min(
+                self.parameter_ranges.get('CONSERVATIVE_THRESHOLD', (3.0, 8.0, 'float'))[1],
+                current_metrics.get('CONSERVATIVE_THRESHOLD', 5.0) + 0.3
+            )
+
+        elif win_rate > 80:
+            # Win rate alto - podemos ser más agresivos
+            suggestions['performance_analysis']['win_rate_status'] = 'excellent'
+            suggestions['recommended_changes']['CONSERVATIVE_THRESHOLD'] = max(
+                self.parameter_ranges.get('CONSERVATIVE_THRESHOLD', (3.0, 8.0, 'float'))[0],
+                current_metrics.get('CONSERVATIVE_THRESHOLD', 5.0) - 0.3
+            )
+
+        else:
+            suggestions['performance_analysis']['win_rate_status'] = 'good'
+
+        # ========================================
+        # ANÁLISIS DE PROFITABILIDAD
+        # ========================================
+        if avg_profit < 0.3:
+            # Profits muy bajos - TPs más cercanos
+            suggestions['performance_analysis']['profit_status'] = 'low'
+            suggestions['recommended_changes']['TP1_BASE_PCT'] = max(
+                0.3,  # Mínimo 0.3%
+                current_metrics.get('TP1_BASE_PCT', 0.5) * 0.9
+            )
+
+        elif avg_profit > 1.5:
+            # Profits buenos - podemos extender TPs
+            suggestions['performance_analysis']['profit_status'] = 'excellent'
+            suggestions['recommended_changes']['TP1_BASE_PCT'] = min(
+                1.5,  # Máximo 1.5%
+                current_metrics.get('TP1_BASE_PCT', 0.5) * 1.1
+            )
+
+        else:
+            suggestions['performance_analysis']['profit_status'] = 'good'
+
+        # ========================================
+        # RESUMEN
+        # ========================================
+        suggestions['performance_analysis']['summary'] = {
+            'win_rate': win_rate,
+            'avg_profit': avg_profit,
+            'total_trades': total_trades,
+            'changes_suggested': len(suggestions['immediate_changes']) + len(suggestions['recommended_changes'])
+        }
+
+        if suggestions['immediate_changes']:
+            logger.info(
+                f"📊 Parameter Optimizer: {len(suggestions['immediate_changes'])} cambios inmediatos sugeridos "
+                f"(Win rate: {win_rate:.1f}%, Avg profit: {avg_profit:.2f}%)"
+            )
+
+        return suggestions
+
     def save_to_dict(self) -> Dict:
         """Exporta optimizador para persistencia"""
         return {

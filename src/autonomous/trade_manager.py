@@ -1219,3 +1219,154 @@ class TradeManager:
             stats['learning_insights'] = self.learning.get_insights()
 
         return stats
+
+    def analyze_position_with_all_services(self, symbol: str, services_data: Dict) -> Optional[Dict]:
+        """
+        🧠 Analiza posición abierta usando TODOS los servicios disponibles
+
+        Args:
+            symbol: Símbolo de la posición (ej: BTCUSDT)
+            services_data: Datos de todos los servicios recopilados por DecisionBrain
+
+        Returns:
+            Dict con análisis completo y recomendación, o None si no hay posición
+        """
+        # Verificar si hay posición abierta
+        if symbol not in self._position_highs:
+            return None
+
+        # Obtener datos de la posición
+        pnl_pct = self._position_highs.get(symbol, 0)  # Usamos el máximo P&L registrado como referencia
+
+        analysis = {
+            'symbol': symbol,
+            'pnl_pct': pnl_pct,
+            'confidence': 0.5,
+            'reversal_risk': 0,
+            'action': 'HOLD',
+            'reasons': [],
+            'services_analyzed': 0
+        }
+
+        # ========================================
+        # 1. LIQUIDATION HEATMAP
+        # ========================================
+        liq_data = services_data.get('liquidation_heatmap', {})
+        if liq_data:
+            analysis['services_analyzed'] += 1
+            near_cluster = liq_data.get('near_cluster', False)
+            if near_cluster:
+                analysis['reversal_risk'] += 25
+                analysis['reasons'].append('Near liquidation cluster')
+
+        # ========================================
+        # 2. ORDER FLOW IMBALANCE
+        # ========================================
+        order_flow = services_data.get('order_flow', {})
+        if order_flow:
+            analysis['services_analyzed'] += 1
+            imbalance = order_flow.get('ratio', 1.0)
+            if imbalance < 0.6:  # Heavy selling
+                analysis['reversal_risk'] += 20
+                analysis['reasons'].append(f'Order flow imbalance: {imbalance:.2f}')
+            elif imbalance > 1.5:  # Heavy buying
+                if pnl_pct > 0:
+                    analysis['reasons'].append(f'Strong buying pressure: {imbalance:.2f}')
+
+        # ========================================
+        # 3. FUNDING RATE
+        # ========================================
+        funding = services_data.get('funding_rate', {})
+        if funding:
+            analysis['services_analyzed'] += 1
+            rate = abs(funding.get('rate', 0))
+            if rate > 0.01:  # Alto funding
+                analysis['reversal_risk'] += 15
+                analysis['reasons'].append(f'High funding rate: {rate:.4f}')
+
+        # ========================================
+        # 4. VOLUME PROFILE
+        # ========================================
+        volume_profile = services_data.get('volume_profile', {})
+        if volume_profile:
+            analysis['services_analyzed'] += 1
+            near_poc = volume_profile.get('near_poc', False)
+            if near_poc:
+                analysis['reasons'].append('Near Point of Control (POC)')
+
+        # ========================================
+        # 5. PATTERN DETECTION
+        # ========================================
+        patterns = services_data.get('patterns', {})
+        if patterns:
+            analysis['services_analyzed'] += 1
+            if patterns.get('detected', False):
+                pattern_type = patterns.get('type', 'unknown')
+                if 'reversal' in pattern_type.lower():
+                    analysis['reversal_risk'] += 30
+                    analysis['reasons'].append(f'Reversal pattern: {pattern_type}')
+
+        # ========================================
+        # 6. REGIME CHANGE
+        # ========================================
+        regime = services_data.get('regime', {})
+        if regime:
+            analysis['services_analyzed'] += 1
+            regime_type = regime.get('regime', 'SIDEWAYS')
+            if regime_type == 'REVERSAL':
+                analysis['reversal_risk'] += 20
+                analysis['reasons'].append('Regime change detected')
+
+        # ========================================
+        # 7. SENTIMENT SHIFT
+        # ========================================
+        sentiment = services_data.get('sentiment', {})
+        if sentiment:
+            analysis['services_analyzed'] += 1
+            overall = sentiment.get('overall', 'neutral')
+            strength = sentiment.get('strength', 0)
+            if strength > 0.7:
+                analysis['reasons'].append(f'Strong sentiment: {overall}')
+
+        # ========================================
+        # 8. ORDERBOOK PRESSURE
+        # ========================================
+        orderbook = services_data.get('orderbook', {})
+        if orderbook:
+            analysis['services_analyzed'] += 1
+            pressure = orderbook.get('pressure', 'NEUTRAL')
+            if pressure == 'SELL_PRESSURE' and pnl_pct > 0:
+                analysis['reversal_risk'] += 15
+                analysis['reasons'].append('Strong sell pressure in orderbook')
+
+        # ========================================
+        # DECISIÓN FINAL
+        # ========================================
+
+        # Calcular confianza basada en servicios analizados
+        analysis['confidence'] = min(0.95, 0.4 + (analysis['services_analyzed'] * 0.05))
+
+        # Decidir acción
+        if pnl_pct > 1.5 and analysis['reversal_risk'] > 50:
+            analysis['action'] = 'CLOSE'
+            analysis['reasons'].append('Secure profits - high reversal risk')
+
+        elif pnl_pct < -3.0 and analysis['reversal_risk'] > 40:
+            analysis['action'] = 'CLOSE'
+            analysis['reasons'].append('Cut losses - conditions deteriorating')
+
+        elif analysis['reversal_risk'] > 70:
+            analysis['action'] = 'REDUCE'
+            analysis['reasons'].append('High risk - consider reducing position')
+
+        logger.info(
+            f"🔍 Trade Analysis {symbol}: "
+            f"P&L={pnl_pct:+.2f}% | Risk={analysis['reversal_risk']}% | "
+            f"Action={analysis['action']} | Services={analysis['services_analyzed']}"
+        )
+
+        return analysis
+
+    def has_position(self, symbol: str) -> bool:
+        """Verifica si hay una posición abierta para el símbolo"""
+        return symbol in self._position_highs

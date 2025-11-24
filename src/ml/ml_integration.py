@@ -626,3 +626,122 @@ Señales en buffer: {stats['training_buffer_size']}
         """Fuerza optimización inmediata"""
         logger.info("🔄 Forzando optimización de parámetros...")
         self._optimize_parameters()
+
+    # ========================================
+    # 🧠 MÉTODOS DE APRENDIZAJE CONTINUO
+    # ========================================
+
+    def add_trade_result(self, trade_result: Dict):
+        """
+        🧠 Agrega resultado de trade al buffer de entrenamiento
+
+        Args:
+            trade_result: Dict con datos del trade cerrado
+                - symbol: Par trading
+                - side: BUY/SELL
+                - pnl_pct: % de ganancia/pérdida
+                - entry_price, exit_price
+                - duration: duración en segundos
+                - features: features de mercado al momento de entrada (opcional)
+        """
+        try:
+            # Crear entrada para buffer
+            entry = {
+                'timestamp': datetime.now().isoformat(),
+                'symbol': trade_result.get('symbol', 'UNKNOWN'),
+                'side': trade_result.get('side', 'BUY'),
+                'pnl_pct': trade_result.get('pnl_pct', 0),
+                'profitable': trade_result.get('pnl_pct', 0) > 0,
+                'duration': trade_result.get('duration', 0),
+                'leverage': trade_result.get('leverage', 1),
+                'features': trade_result.get('features', {})
+            }
+
+            # Agregar al buffer
+            self.training_buffer.append(entry)
+
+            # Limitar tamaño del buffer
+            if len(self.training_buffer) > 1000:
+                self.training_buffer = self.training_buffer[-1000:]
+
+            # Incrementar contador
+            self.trades_since_last_training += 1
+
+            # Guardar buffer a disco periódicamente
+            if self.trades_since_last_training % 10 == 0:
+                self._save_buffer()
+
+            logger.debug(
+                f"🧠 Trade añadido al buffer: {entry['symbol']} "
+                f"{'+' if entry['profitable'] else ''}{entry['pnl_pct']:.2f}% "
+                f"(Buffer: {len(self.training_buffer)} samples)"
+            )
+
+            # Auto-reentrenar si acumulamos suficientes trades
+            if self.should_retrain_from_buffer():
+                logger.info("🔄 Auto-reentrenamiento activado por buffer lleno")
+                self.retrain_with_new_data()
+
+        except Exception as e:
+            logger.error(f"❌ Error añadiendo trade a buffer: {e}")
+
+    def should_retrain_from_buffer(self) -> bool:
+        """
+        Decide si es momento de reentrenar basado en el buffer
+
+        Returns:
+            True si hay suficientes datos nuevos para reentrenar
+        """
+        # Reentrenar cada 50 trades nuevos
+        if self.trades_since_last_training >= 50:
+            return True
+
+        # O si el buffer tiene muchos datos sin procesar
+        if len(self.training_buffer) >= 100 and self.trades_since_last_training >= 20:
+            return True
+
+        return False
+
+    def retrain_with_new_data(self):
+        """
+        🧠 Reentrena modelo con datos nuevos del buffer
+
+        Usa los resultados de trades recientes para mejorar el modelo.
+        """
+        logger.info("🧠 ML System: Reentrenando con datos nuevos del buffer...")
+
+        try:
+            # Calcular métricas del buffer
+            if not self.training_buffer:
+                logger.warning("⚠️ Buffer vacío, no se puede reentrenar")
+                return
+
+            profitable_trades = sum(1 for t in self.training_buffer if t.get('profitable', False))
+            total_trades = len(self.training_buffer)
+            win_rate = (profitable_trades / total_trades) * 100 if total_trades > 0 else 0
+
+            logger.info(
+                f"   Buffer stats: {total_trades} trades, {win_rate:.1f}% win rate, "
+                f"{sum(t.get('pnl_pct', 0) for t in self.training_buffer):.2f}% total P&L"
+            )
+
+            # Llamar al reentrenamiento
+            self._retrain_model()
+
+            # Resetear contador
+            self.trades_since_last_training = 0
+
+            logger.info("✅ Reentrenamiento completado exitosamente")
+
+        except Exception as e:
+            logger.error(f"❌ Error en reentrenamiento: {e}")
+
+    def get_learning_stats(self) -> Dict:
+        """Obtiene estadísticas de aprendizaje continuo"""
+        return {
+            'buffer_size': len(self.training_buffer),
+            'trades_since_training': self.trades_since_last_training,
+            'trades_since_optimization': self.trades_since_last_optimization,
+            'last_trained_samples': self.last_trained_samples,
+            'predictor_loaded': self.predictor.is_model_loaded() if hasattr(self.predictor, 'is_model_loaded') else False
+        }

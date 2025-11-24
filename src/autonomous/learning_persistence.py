@@ -68,7 +68,8 @@ class LearningPersistence:
         paper_trading: Optional[Dict] = None,
         ml_training_buffer: Optional[list] = None,
         advanced_modules_state: Optional[Dict] = None,
-        trade_management_learning: Optional[Dict] = None
+        trade_management_learning: Optional[Dict] = None,
+        decision_brain_state: Optional[Dict] = None
     ) -> bool:
         """
         Guarda estado completo del sistema autónomo
@@ -83,6 +84,7 @@ class LearningPersistence:
             ml_training_buffer: Training buffer del ML System (features para entrenamiento)
             advanced_modules_state: Estado del arsenal avanzado (correlation, liquidation, funding, etc.)
             trade_management_learning: Historial de aprendizaje del Trade Manager (decisiones y resultados)
+            decision_brain_state: Estado del cerebro central (análisis, experiencias, métricas)
 
         Returns:
             True si guardado fue exitoso
@@ -96,7 +98,7 @@ class LearningPersistence:
 
             # Construir estado completo
             full_state = {
-                'version': '2.0',  # Bumped to 2.0 para soportar arsenal avanzado
+                'version': '3.0',  # Bumped to 3.0 para soportar Decision Brain
                 'timestamp': datetime.now().isoformat(),
                 'rl_agent': rl_agent_state,
                 'parameter_optimizer': optimizer_state,
@@ -106,9 +108,9 @@ class LearningPersistence:
                 'paper_trading': paper_trading or {},  # Estado de paper trading
                 'ml_training_buffer': ml_training_buffer or [],  # Training buffer del ML System
                 'ml_training_data': ml_training_buffer or [],  # Compatibilidad con train_ml
-                'ml_training_data': ml_training_buffer or [],  # Para compatibilidad con train_ml
-                'advanced_modules': advanced_modules_state or {},  # NUEVO: Estado del arsenal avanzado (7 módulos)
-                'trade_management_learning': trade_management_learning or {}  # Historial de aprendizaje del Trade Manager
+                'advanced_modules': advanced_modules_state or {},  # Estado del arsenal avanzado (7 módulos)
+                'trade_management_learning': trade_management_learning or {},  # Historial de aprendizaje del Trade Manager
+                'decision_brain': decision_brain_state or {}  # 🧠 Estado del cerebro central
             }
 
             # Calcular checksum para validación
