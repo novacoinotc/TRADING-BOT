@@ -476,6 +476,35 @@ async def main():
             await telegram_commands.start_command_listener()
             logger.info("📱 Telegram Commands activos: /export, /import, /status, /stats, /params, /train_ml, /test_start, /test_stop, /test_status")
 
+            # ===== SYSTEM HEALTH CHECK =====
+            from src.system_health_check import SystemHealthCheck
+            health_checker = SystemHealthCheck(
+                rl_agent=autonomy_controller.rl_agent if autonomy_controller else None,
+                ml_system=monitor.ml_system if hasattr(monitor, 'ml_system') else None,
+                trade_manager=trade_manager,
+                parameter_optimizer=autonomy_controller.parameter_optimizer if autonomy_controller else None,
+                position_monitor=monitor.position_monitor if hasattr(monitor, 'position_monitor') else None,
+                autonomy_controller=autonomy_controller,
+                telegram_notifier=monitor.notifier if hasattr(monitor, 'notifier') else None
+            )
+
+            # Asignar health_checker a telegram_commands para el comando /health
+            telegram_commands.health_checker = health_checker
+
+            # Iniciar verificación periódica cada hora
+            async def periodic_health_check():
+                """Envía reporte de salud cada hora"""
+                while True:
+                    try:
+                        await asyncio.sleep(3600)  # Cada hora
+                        logger.info("🏥 Ejecutando health check periódico...")
+                        await health_checker.send_health_report()
+                    except Exception as e:
+                        logger.error(f"❌ Error en health check periódico: {e}")
+
+            asyncio.create_task(periodic_health_check())
+            logger.info("✅ System Health Check configurado - reportes cada hora")
+
         # ===== INICIAR API PARA DASHBOARD =====
         try:
             set_bot_instances(monitor, autonomy_controller)

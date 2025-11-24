@@ -55,6 +55,10 @@ class PositionMonitor:
         self.closed_trades: Dict[str, Dict] = {}  # {symbol: {pnl_pct, reason, timestamp}}
         self.max_closed_trades = 100  # Mantener últimos 100
 
+        # NUEVO: Lista completa de trades cerrados para ML retraining
+        self.closed_trades_history: List[Dict] = []  # Lista completa de todos los trades cerrados
+        self.max_history_size = 500  # Mantener últimos 500 trades para ML
+
         # Referencia opcional a autonomy_controller (para verificar test_mode_active)
         self.autonomy_controller = None
 
@@ -373,6 +377,39 @@ class PositionMonitor:
                 reason = closed_info.get('reason', 'UNKNOWN')
                 self.record_closed_trade(symbol, realized_pnl_pct, reason)
                 logger.info(f"💾 Trade cerrado registrado para learning: {symbol} ({reason}, {realized_pnl_pct:+.2f}%)")
+
+                # NUEVO: Agregar a historial completo para ML retraining
+                trade_data = {
+                    'symbol': symbol,
+                    'pnl_pct': realized_pnl_pct,
+                    'pnl_usdt': closed_info.get('realized_pnl', 0),
+                    'entry_price': closed_info.get('entry_price', 0),
+                    'exit_price': closed_info.get('exit_price', 0),
+                    'leverage': closed_info.get('leverage', 1),
+                    'side': closed_info.get('side', 'UNKNOWN'),
+                    'reason': reason,
+                    'timestamp': datetime.now().isoformat(),
+                    'quantity': closed_info.get('quantity', 0)
+                }
+                self.closed_trades_history.append(trade_data)
+
+                # Mantener solo últimos N trades
+                if len(self.closed_trades_history) > self.max_history_size:
+                    self.closed_trades_history = self.closed_trades_history[-self.max_history_size:]
+
+                logger.info(f"📊 Trade agregado a historial ML: {len(self.closed_trades_history)} trades totales")
+
+                # NUEVO: Llamar a process_trade_closure si autonomy_controller existe
+                if self.autonomy_controller and hasattr(self.autonomy_controller, 'process_trade_closure'):
+                    try:
+                        import asyncio
+                        asyncio.create_task(
+                            self.autonomy_controller.process_trade_closure(trade_data)
+                        )
+                        logger.info(f"✅ process_trade_closure llamado para {symbol}")
+                    except Exception as e:
+                        logger.error(f"❌ Error calling process_trade_closure: {e}")
+
             elif test_mode_active:
                 logger.debug(f"⏭️ No guardando trade (Test Mode activo, ya lo guardó test_mode)")
 

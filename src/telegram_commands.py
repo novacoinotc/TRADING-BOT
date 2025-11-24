@@ -38,6 +38,7 @@ class TelegramCommands:
         self.application = None
         self.waiting_for_import_file = False  # Flag para saber si esperamos archivo
         self.waiting_for_import_force_file = False  # Flag para import_force (ignora checksum)
+        self.health_checker = None  # System health checker (assigned from main.py)
 
         if telegram_token:
             logger.info("📱 Telegram Commands Handler inicializado")
@@ -85,6 +86,7 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("test_status", self.test_status_command))  # Estado modo prueba
             self.application.add_handler(CommandHandler("validarends", self.validarends_command))  # Validar endpoints Binance
             self.application.add_handler(CommandHandler("learning", self.learning_stats_command))  # Estadísticas de aprendizaje del Trade Manager
+            self.application.add_handler(CommandHandler("health", self.health_command))  # Verificación de salud de todos los sistemas
             self.application.add_handler(CommandHandler("help", self.help_command))
 
             # Handler para recibir archivos (documentos)
@@ -1471,3 +1473,37 @@ class TelegramCommands:
                 f"❌ Error obteniendo learning stats: {e}",
                 parse_mode='HTML'
             )
+
+    async def health_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /health - Muestra estado de salud de todos los sistemas v1.0
+        Verifica: RL Agent, ML Retraining, Trade Manager, Parameter Optimizer,
+                  Position Monitor, Scalping TPs, Autonomy Controller
+        """
+        try:
+            logger.info("🏥 Comando /health recibido")
+
+            await update.message.reply_text("🏥 **Verificando salud de todos los sistemas v1.0...**")
+
+            if not self.health_checker:
+                await update.message.reply_text(
+                    "❌ System Health Checker no disponible\n"
+                    "El sistema no está configurado correctamente."
+                )
+                return
+
+            # Ejecutar verificación completa
+            checks = self.health_checker.verify_all_systems()
+
+            # Generar resumen
+            summary = self.health_checker.get_summary()
+
+            # Enviar resultado
+            await update.message.reply_text(summary)
+
+            # Log adicional
+            logger.info(f"✅ Health check completado: {'OK' if checks.get('all_systems_ok') else 'CON PROBLEMAS'}")
+
+        except Exception as e:
+            logger.error(f"❌ Error en health_command: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error ejecutando health check: {e}")
