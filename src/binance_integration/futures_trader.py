@@ -221,7 +221,8 @@ class FuturesTrader:
         stop_loss_pct: float,
         take_profit_pct: float,
         leverage: Optional[int] = None,
-        current_price: Optional[float] = None
+        current_price: Optional[float] = None,
+        rl_decision: Optional[Dict] = None
     ) -> Optional[Dict]:
         """
         Abre posición LONG o SHORT con SL y TP
@@ -232,16 +233,17 @@ class FuturesTrader:
         3. Calcula cantidad
         4. Abre posición MARKET
         5. Coloca Stop Loss (STOP_MARKET)
-        6. Coloca Take Profit (TAKE_PROFIT_MARKET)
+        6. Coloca Take Profit (TAKE_PROFIT_MARKET) - o 3 TPs si rl_decision tiene tp_percentages
 
         Args:
             symbol: Símbolo (ej: BTCUSDT)
             side: 'BUY' (LONG) o 'SELL' (SHORT)
             usdt_amount: Cantidad en USDT a usar
             stop_loss_pct: % de stop loss (ej: 2.0 = 2%)
-            take_profit_pct: % de take profit (ej: 3.0 = 3%)
+            take_profit_pct: % de take profit (ej: 3.0 = 3%) - ignorado si rl_decision tiene TPs
             leverage: Leverage opcional (si None, usa default)
             current_price: Precio actual opcional (si None, lo obtiene)
+            rl_decision: Decisión del RL Agent con tp_percentages para multi-TP
 
         Returns:
             Dict: Información del trade abierto con order IDs
@@ -369,29 +371,13 @@ class FuturesTrader:
                 stop_loss_price = entry_price * (1 + stop_loss_pct / 100)
                 take_profit_price = entry_price * (1 - take_profit_pct / 100)
 
-            # 🔍 VALIDACIÓN CRÍTICA: Verificar distancia mínima de TP vs precio actual
-            # Obtener precio actual DESPUÉS del trade para verificar
+            # 🔍 Validar y redondear precio de TP (SIN restricción de distancia mínima)
+            # ✅ FIX: La IA decide los TPs, NO restringir por distancia
             try:
-                actual_price = self.client.get_price(symbol)
-            except Exception:
-                actual_price = entry_price
-
-            min_distance_pct = 0.1  # Mínimo 0.1% de diferencia
-            actual_tp_distance = abs((take_profit_price - actual_price) / actual_price) * 100
-
-            if actual_tp_distance < min_distance_pct:
-                logger.warning(
-                    f"⚠️ TP demasiado cerca del precio actual ({actual_tp_distance:.3f}% < {min_distance_pct}%), "
-                    f"NO se colocará orden de Take Profit"
-                )
-                take_profit_price = None  # No colocar TP
-            else:
-                # Validar y redondear precio de TP
-                try:
-                    take_profit_price = self._validate_and_round_price(symbol, take_profit_price)
-                except ValueError as e:
-                    logger.error(f"❌ Invalid TP price: {e}")
-                    take_profit_price = None
+                take_profit_price = self._validate_and_round_price(symbol, take_profit_price)
+            except ValueError as e:
+                logger.error(f"❌ Invalid TP price: {e}")
+                take_profit_price = None
 
             # Validar y redondear precio de SL
             try:
@@ -407,7 +393,7 @@ class FuturesTrader:
             if take_profit_price:
                 logger.info(f"🎯 Take Profit: ${take_profit_price:,.4f} (+{take_profit_pct}% desde entry)")
             else:
-                logger.info(f"🎯 Take Profit: NO colocado (distancia < {min_distance_pct}%)")
+                logger.info(f"🎯 Take Profit: NO colocado (precio inválido)")
 
             # PASO 6: Colocar Stop Loss
             logger.info(f"📤 Placing Stop Loss order...")
@@ -428,10 +414,117 @@ class FuturesTrader:
                 f"   Stop Price: ${stop_loss_price:,.2f}"
             )
 
-            # PASO 7: Colocar Take Profit (solo si es válido)
+            # PASO 7: Colocar Take Profit(s)
+            # 🤖 SISTEMA MULTI-TP: Si rl_decision tiene tp_percentages, usar 3 TPs
+            tp_orders = []
             tp_order = None
-            if take_profit_price is not None:
-                logger.info(f"📤 Placing Take Profit order...")
+
+            if rl_decision and 'tp_percentages' in rl_decision and len(rl_decision['tp_percentages']) >= 3:
+                # ========================================
+                # 🚀 MODO AUTÓNOMO: 3 TPs ESCALADOS
+                # ========================================
+                tp_percentages = rl_decision['tp_percentages']
+
+                logger.info(f"""
+🤖 DECISIÓN AUTÓNOMA DE IA - MULTI-TP:
+   Leverage: {leverage}x
+   Position Size: ${usdt_amount:.2f}
+   TP1: +{tp_percentages[0]:.2f}% (40% qty)
+   TP2: +{tp_percentages[1]:.2f}% (40% qty)
+   TP3: +{tp_percentages[2]:.2f}% (20% qty)
+   Confidence: {rl_decision.get('confidence', 0):.1%}
+""")
+
+                # Dividir cantidad para TPs múltiples (40%, 40%, 20%)
+                tp1_qty = self._validate_and_round_quantity(symbol, quantity * 0.4)
+                tp2_qty = self._validate_and_round_quantity(symbol, quantity * 0.4)
+                tp3_qty = self._validate_and_round_quantity(symbol, quantity * 0.2)
+
+                # Calcular precios de TPs basados en entry_price real
+                if side == 'BUY':  # LONG
+                    tp1_price = entry_price * (1 + tp_percentages[0] / 100)
+                    tp2_price = entry_price * (1 + tp_percentages[1] / 100)
+                    tp3_price = entry_price * (1 + tp_percentages[2] / 100)
+                else:  # SELL (SHORT)
+                    tp1_price = entry_price * (1 - tp_percentages[0] / 100)
+                    tp2_price = entry_price * (1 - tp_percentages[1] / 100)
+                    tp3_price = entry_price * (1 - tp_percentages[2] / 100)
+
+                # Validar y redondear precios
+                try:
+                    tp1_price = self._validate_and_round_price(symbol, tp1_price)
+                    tp2_price = self._validate_and_round_price(symbol, tp2_price)
+                    tp3_price = self._validate_and_round_price(symbol, tp3_price)
+                except ValueError as e:
+                    logger.error(f"❌ Error validando TP prices: {e}")
+                    tp1_price = tp2_price = tp3_price = None
+
+                # Colocar las 3 órdenes TP
+                tp_side = sl_side  # Mismo lado que SL (opuesto a posición)
+
+                # TP1 - Scalping rápido (40%)
+                if tp1_price and tp1_qty > 0:
+                    try:
+                        tp1_order = self.client.create_order(
+                            symbol=symbol,
+                            side=tp_side,
+                            order_type='TAKE_PROFIT_MARKET',
+                            quantity=tp1_qty,
+                            stop_price=tp1_price,
+                            position_side='BOTH',
+                            reduce_only=True
+                        )
+                        tp_orders.append(tp1_order)
+                        logger.info(f"✅ TP1 colocado: {tp1_qty} @ ${tp1_price:,.4f} (+{tp_percentages[0]:.2f}%)")
+                    except BinanceAPIError as e:
+                        logger.error(f"❌ Error TP1: {e.message}")
+
+                # TP2 - Objetivo medio (40%)
+                if tp2_price and tp2_qty > 0:
+                    try:
+                        tp2_order = self.client.create_order(
+                            symbol=symbol,
+                            side=tp_side,
+                            order_type='TAKE_PROFIT_MARKET',
+                            quantity=tp2_qty,
+                            stop_price=tp2_price,
+                            position_side='BOTH',
+                            reduce_only=True
+                        )
+                        tp_orders.append(tp2_order)
+                        logger.info(f"✅ TP2 colocado: {tp2_qty} @ ${tp2_price:,.4f} (+{tp_percentages[1]:.2f}%)")
+                    except BinanceAPIError as e:
+                        logger.error(f"❌ Error TP2: {e.message}")
+
+                # TP3 - Máximo (20%)
+                if tp3_price and tp3_qty > 0:
+                    try:
+                        tp3_order = self.client.create_order(
+                            symbol=symbol,
+                            side=tp_side,
+                            order_type='TAKE_PROFIT_MARKET',
+                            quantity=tp3_qty,
+                            stop_price=tp3_price,
+                            position_side='BOTH',
+                            reduce_only=True
+                        )
+                        tp_orders.append(tp3_order)
+                        logger.info(f"✅ TP3 colocado: {tp3_qty} @ ${tp3_price:,.4f} (+{tp_percentages[2]:.2f}%)")
+                    except BinanceAPIError as e:
+                        logger.error(f"❌ Error TP3: {e.message}")
+
+                logger.info(f"📊 Multi-TP: {len(tp_orders)}/3 órdenes colocadas exitosamente")
+
+                # Usar el primer TP como referencia para trade_info
+                take_profit_price = tp1_price
+                if tp_orders:
+                    tp_order = tp_orders[0]
+
+            elif take_profit_price is not None:
+                # ========================================
+                # MODO CLÁSICO: 1 TP único
+                # ========================================
+                logger.info(f"📤 Placing Take Profit order (modo clásico)...")
                 try:
                     tp_order = self.client.create_order(
                         symbol=symbol,
@@ -452,7 +545,7 @@ class FuturesTrader:
                     logger.error(f"❌ Error placing TP (no crítico): {e.message}")
                     # NO fallar el trade por error de TP
             else:
-                logger.warning(f"⚠️ Take Profit NO colocado (TP demasiado cerca del entry)")
+                logger.warning(f"⚠️ Take Profit NO colocado (precio inválido o no especificado)")
 
             # Retornar información completa del trade
             trade_info = {
@@ -462,11 +555,14 @@ class FuturesTrader:
                 'quantity': quantity,
                 'entry_price': entry_price,
                 'stop_loss': stop_loss_price,
-                'take_profit': take_profit_price,  # Puede ser None
+                'take_profit': take_profit_price,  # Primer TP o TP único
                 'usdt_amount': usdt_amount,
                 'market_order_id': market_order['orderId'],
                 'sl_order_id': sl_order['orderId'],
-                'tp_order_id': tp_order['orderId'] if tp_order else None,  # Manejar None
+                'tp_order_id': tp_order['orderId'] if tp_order else None,
+                'tp_orders': [o['orderId'] for o in tp_orders] if tp_orders else [],  # Multi-TP IDs
+                'multi_tp': len(tp_orders) > 1,  # Flag para indicar multi-TP
+                'rl_decision': rl_decision,  # Incluir decisión del RL
                 'timestamp': market_order['updateTime'],
                 'status': 'OPEN'
             }

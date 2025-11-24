@@ -99,6 +99,12 @@ class AutonomyController:
         # Flag para indicar si Test Mode está activo (para ignorar Position Monitor cuando test activo)
         self.test_mode_active = False
 
+        # 🤖 AUTONOMÍA v2.0: Aprendizaje continuo
+        self.losing_streak = 0  # Contador de pérdidas consecutivas
+        self.winning_streak = 0  # Contador de ganancias consecutivas
+        self.recent_trades_pnl: List[float] = []  # Últimos 20 trades para calcular win rate reciente
+        self.temporary_adjustment = None  # Ajustes temporales cuando racha negativa
+
         logger.info("🤖 AUTONOMY CONTROLLER INICIALIZADO - MODO: CONTROL ABSOLUTO")
         logger.info(f"   Auto-save: cada {self.auto_save_interval} min")
         logger.info(f"   Optimization check: cada {self.optimization_interval} horas")
@@ -480,6 +486,24 @@ class AutonomyController:
             # RL Agent decide si abrir trade (pasando max_leverage)
             decision = self.rl_agent.decide_trade_action(market_data, max_leverage=max_leverage)
 
+            # 🤖 AUTONOMÍA v2.0: Obtener decisión autónoma con TPs dinámicos
+            if decision['should_trade']:
+                autonomous_decision = self.rl_agent.get_autonomous_decision(market_data)
+
+                # Merge decisiones: usar TPs y parámetros de decisión autónoma
+                if autonomous_decision['action'] != 'SKIP':
+                    decision['tp_percentages'] = autonomous_decision.get('tp_percentages', [0.5, 1.0, 1.5])
+                    decision['position_size_pct'] = autonomous_decision.get('position_size_pct', 5.0)
+                    # Sobrescribir leverage con el dinámico
+                    decision['leverage'] = autonomous_decision.get('leverage', decision.get('leverage', 3))
+                    decision['autonomous_confidence'] = autonomous_decision.get('confidence', 0.5)
+
+                    logger.info(
+                        f"🤖 RL AUTÓNOMO para {pair}: "
+                        f"{decision['chosen_action']} | Lev={decision['leverage']}x | "
+                        f"TPs=[{', '.join([f'{tp:.2f}%' for tp in decision['tp_percentages']])}]"
+                    )
+
             logger.info(
                 f"🤖 RL Evaluation para {pair}: "
                 f"{decision['chosen_action']} | "
@@ -566,6 +590,64 @@ class AutonomyController:
                 f"¡El RL Agent ahora puede usar futuros con mayor leverage!"
             )
 
+        # =============================================
+        # 🤖 AUTONOMÍA v2.0: APRENDIZAJE CONTINUO DINÁMICO
+        # =============================================
+
+        # Actualizar rachas de ganancia/pérdida
+        profit_pct = trade_data.get('profit_pct', 0)
+        if profit_pct > 0:
+            self.winning_streak += 1
+            self.losing_streak = 0
+            # Limpiar ajustes temporales en ganancia
+            if self.temporary_adjustment:
+                logger.info(f"✅ Racha ganadora ({self.winning_streak}), limpiando ajustes temporales")
+                self.temporary_adjustment = None
+        else:
+            self.losing_streak += 1
+            self.winning_streak = 0
+
+        # Actualizar historial reciente (últimos 20 trades)
+        self.recent_trades_pnl.append(profit_pct)
+        if len(self.recent_trades_pnl) > 20:
+            self.recent_trades_pnl = self.recent_trades_pnl[-20:]
+
+        # Ajustar exploración basado en win rate reciente
+        if len(self.recent_trades_pnl) >= 10:
+            recent_wins = sum(1 for pnl in self.recent_trades_pnl if pnl > 0)
+            recent_win_rate = (recent_wins / len(self.recent_trades_pnl)) * 100
+
+            if recent_win_rate > 85:
+                # Alto win rate: reducir exploración, confiar más
+                new_exploration = max(self.rl_agent.min_exploration, self.rl_agent.exploration_rate * 0.95)
+                if new_exploration != self.rl_agent.exploration_rate:
+                    logger.info(f"📈 Win rate alto ({recent_win_rate:.1f}%), reduciendo exploración: {self.rl_agent.exploration_rate:.2f} → {new_exploration:.2f}")
+                    self.rl_agent.exploration_rate = new_exploration
+
+            elif recent_win_rate < 60:
+                # Win rate bajo: aumentar exploración, buscar mejores estrategias
+                new_exploration = min(0.4, self.rl_agent.exploration_rate * 1.05)
+                if new_exploration != self.rl_agent.exploration_rate:
+                    logger.info(f"📉 Win rate bajo ({recent_win_rate:.1f}%), aumentando exploración: {self.rl_agent.exploration_rate:.2f} → {new_exploration:.2f}")
+                    self.rl_agent.exploration_rate = new_exploration
+
+        # Ajustes temporales en racha perdedora
+        if self.losing_streak >= 3:
+            logger.warning(f"⚠️ Racha de {self.losing_streak} pérdidas consecutivas, ajustando estrategia temporalmente")
+            self.temporary_adjustment = {
+                'leverage_multiplier': 0.5,  # Reducir leverage 50%
+                'tp_multiplier': 0.8,        # TPs más cercanos
+                'position_multiplier': 0.7   # Posiciones más pequeñas
+            }
+            await self._notify_telegram(
+                f"⚠️ **Ajuste Temporal de Estrategia**\n\n"
+                f"Racha perdedora: {self.losing_streak} trades\n"
+                f"Leverage: -50%\n"
+                f"Position size: -30%\n"
+                f"TPs más cercanos\n\n"
+                f"Se revertirá automáticamente con próxima ganancia"
+            )
+
         # Notificar aprendizaje importante
         if reward > 2.0:  # Gran ganancia
             await self._notify_telegram(
@@ -573,7 +655,7 @@ class AutonomyController:
                 f"Par: {trade_data.get('pair', 'N/A')}\n"
                 f"Profit: {trade_data.get('profit_pct', 0):.2f}%\n"
                 f"Reward: {reward:.3f}\n"
-                f"La IA aprenderá de este éxito ✨"
+                f"Win streak: {self.winning_streak} ✨"
             )
         elif reward < -2.0:  # Gran pérdida
             await self._notify_telegram(
@@ -581,7 +663,7 @@ class AutonomyController:
                 f"Par: {trade_data.get('pair', 'N/A')}\n"
                 f"Loss: {trade_data.get('profit_pct', 0):.2f}%\n"
                 f"Reward: {reward:.3f}\n"
-                f"La IA ajustará estrategia para evitar repetir ⚙️"
+                f"Lose streak: {self.losing_streak} ⚙️"
             )
 
         # Verificar si es momento de optimizar parámetros

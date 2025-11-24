@@ -1200,13 +1200,20 @@ class MarketMonitor:
                                         f"${usdt_amount:.2f} (mínimo: $10), omitiendo trade"
                                     )
                                 else:
+                                    # 🤖 AUTONOMÍA: Usar decisión del RL para TPs dinámicos
+                                    if rl_decision and 'tp_percentages' in rl_decision:
+                                        tp_info = f"Multi-TP: {[f'+{tp:.2f}%' for tp in rl_decision['tp_percentages']]}"
+                                    else:
+                                        tp_info = f"TP: {take_profit_pct:.2f}%"
+
                                     logger.info(
                                         f"🚀 Ejecutando trade Binance: {pair} {signals['action']}\n"
                                         f"   USDT: ${usdt_amount:.2f} | Leverage: {leverage}x\n"
-                                        f"   SL: {stop_loss_pct:.2f}% | TP: {take_profit_pct:.2f}%"
+                                        f"   SL: {stop_loss_pct:.2f}% | {tp_info}"
                                     )
 
                                     # Ejecutar trade con Binance Futures
+                                    # 🤖 AUTONOMÍA: Pasar rl_decision para multi-TP
                                     binance_result = self.futures_trader.open_position(
                                         symbol=binance_symbol,
                                         side=signals['action'],  # 'BUY' o 'SELL'
@@ -1214,7 +1221,8 @@ class MarketMonitor:
                                         stop_loss_pct=stop_loss_pct,
                                         take_profit_pct=take_profit_pct,
                                         leverage=leverage,
-                                        current_price=current_price
+                                        current_price=current_price,
+                                        rl_decision=rl_decision  # 🤖 Decisión autónoma con TPs dinámicos
                                     )
 
                                     if binance_result:
@@ -1555,13 +1563,20 @@ class MarketMonitor:
                                                 f"${usdt_amount:.2f} (mínimo: $10), omitiendo trade"
                                             )
                                         else:
+                                            # 🤖 AUTONOMÍA: Usar decisión del RL para TPs dinámicos
+                                            if rl_flash_decision and 'tp_percentages' in rl_flash_decision:
+                                                flash_tp_info = f"Multi-TP: {[f'+{tp:.2f}%' for tp in rl_flash_decision['tp_percentages']]}"
+                                            else:
+                                                flash_tp_info = f"TP: {take_profit_pct:.2f}%"
+
                                             logger.info(
                                                 f"⚡ Ejecutando FLASH trade Binance: {pair} {flash_signals['action']}\n"
                                                 f"   USDT: ${usdt_amount:.2f} | Leverage: {leverage}x\n"
-                                                f"   SL: {stop_loss_pct:.2f}% | TP: {take_profit_pct:.2f}%"
+                                                f"   SL: {stop_loss_pct:.2f}% | {flash_tp_info}"
                                             )
 
                                             # Ejecutar trade con Binance Futures
+                                            # 🤖 AUTONOMÍA: Pasar rl_decision para multi-TP
                                             flash_binance_result = self.futures_trader.open_position(
                                                 symbol=flash_binance_symbol,
                                                 side=flash_signals['action'],
@@ -1569,7 +1584,8 @@ class MarketMonitor:
                                                 stop_loss_pct=stop_loss_pct,
                                                 take_profit_pct=take_profit_pct,
                                                 leverage=leverage,
-                                                current_price=flash_price
+                                                current_price=flash_price,
+                                                rl_decision=rl_flash_decision  # 🤖 Decisión autónoma con TPs
                                             )
 
                                             if flash_binance_result:
