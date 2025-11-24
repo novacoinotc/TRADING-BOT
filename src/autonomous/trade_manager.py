@@ -100,6 +100,8 @@ class TradeManager:
         self._tracked_positions = set()  # {symbol}
 
         logger.info("✅ Trade Manager INTELIGENTE inicializado")
+        logger.info(f"✅ Early close ACTIVO: +{self.base_config['min_pnl_for_breakeven']}% con momentum débil")
+        logger.info(f"✅ Check cada {self._check_interval}s para gestión dinámica")
         logger.info("   📊 Servicios integrados:")
         logger.info(f"      - RL Agent: {'✅' if rl_agent else '❌'}")
         logger.info(f"      - ML System: {'✅' if ml_system else '❌'}")

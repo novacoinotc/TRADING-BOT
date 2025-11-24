@@ -434,21 +434,42 @@ class AdvancedTechnicalAnalyzer:
             'confidence': confidence
         }
 
-    def _calculate_sl_tp(self, entry_price: float, action: str, atr: float, levels: dict) -> dict:
+    def _calculate_sl_tp(self, entry_price: float, action: str, atr: float, levels: dict, aggressiveness: str = 'MEDIUM') -> dict:
         """
         Calculate dynamic stop-loss and take-profit levels
-        SCALPING STRATEGY: TPs pequeños y frecuentes (0.3%, 0.8%, 1.5%)
+        SCALPING STRATEGY v1.0: TPs dinámicos según agresividad (0.3%-2.5%)
+
+        Args:
+            entry_price: Precio de entrada
+            action: 'BUY' o 'SELL'
+            atr: Average True Range
+            levels: Niveles de soporte/resistencia
+            aggressiveness: 'LOW' (0.3-1.5%), 'MEDIUM' (0.5-2.0%), 'HIGH' (0.8-2.5%)
         """
+        import random
+
         # Use ATR for dynamic stops
         atr_multiplier_sl = 2.0  # Stop loss at 2x ATR
 
         # MÍNIMO porcentual para SL (protección contra SL = entry_price)
         min_sl_pct = 0.0015  # 0.15% mínimo de diferencia
 
-        # SCALPING: Percentage-based TPs for many small wins
-        tp_pct_1 = 0.003  # TP1 at 0.3%
-        tp_pct_2 = 0.008  # TP2 at 0.8%
-        tp_pct_3 = 0.015  # TP3 at 1.5%
+        # SCALPING v1.0: TPs dinámicos según agresividad
+        if aggressiveness == 'LOW':
+            # Conservative scalping
+            tp_pct_1 = random.uniform(0.003, 0.005)    # TP1: 0.3-0.5%
+            tp_pct_2 = random.uniform(0.008, 0.010)    # TP2: 0.8-1.0%
+            tp_pct_3 = random.uniform(0.012, 0.015)    # TP3: 1.2-1.5%
+        elif aggressiveness == 'HIGH':
+            # Aggressive scalping
+            tp_pct_1 = random.uniform(0.008, 0.010)    # TP1: 0.8-1.0%
+            tp_pct_2 = random.uniform(0.013, 0.018)    # TP2: 1.3-1.8%
+            tp_pct_3 = random.uniform(0.020, 0.025)    # TP3: 2.0-2.5%
+        else:  # MEDIUM (default)
+            # Balanced scalping
+            tp_pct_1 = random.uniform(0.005, 0.008)    # TP1: 0.5-0.8%
+            tp_pct_2 = random.uniform(0.010, 0.013)    # TP2: 1.0-1.3%
+            tp_pct_3 = random.uniform(0.015, 0.020)    # TP3: 1.5-2.0%
 
         if action == 'BUY':
             # Calcular SL usando ATR
