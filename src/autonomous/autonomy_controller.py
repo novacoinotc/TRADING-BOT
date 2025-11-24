@@ -458,9 +458,14 @@ class AutonomyController:
                 'chosen_action': 'AUTONOMOUS_DISABLED'
             }
 
+        # 🔍 DIAGNÓSTICO: Verificar estado de DecisionBrain
+        logger.info(f"🔍 evaluate_trade_opportunity para {pair}")
+        logger.info(f"   📊 decision_brain disponible: {self.decision_brain is not None}")
+
         try:
             # 🧠 USAR DECISION BRAIN SI ESTÁ DISPONIBLE
             if self.decision_brain:
+                logger.info(f"🧠 Usando DecisionBrain para analizar {pair}")
                 current_price = market_state.get('current_price', 0)
                 timeframe = market_state.get('timeframe', '15m')
 
@@ -518,6 +523,8 @@ class AutonomyController:
                 return decision
 
             # FALLBACK: Flujo tradicional si no hay Decision Brain
+            logger.warning(f"⚠️ DecisionBrain NO disponible para {pair}, usando flujo tradicional")
+
             # Determinar side de la señal (BUY/SELL)
             signal_action = signal.get('action', 'HOLD')
             side = 'BUY' if signal_action == 'BUY' else ('SELL' if signal_action == 'SELL' else 'NEUTRAL')
