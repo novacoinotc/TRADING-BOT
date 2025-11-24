@@ -87,28 +87,76 @@ class DecisionBrain:
         """Inicializa y cuenta los servicios disponibles"""
         self.active_services = {}
 
-        # Servicios de análisis técnico
+        # Servicios de análisis técnico (Arsenal/FeatureAggregator)
         if self.feature_aggregator:
-            arsenal_modules = getattr(self.feature_aggregator, 'modules', {})
-            for name, module in arsenal_modules.items():
+            # Los módulos del Arsenal son atributos directos, no un dict 'modules'
+            arsenal_module_names = [
+                'correlation_matrix',
+                'liquidation_heatmap',
+                'funding_rate_analyzer',
+                'volume_profile',
+                'pattern_recognition',
+                'session_trading',
+                'order_flow'
+            ]
+
+            for name in arsenal_module_names:
+                module = getattr(self.feature_aggregator, name, None)
                 if module is not None:
                     self.active_services[f'arsenal_{name}'] = module
+                    logger.debug(f"   ✅ Arsenal módulo: {name}")
+
+            # También verificar los métodos wrapper que añadimos
+            wrapper_methods = [
+                'get_liquidation_levels',
+                'get_funding_analysis',
+                'get_volume_profile',
+                'detect_patterns',
+                'analyze_order_flow',
+                'get_session_analysis',
+                'get_correlations'
+            ]
+
+            available_wrappers = 0
+            for method in wrapper_methods:
+                if hasattr(self.feature_aggregator, method):
+                    available_wrappers += 1
+
+            logger.info(f"   🔧 Arsenal wrappers disponibles: {available_wrappers}/{len(wrapper_methods)}")
 
         # Servicios principales
         if self.sentiment_analyzer:
             self.active_services['sentiment'] = self.sentiment_analyzer
+            logger.debug(f"   ✅ Servicio: sentiment_analyzer")
+
         if self.regime_detector:
             self.active_services['regime'] = self.regime_detector
+            logger.debug(f"   ✅ Servicio: regime_detector")
+
         if self.orderbook_analyzer:
             self.active_services['orderbook'] = self.orderbook_analyzer
+            logger.debug(f"   ✅ Servicio: orderbook_analyzer")
+
         if self.ml_system:
             self.active_services['ml_predictor'] = self.ml_system
+            logger.debug(f"   ✅ Servicio: ml_system")
+
         if self.rl_agent:
             self.active_services['rl_agent'] = self.rl_agent
+            logger.debug(f"   ✅ Servicio: rl_agent")
 
+        if self.trade_manager:
+            self.active_services['trade_manager'] = self.trade_manager
+            logger.debug(f"   ✅ Servicio: trade_manager")
+
+        if self.parameter_optimizer:
+            self.active_services['parameter_optimizer'] = self.parameter_optimizer
+            logger.debug(f"   ✅ Servicio: parameter_optimizer")
+
+        # Log resumen
         logger.info(f"   📊 Servicios activos: {len(self.active_services)}")
-        for name in list(self.active_services.keys())[:10]:
-            logger.debug(f"      - {name}")
+        logger.info(f"      Arsenal: {sum(1 for k in self.active_services if k.startswith('arsenal_'))} módulos")
+        logger.info(f"      Core: {sum(1 for k in self.active_services if not k.startswith('arsenal_'))} servicios")
 
     def analyze_opportunity(
         self,

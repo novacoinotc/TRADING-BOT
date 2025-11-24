@@ -438,6 +438,25 @@ async def main():
 
             # 🧠 CRÍTICO: Inicializar DecisionBrain con todos los componentes
             logger.info("🧠 Configurando DecisionBrain con componentes...")
+
+            # Diagnóstico: Verificar qué componentes existen en monitor
+            logger.info("📋 Diagnóstico de componentes disponibles:")
+            components_status = {
+                'ml_system': hasattr(monitor, 'ml_system') and monitor.ml_system is not None,
+                'feature_aggregator': hasattr(monitor, 'feature_aggregator') and monitor.feature_aggregator is not None,
+                'sentiment_analyzer': hasattr(monitor, 'sentiment_analyzer') and monitor.sentiment_analyzer is not None,
+                'regime_detector': hasattr(monitor, 'regime_detector') and monitor.regime_detector is not None,
+                'orderbook_analyzer': hasattr(monitor, 'orderbook_analyzer') and monitor.orderbook_analyzer is not None,
+            }
+
+            for comp_name, available in components_status.items():
+                status = "✅" if available else "❌"
+                logger.info(f"   {status} {comp_name}: {'disponible' if available else 'NO disponible'}")
+
+            # Contar componentes disponibles
+            available_count = sum(1 for v in components_status.values() if v)
+            logger.info(f"   📊 Total componentes: {available_count}/{len(components_status)}")
+
             autonomy_controller.set_components(
                 ml_system=monitor.ml_system if hasattr(monitor, 'ml_system') else None,
                 trade_manager=trade_manager,
