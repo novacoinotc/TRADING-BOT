@@ -849,9 +849,9 @@ class RLAgent:
         # DECISIÓN AUTÓNOMA: Basada en composite score
         # =====================================================
 
-        # Score < 3.0 = SKIP (señal débil)
-        if composite_score < 3.0:
-            logger.info(f"🚫 SKIP: Score bajo ({composite_score:.2f} < 3.0)")
+        # Score < 2.5 = SKIP (señal débil) - SCALPING: Umbral reducido para más operaciones
+        if composite_score < 2.5:
+            logger.info(f"🚫 SKIP: Score bajo ({composite_score:.2f} < 2.5)")
             return {
                 'action': 'SKIP',
                 'leverage': 1,
@@ -862,68 +862,71 @@ class RLAgent:
                 'composite_score': composite_score
             }
 
-        # Score 3.0-4.5 = FUTURES_LOW (conservador)
-        elif composite_score < 4.5:
+        # Score 2.5-4.0 = FUTURES_LOW (conservador) - SCALPING AJUSTADO
+        elif composite_score < 4.0:
             raw_leverage = random.randint(1, 3)
             leverage = min(raw_leverage, max_allowed_leverage)  # 🛡️ Aplicar límite
+            # 🎯 SCALPING: TPs PEQUEÑOS para tomar ganancias rápidas
             tp_percentages = [
-                random.uniform(0.25, 0.4),   # TP1: 0.25-0.4% (scalping rápido)
-                random.uniform(0.6, 0.8),    # TP2: 0.6-0.8%
-                random.uniform(1.0, 1.2)     # TP3: 1.0-1.2%
+                random.uniform(0.3, 0.5),    # TP1: 0.3-0.5% (scalping ultra rápido)
+                random.uniform(0.6, 0.9),    # TP2: 0.6-0.9%
+                random.uniform(1.0, 1.5)     # TP3: 1.0-1.5%
             ]
             position_size_pct = random.uniform(3.0, 4.0)
             chosen_action = 'FUTURES_LOW'
 
             logger.info(
-                f"📊 FUTURES_LOW: Lev={leverage}x (max={max_allowed_leverage}x), "
+                f"📊 SCALPING LOW: Lev={leverage}x (max={max_allowed_leverage}x), "
                 f"TPs={[f'{tp:.2f}%' for tp in tp_percentages]}, Size={position_size_pct:.1f}%"
             )
 
-        # Score 4.5-6.0 = FUTURES_MEDIUM (moderado)
-        elif composite_score < 6.0:
-            raw_leverage = random.randint(5, 10)
+        # Score 4.0-5.5 = FUTURES_MEDIUM (moderado) - SCALPING AJUSTADO
+        elif composite_score < 5.5:
+            raw_leverage = random.randint(3, 7)
             leverage = min(raw_leverage, max_allowed_leverage)  # 🛡️ Aplicar límite
+            # 🎯 SCALPING: TPs MODERADOS
             tp_percentages = [
-                random.uniform(0.3, 0.5),    # TP1: 0.3-0.5%
-                random.uniform(0.8, 1.2),    # TP2: 0.8-1.2%
+                random.uniform(0.5, 0.8),    # TP1: 0.5-0.8%
+                random.uniform(1.0, 1.5),    # TP2: 1.0-1.5%
                 random.uniform(1.5, 2.0)     # TP3: 1.5-2.0%
             ]
             position_size_pct = random.uniform(4.0, 6.0)
             chosen_action = 'FUTURES_MEDIUM'
 
             logger.info(
-                f"📈 FUTURES_MEDIUM: Lev={leverage}x (max={max_allowed_leverage}x), "
+                f"📈 SCALPING MEDIUM: Lev={leverage}x (max={max_allowed_leverage}x), "
                 f"TPs={[f'{tp:.2f}%' for tp in tp_percentages]}, Size={position_size_pct:.1f}%"
             )
 
-        # Score >= 6.0 = FUTURES_HIGH (agresivo - solo con alta confianza)
+        # Score >= 5.5 = FUTURES_HIGH (agresivo) - SCALPING AJUSTADO
         else:
-            # Verificar confianza mínima para ser agresivo
-            if confidence < 0.7:
-                # Downgrade a MEDIUM si confianza insuficiente
-                raw_leverage = random.randint(5, 10)
+            # Verificar confianza mínima para ser agresivo (reducido de 70% a 30% para scalping)
+            if confidence < 0.30:
+                # Downgrade a MEDIUM si confianza muy baja
+                raw_leverage = random.randint(3, 7)
                 leverage = min(raw_leverage, max_allowed_leverage)  # 🛡️ Aplicar límite
                 tp_percentages = [
-                    random.uniform(0.3, 0.5),
-                    random.uniform(0.8, 1.2),
+                    random.uniform(0.5, 0.8),
+                    random.uniform(1.0, 1.5),
                     random.uniform(1.5, 2.0)
                 ]
                 position_size_pct = random.uniform(4.0, 6.0)
                 chosen_action = 'FUTURES_MEDIUM'
-                logger.info(f"⚠️ Downgrade a MEDIUM (confidence {confidence:.1%} < 70%), Lev={leverage}x (max={max_allowed_leverage}x)")
+                logger.info(f"⚠️ Downgrade a MEDIUM (confidence {confidence:.1%} < 30%), Lev={leverage}x (max={max_allowed_leverage}x)")
             else:
-                raw_leverage = random.randint(12, 20)
+                raw_leverage = random.randint(7, 15)
                 leverage = min(raw_leverage, max_allowed_leverage)  # 🛡️ Aplicar límite
+                # 🎯 SCALPING: TPs AGRESIVOS pero PEQUEÑOS
                 tp_percentages = [
-                    random.uniform(0.4, 0.6),    # TP1: 0.4-0.6%
-                    random.uniform(1.0, 1.5),    # TP2: 1.0-1.5%
-                    random.uniform(1.8, 2.5)     # TP3: 1.8-2.5%
+                    random.uniform(0.8, 1.2),    # TP1: 0.8-1.2%
+                    random.uniform(1.5, 2.0),    # TP2: 1.5-2.0%
+                    random.uniform(2.0, 2.5)     # TP3: 2.0-2.5%
                 ]
                 position_size_pct = random.uniform(5.0, 8.0)
                 chosen_action = 'FUTURES_HIGH'
 
                 logger.info(
-                    f"🚀 FUTURES_HIGH: Lev={leverage}x (max={max_allowed_leverage}x), "
+                    f"🚀 SCALPING HIGH: Lev={leverage}x (max={max_allowed_leverage}x), "
                     f"TPs={[f'{tp:.2f}%' for tp in tp_percentages]}, Size={position_size_pct:.1f}%"
                 )
 

@@ -23,7 +23,7 @@ class RiskManager:
         portfolio: Portfolio,
         base_position_size_pct: float = 4.0,  # OPTIMIZADO: 4% en lugar de 5% (más conservador)
         max_drawdown_limit: float = 15.0,  # OPTIMIZADO: 15% en lugar de 20% (protección temprana)
-        max_positions: int = 8,  # OPTIMIZADO: 8 en lugar de 10 (mejor diversificación)
+        max_positions: int = 50,  # SCALPING: Sin límite práctico - el scalping necesita MUCHAS posiciones pequeñas
         max_risk_per_trade_pct: float = 1.5  # OPTIMIZADO: 1.5% en lugar de 2% (más conservador)
     ):
         """
@@ -115,8 +115,11 @@ class RiskManager:
             (puede_abrir, razón)
         """
         # Check 1: Máximo de posiciones simultáneas
+        # SCALPING: Permitir MUCHAS posiciones pequeñas - solo limitar por capital
         if len(self.portfolio.positions) >= self.max_positions:
-            return False, f"Máximo de posiciones alcanzado ({self.max_positions})"
+            logger.info(f"⚠️ Muchas posiciones abiertas ({len(self.portfolio.positions)}), pero permitiendo scalping")
+            # NO bloquear - scalping necesita muchas operaciones
+            # Solo advertir, no retornar False
 
         # Check 2: Balance disponible
         if self.portfolio.get_available_balance() < 100:

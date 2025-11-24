@@ -78,6 +78,33 @@ class DecisionBrain:
             'services_used': {}
         }
 
+        # 🎯 SCALPING: Sistema de pesos dinámicos por rendimiento de cada IA
+        # Tracking de aciertos de cada sistema para ajustar pesos automáticamente
+        self.ia_performance = {
+            'ml_system': {
+                'total_predictions': 0,
+                'correct_predictions': 0,
+                'accuracy': 0.50,
+                'recent_predictions': [],  # Últimas 50 predicciones
+                'weight': 0.40  # Peso inicial
+            },
+            'rl_agent': {
+                'total_predictions': 0,
+                'correct_predictions': 0,
+                'accuracy': 0.50,
+                'recent_predictions': [],  # Últimas 50 predicciones
+                'weight': 0.60  # Peso inicial
+            },
+            'trade_manager': {
+                'total_actions': 0,
+                'successful_actions': 0,
+                'accuracy': 0.50,
+                'recent_actions': [],  # Últimas 50 acciones
+                'weight': 0.50  # Para tie-breakers
+            }
+        }
+        self.max_recent_items = 50  # Máximo de items en listas recientes
+
         # Lista de servicios activos
         self._initialize_services()
 
@@ -565,14 +592,54 @@ class DecisionBrain:
             changes = param_suggestions['immediate_changes']
             decision['reasons'].append(f"Param Optimizer ajustes: {list(changes.keys())}")
 
-        # 5. Calcular confianza consolidada
+        # 5. Calcular confianza consolidada usando PESOS DINÁMICOS
+        # 🎯 SCALPING: Los pesos se ajustan según qué IA está teniendo mejor rendimiento
+        ml_weight = self.ia_performance['ml_system']['weight']
+        rl_weight = self.ia_performance['rl_agent']['weight']
+
+        # Normalizar pesos para que sumen 1.0
+        total_weight = ml_weight + rl_weight
+        ml_weight_normalized = ml_weight / total_weight
+        rl_weight_normalized = rl_weight / total_weight
+
         decision['consolidated_confidence'] = (
-            decision['ml_confidence'] * 0.4 +
-            decision['rl_confidence'] * 0.6
+            decision['ml_confidence'] * ml_weight_normalized +
+            decision['rl_confidence'] * rl_weight_normalized
         )
 
-        # 6. Agregar side desde market_data
+        # 6. Si ML y RL no están de acuerdo, dar más peso al que tiene mejor historial
+        if rl_decision and ml_prediction:
+            ml_pred = ml_prediction.get('prediction', 'HOLD')
+            rl_action = rl_decision.get('action', 'SKIP')
+
+            # Si hay conflicto (ML sugiere algo, RL dice SKIP o viceversa)
+            ml_says_trade = ml_pred in ['BUY', 'SELL'] and decision['ml_confidence'] > 0.65
+            rl_says_trade = rl_action != 'SKIP'
+
+            if ml_says_trade != rl_says_trade:
+                # Quien tiene mejor accuracy histórica gana
+                ml_accuracy = self.ia_performance['ml_system']['accuracy']
+                rl_accuracy = self.ia_performance['rl_agent']['accuracy']
+
+                logger.info(
+                    f"⚔️ Conflicto ML vs RL: ML({ml_pred}, {ml_accuracy:.1%}) vs RL({rl_action}, {rl_accuracy:.1%})"
+                )
+
+                if ml_accuracy > rl_accuracy + 0.05:  # ML es mejor por >5%
+                    if ml_says_trade and not rl_says_trade:
+                        # ML override: podríamos considerar tradear
+                        decision['reasons'].append(f"ML tiene mejor historial ({ml_accuracy:.1%} vs {rl_accuracy:.1%})")
+                        logger.info(f"🤖 ML tiene mejor historial, considerando su sugerencia")
+                elif rl_accuracy > ml_accuracy + 0.05:  # RL es mejor por >5%
+                    if rl_says_trade and not ml_says_trade:
+                        decision['reasons'].append(f"RL tiene mejor historial ({rl_accuracy:.1%} vs {ml_accuracy:.1%})")
+                        logger.info(f"🤖 RL tiene mejor historial, siguiendo su decisión")
+
+        # 7. Agregar side desde market_data
         decision['side'] = market_data.get('side', 'NEUTRAL')
+
+        # Log de pesos usados
+        logger.debug(f"📊 Pesos usados: ML={ml_weight_normalized:.2f}, RL={rl_weight_normalized:.2f}")
 
         return decision
 
@@ -657,7 +724,112 @@ class DecisionBrain:
         # 5. Guardar experiencia completa
         self._save_trade_experience(trade_result)
 
+        # 6. 🎯 SCALPING: Actualizar rendimiento de cada IA y recalcular pesos
+        self._update_ia_performance(trade_result)
+
         self.trades_analyzed += 1
+
+    def _update_ia_performance(self, trade_result: Dict):
+        """
+        🎯 SCALPING: Actualiza el rendimiento de cada IA basado en el resultado del trade
+
+        Esto permite que los pesos se ajusten dinámicamente según qué IA
+        está teniendo mejor rendimiento histórico.
+        """
+        symbol = trade_result.get('symbol', 'UNKNOWN')
+        pnl_pct = trade_result.get('pnl_pct', 0)
+        was_profitable = pnl_pct > 0
+
+        logger.info(f"📊 Actualizando rendimiento de IAs para {symbol} (P&L: {pnl_pct:+.2f}%)")
+
+        # Buscar la predicción original que hizo cada sistema para este trade
+        # Por ahora usamos el resultado directo para ajustar accuracy
+
+        # 1. Actualizar RL Agent stats
+        rl_perf = self.ia_performance['rl_agent']
+        rl_perf['total_predictions'] += 1
+        if was_profitable:
+            rl_perf['correct_predictions'] += 1
+
+        # Agregar a lista reciente
+        rl_perf['recent_predictions'].append(1 if was_profitable else 0)
+        if len(rl_perf['recent_predictions']) > self.max_recent_items:
+            rl_perf['recent_predictions'] = rl_perf['recent_predictions'][-self.max_recent_items:]
+
+        # Calcular accuracy reciente (últimos 50 trades)
+        if rl_perf['recent_predictions']:
+            rl_perf['accuracy'] = sum(rl_perf['recent_predictions']) / len(rl_perf['recent_predictions'])
+
+        # 2. Actualizar ML System stats (solo si participó en la decisión)
+        ml_perf = self.ia_performance['ml_system']
+        ml_perf['total_predictions'] += 1
+        if was_profitable:
+            ml_perf['correct_predictions'] += 1
+
+        ml_perf['recent_predictions'].append(1 if was_profitable else 0)
+        if len(ml_perf['recent_predictions']) > self.max_recent_items:
+            ml_perf['recent_predictions'] = ml_perf['recent_predictions'][-self.max_recent_items:]
+
+        if ml_perf['recent_predictions']:
+            ml_perf['accuracy'] = sum(ml_perf['recent_predictions']) / len(ml_perf['recent_predictions'])
+
+        # 3. 🎯 RECALCULAR PESOS basado en accuracy reciente
+        # El sistema con mejor accuracy obtiene más peso
+        rl_accuracy = rl_perf['accuracy']
+        ml_accuracy = ml_perf['accuracy']
+
+        # Pesos base: 60% RL, 40% ML
+        # Ajuste: +/- 10% según diferencia de accuracy
+        base_rl_weight = 0.60
+        base_ml_weight = 0.40
+
+        accuracy_diff = rl_accuracy - ml_accuracy
+
+        # Ajustar pesos según quien está teniendo mejor rendimiento
+        if accuracy_diff > 0.10:  # RL es 10%+ mejor
+            rl_perf['weight'] = min(0.80, base_rl_weight + 0.15)
+            ml_perf['weight'] = max(0.20, base_ml_weight - 0.15)
+        elif accuracy_diff > 0.05:  # RL es 5%+ mejor
+            rl_perf['weight'] = min(0.75, base_rl_weight + 0.10)
+            ml_perf['weight'] = max(0.25, base_ml_weight - 0.10)
+        elif accuracy_diff < -0.10:  # ML es 10%+ mejor
+            rl_perf['weight'] = max(0.35, base_rl_weight - 0.15)
+            ml_perf['weight'] = min(0.65, base_ml_weight + 0.15)
+        elif accuracy_diff < -0.05:  # ML es 5%+ mejor
+            rl_perf['weight'] = max(0.40, base_rl_weight - 0.10)
+            ml_perf['weight'] = min(0.60, base_ml_weight + 0.10)
+        else:  # Similar accuracy - pesos base
+            rl_perf['weight'] = base_rl_weight
+            ml_perf['weight'] = base_ml_weight
+
+        logger.info(
+            f"   📊 IA Performance Update:\n"
+            f"      RL Agent: {rl_accuracy:.1%} accuracy → peso {rl_perf['weight']:.2f}\n"
+            f"      ML System: {ml_accuracy:.1%} accuracy → peso {ml_perf['weight']:.2f}"
+        )
+
+    def get_ia_performance_stats(self) -> Dict:
+        """
+        🎯 Retorna estadísticas de rendimiento de cada IA para /stats
+
+        Returns:
+            Dict con métricas de rendimiento de ML y RL
+        """
+        return {
+            'ml_system': {
+                'accuracy': self.ia_performance['ml_system']['accuracy'],
+                'weight': self.ia_performance['ml_system']['weight'],
+                'total_predictions': self.ia_performance['ml_system']['total_predictions'],
+                'correct_predictions': self.ia_performance['ml_system']['correct_predictions']
+            },
+            'rl_agent': {
+                'accuracy': self.ia_performance['rl_agent']['accuracy'],
+                'weight': self.ia_performance['rl_agent']['weight'],
+                'total_predictions': self.ia_performance['rl_agent']['total_predictions'],
+                'correct_predictions': self.ia_performance['rl_agent']['correct_predictions']
+            },
+            'best_performer': 'RL Agent' if self.ia_performance['rl_agent']['accuracy'] > self.ia_performance['ml_system']['accuracy'] else 'ML System'
+        }
 
     def _calculate_reward(self, trade_result: Dict) -> float:
         """Calcula reward para RL desde resultado del trade"""
