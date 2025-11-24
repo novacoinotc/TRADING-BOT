@@ -644,6 +644,10 @@ class DecisionBrain:
             'active_services': list(self.active_services.keys())
         }
 
+    def get_state(self) -> Dict:
+        """Alias para export_state() - usado por persistencia"""
+        return self.export_state()
+
     def import_state(self, state: Dict):
         """Importa estado del cerebro"""
         if state.get('version') != '1.0':

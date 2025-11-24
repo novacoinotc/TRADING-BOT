@@ -745,3 +745,91 @@ Señales en buffer: {stats['training_buffer_size']}
             'last_trained_samples': self.last_trained_samples,
             'predictor_loaded': self.predictor.is_model_loaded() if hasattr(self.predictor, 'is_model_loaded') else False
         }
+
+    # ========================================
+    # 🔮 PREDICCIÓN PARA DECISION BRAIN
+    # ========================================
+
+    def get_prediction(self, symbol: str, market_data: Dict) -> Dict:
+        """
+        🔮 Obtiene predicción ML para un símbolo
+
+        Args:
+            symbol: Par de trading (ej: BTCUSDT)
+            market_data: Datos de mercado con indicadores
+
+        Returns:
+            Dict con predicción:
+            - direction: 'LONG', 'SHORT', 'NEUTRAL'
+            - confidence: 0-100
+            - features_used: lista de features
+        """
+        try:
+            # Crear features desde market_data
+            indicators = market_data.get('indicators', {})
+            mtf_indicators = market_data.get('mtf_indicators', {})
+            sentiment_features = market_data.get('sentiment', {})
+            orderbook_features = market_data.get('orderbook', {})
+            regime_features = market_data.get('regime', {})
+
+            # Usar feature_engineer para crear features
+            features = self.feature_engineer.create_features(
+                indicators=indicators,
+                signals={},  # Sin señal previa
+                mtf_indicators=mtf_indicators,
+                sentiment_features=sentiment_features,
+                orderbook_features=orderbook_features,
+                regime_features=regime_features
+            )
+
+            # Verificar si el predictor está disponible
+            if not self.predictor or not self.enable_ml:
+                return {
+                    'direction': 'NEUTRAL',
+                    'confidence': 50,
+                    'features_used': list(features.keys()) if features else [],
+                    'reason': 'ML predictor not available'
+                }
+
+            # Obtener predicción del modelo
+            prediction = self.predictor.predict(features)
+
+            if prediction:
+                # Determinar dirección basada en la predicción
+                prob_long = prediction.get('prob_long', 0.5)
+                prob_short = prediction.get('prob_short', 0.5)
+
+                if prob_long > 0.6:
+                    direction = 'LONG'
+                    confidence = int(prob_long * 100)
+                elif prob_short > 0.6:
+                    direction = 'SHORT'
+                    confidence = int(prob_short * 100)
+                else:
+                    direction = 'NEUTRAL'
+                    confidence = 50
+
+                return {
+                    'direction': direction,
+                    'confidence': confidence,
+                    'prob_long': prob_long,
+                    'prob_short': prob_short,
+                    'features_used': list(features.keys()) if features else [],
+                    'model_version': self.predictor.get_model_info().get('version', 'unknown')
+                }
+            else:
+                return {
+                    'direction': 'NEUTRAL',
+                    'confidence': 50,
+                    'features_used': [],
+                    'reason': 'No prediction available'
+                }
+
+        except Exception as e:
+            logger.error(f"❌ Error en get_prediction: {e}")
+            return {
+                'direction': 'NEUTRAL',
+                'confidence': 50,
+                'features_used': [],
+                'error': str(e)
+            }

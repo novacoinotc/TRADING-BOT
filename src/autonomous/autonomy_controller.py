@@ -1072,6 +1072,12 @@ class AutonomyController:
         if trade_management_learning:
             logger.info(f"📊 Trade Management Learning incluido: {trade_management_learning.get('total_actions_recorded', 0)} acciones")
 
+        # 🧠 CRÍTICO: Guardar estado del DecisionBrain
+        decision_brain_state = None
+        if hasattr(self, 'decision_brain') and self.decision_brain:
+            decision_brain_state = self.decision_brain.get_state()
+            logger.info(f"🧠 DecisionBrain state incluido: {decision_brain_state.get('trades_analyzed', 0)} trades analizados")
+
         success = self.persistence.save_full_state(
             rl_agent_state=rl_state,
             optimizer_state=optimizer_state,
@@ -1080,7 +1086,8 @@ class AutonomyController:
             metadata=metadata,
             paper_trading=paper_trading_state,  # NUEVO: incluir paper trading
             ml_training_buffer=ml_training_buffer,  # NUEVO: incluir training buffer
-            trade_management_learning=trade_management_learning  # NUEVO: incluir learning del Trade Manager
+            trade_management_learning=trade_management_learning,  # NUEVO: incluir learning del Trade Manager
+            decision_brain_state=decision_brain_state  # 🧠 NUEVO: incluir estado del Brain
         )
 
         if success:
