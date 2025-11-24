@@ -792,6 +792,162 @@ class AutonomyController:
         # Auto-save periódico
         await self._auto_save_if_needed()
 
+    async def process_trade_closure(self, trade_info: Dict):
+        """
+        🧠 MÉTODO CENTRALIZADO: Procesa cierre de trade y actualiza TODOS los sistemas IA
+
+        Este método DEBE ser llamado cada vez que un trade se cierra, ya sea por:
+        - Take Profit (TP)
+        - Stop Loss (SL)
+        - Cierre manual
+        - Liquidación
+
+        Args:
+            trade_info: Dict con información completa del trade:
+                - symbol: Par trading (ej: BTCUSDT)
+                - side: LONG/SHORT
+                - entry_price: Precio de entrada
+                - exit_price: Precio de salida
+                - pnl_pct: % de ganancia/pérdida (ROE)
+                - pnl_usdt: P&L en USDT
+                - leverage: Leverage usado
+                - reason: Razón del cierre (TP_HIT, SL_HIT, MANUAL, etc.)
+                - duration: Duración en segundos (opcional)
+        """
+        symbol = trade_info.get('symbol', 'UNKNOWN')
+        pnl_pct = trade_info.get('pnl_pct', 0)
+        pnl_usdt = trade_info.get('pnl_usdt', 0)
+        reason = trade_info.get('reason', 'UNKNOWN')
+        leverage = trade_info.get('leverage', 1)
+
+        logger.info(f"🔄 PROCESS_TRADE_CLOSURE: {symbol} | {reason} | P&L: {pnl_pct:+.2f}% (${pnl_usdt:+.2f})")
+
+        # ===============================================
+        # 1. ACTUALIZAR RL AGENT (Q-Table)
+        # ===============================================
+        try:
+            if self.rl_agent:
+                # Calcular reward
+                reward = pnl_pct * leverage
+
+                # El RL Agent aprende del resultado
+                self.rl_agent.learn_from_trade(reward=reward, next_state=None, done=True)
+
+                logger.info(f"   📚 RL Agent actualizado: Reward={reward:+.2f}, Q-table size={len(self.rl_agent.q_table)}")
+
+                # Experience Replay cada 5 trades
+                if self.rl_agent.total_trades % 5 == 0:
+                    self.rl_agent.replay_experience(batch_size=16)
+                    logger.info(f"   🔄 Experience Replay ejecutado")
+        except Exception as e:
+            logger.error(f"   ❌ Error actualizando RL Agent: {e}")
+
+        # ===============================================
+        # 2. ACTUALIZAR ML SYSTEM
+        # ===============================================
+        try:
+            if self.ml_system and hasattr(self.ml_system, 'add_trade_result'):
+                self.ml_system.add_trade_result(trade_info)
+                logger.info(f"   🧠 ML System actualizado con resultado")
+        except Exception as e:
+            logger.error(f"   ❌ Error actualizando ML System: {e}")
+
+        # ===============================================
+        # 3. ACTUALIZAR DECISION BRAIN
+        # ===============================================
+        try:
+            if self.decision_brain:
+                self.decision_brain.learn_from_trade(trade_info)
+                logger.info(f"   🧠 Decision Brain aprendió del trade")
+        except Exception as e:
+            logger.error(f"   ❌ Error actualizando Decision Brain: {e}")
+
+        # ===============================================
+        # 4. NOTIFICAR A PARAMETER OPTIMIZER
+        # ===============================================
+        try:
+            if self.parameter_optimizer:
+                # Registrar resultado para el optimizador
+                self.parameter_optimizer.record_trial_result(
+                    config={'leverage': leverage, 'symbol': symbol},
+                    performance={
+                        'pnl_pct': pnl_pct,
+                        'win_rate': self.rl_agent.get_success_rate() if self.rl_agent else 0,
+                        'total_trades': self.total_trades_all_time
+                    }
+                )
+                logger.info(f"   ⚙️ Parameter Optimizer notificado")
+        except Exception as e:
+            logger.error(f"   ❌ Error notificando Parameter Optimizer: {e}")
+
+        # ===============================================
+        # 5. ACTUALIZAR ESTADÍSTICAS GLOBALES
+        # ===============================================
+        self.total_trades_all_time += 1
+        self.total_trades_processed += 1
+
+        # Actualizar rachas
+        if pnl_pct > 0:
+            self.winning_streak += 1
+            self.losing_streak = 0
+            if self.temporary_adjustment:
+                logger.info(f"   ✅ Racha ganadora ({self.winning_streak}), limpiando ajustes temporales")
+                self.temporary_adjustment = None
+        else:
+            self.losing_streak += 1
+            self.winning_streak = 0
+
+        # Actualizar historial reciente
+        self.recent_trades_pnl.append(pnl_pct)
+        if len(self.recent_trades_pnl) > 20:
+            self.recent_trades_pnl = self.recent_trades_pnl[-20:]
+
+        # ===============================================
+        # 6. NOTIFICAR A TELEGRAM (APRENDIZAJE)
+        # ===============================================
+        try:
+            # Calcular métricas para el mensaje
+            win_rate = self.rl_agent.get_success_rate() if self.rl_agent else 0
+            q_table_size = len(self.rl_agent.q_table) if self.rl_agent else 0
+
+            # Determinar qué aprendió el sistema
+            learning_insight = ""
+            if pnl_pct > 0:
+                if leverage >= 5:
+                    learning_insight = f"✨ Aprendí: {symbol} con {leverage}x leverage funciona bien en estas condiciones"
+                else:
+                    learning_insight = f"✨ Aprendí: {symbol} es rentable con estrategia conservadora"
+            else:
+                if abs(pnl_pct) > 5:
+                    learning_insight = f"📚 Aprendí: Evitar {symbol} en condiciones similares con {leverage}x"
+                else:
+                    learning_insight = f"📚 Aprendí: Ajustar SL/TP para {symbol}"
+
+            # Construir mensaje de notificación
+            await self._notify_telegram(
+                f"🧠 **Trade Cerrado - Aprendizaje**\n\n"
+                f"Par: {symbol}\n"
+                f"Resultado: {pnl_pct:+.2f}% (${pnl_usdt:+.2f})\n"
+                f"Razón: {reason}\n"
+                f"Leverage: {leverage}x\n\n"
+                f"📊 **Actualización IA:**\n"
+                f"• Q-table: {q_table_size} estados\n"
+                f"• Win rate: {win_rate:.1f}%\n"
+                f"• Trades totales: {self.total_trades_all_time}\n"
+                f"• Racha: {'🔥' + str(self.winning_streak) + ' wins' if self.winning_streak > 0 else '❄️' + str(self.losing_streak) + ' losses'}\n\n"
+                f"{learning_insight}"
+            )
+        except Exception as e:
+            logger.error(f"   ❌ Error enviando notificación Telegram: {e}")
+
+        # ===============================================
+        # 7. AUTO-SAVE SI ES NECESARIO
+        # ===============================================
+        if self.total_trades_processed % 10 == 0:
+            await self._auto_save_if_needed()
+
+        logger.info(f"✅ PROCESS_TRADE_CLOSURE completado para {symbol}")
+
     def _calculate_reward(self, trade_data: Dict, portfolio_metrics: Dict) -> float:
         """
         Calcula reward para el RL Agent

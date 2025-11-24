@@ -383,29 +383,36 @@ class PositionMonitor:
                 except Exception as e:
                     logger.error(f"❌ Error in on_position_closed callback: {e}")
 
-            # 🧠 CRÍTICO: Notificar al DecisionBrain para aprendizaje continuo
+            # 🧠 CRÍTICO: Notificar al autonomy_controller para aprendizaje de TODOS los sistemas IA
             if closed_info and self.autonomy_controller:
                 try:
-                    # Verificar si existe decision_brain
-                    if hasattr(self.autonomy_controller, 'decision_brain') and self.autonomy_controller.decision_brain:
-                        # Preparar datos del trade para aprendizaje
-                        trade_result = {
-                            'symbol': closed_info.get('symbol', 'UNKNOWN'),
-                            'side': closed_info.get('side', 'BUY'),
-                            'pnl_pct': closed_info.get('realized_pnl_pct', 0),
-                            'pnl_usdt': closed_info.get('realized_pnl', 0),
-                            'entry_price': closed_info.get('entry_price', 0),
-                            'exit_price': closed_info.get('exit_price', 0),
-                            'leverage': closed_info.get('leverage', 1),
-                            'reason': closed_info.get('reason', 'UNKNOWN'),
-                            'timestamp': datetime.now().isoformat()
-                        }
+                    # Preparar datos del trade para aprendizaje centralizado
+                    trade_result = {
+                        'symbol': closed_info.get('symbol', 'UNKNOWN'),
+                        'side': closed_info.get('side', 'BUY'),
+                        'pnl_pct': closed_info.get('realized_pnl_pct', 0),
+                        'pnl_usdt': closed_info.get('realized_pnl', 0),
+                        'entry_price': closed_info.get('entry_price', 0),
+                        'exit_price': closed_info.get('exit_price', 0),
+                        'leverage': closed_info.get('leverage', 1),
+                        'reason': closed_info.get('reason', 'UNKNOWN'),
+                        'timestamp': datetime.now().isoformat()
+                    }
 
-                        # El DecisionBrain aprende de cada trade cerrado
-                        self.autonomy_controller.decision_brain.learn_from_trade(trade_result)
-                        logger.info(f"🧠 DecisionBrain aprendió del trade: {symbol} ({closed_info.get('reason', 'UNKNOWN')}, {closed_info.get('realized_pnl_pct', 0):+.2f}%)")
+                    # 🔄 USAR MÉTODO CENTRALIZADO: process_trade_closure
+                    # Este método actualiza: RL Agent, ML System, Decision Brain, Parameter Optimizer
+                    if hasattr(self.autonomy_controller, 'process_trade_closure'):
+                        import asyncio
+                        asyncio.create_task(self.autonomy_controller.process_trade_closure(trade_result))
+                        logger.info(f"🔄 Trade cerrado enviado a process_trade_closure: {symbol}")
+                    else:
+                        # Fallback al método anterior si process_trade_closure no existe
+                        if hasattr(self.autonomy_controller, 'decision_brain') and self.autonomy_controller.decision_brain:
+                            self.autonomy_controller.decision_brain.learn_from_trade(trade_result)
+                            logger.info(f"🧠 DecisionBrain aprendió del trade (fallback): {symbol}")
+
                 except Exception as e:
-                    logger.error(f"❌ Error en learn_from_trade: {e}")
+                    logger.error(f"❌ Error en process_trade_closure: {e}")
 
         # Actualizar estado
         self._positions = new_positions

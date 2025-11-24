@@ -77,13 +77,16 @@ class TradeManager:
         self._check_counter = 0  # Contador para heartbeat
 
         # Configuración DINÁMICA (se ajusta según condiciones de mercado)
+        # 🎯 SCALPING: Valores ajustados para operaciones PEQUEÑAS y RÁPIDAS
         self.base_config = {
-            'min_confidence_for_action': 0.65,  # Confianza mínima para ejecutar acción
-            'high_confidence_threshold': 0.80,  # Alta confianza
-            'reversal_confidence_threshold': 0.75,  # Para detectar reversiones
-            'min_pnl_for_breakeven': 0.5,  # Mínimo 0.5% ganancia para considerar breakeven
-            'min_pnl_for_partial': 2.0,  # Mínimo 2% para partial TP
-            'max_drawdown_tolerance': 5.0,  # 🤖 AUTONOMÍA: 5% tolerancia (la IA decide, no restricciones)
+            'min_confidence_for_action': 0.60,  # 🎯 SCALPING: Reducido de 0.65 a 0.60
+            'high_confidence_threshold': 0.75,  # 🎯 SCALPING: Reducido de 0.80 a 0.75
+            'reversal_confidence_threshold': 0.70,  # 🎯 SCALPING: Reducido de 0.75 a 0.70
+            'min_pnl_for_breakeven': 0.3,  # 🎯 SCALPING: Reducido de 0.5% a 0.3%
+            'min_pnl_for_partial': 0.5,  # 🎯 SCALPING: Reducido de 2.0% a 0.5% - tomar ganancias rápido
+            'max_drawdown_tolerance': 3.0,  # 🎯 SCALPING: Reducido de 5% a 3% - proteger más
+            'min_pnl_for_scalp_close': 0.5,  # 🎯 NUEVO: Cerrar desde 0.5% si momentum débil
+            'momentum_weakness_threshold': 0.4,  # 🎯 NUEVO: Threshold para detectar momentum débil
         }
 
         # Tracking de máximos/mínimos por posición
@@ -404,6 +407,39 @@ class TradeManager:
             self._position_lows.pop(symbol, None)
             self._partial_closed.discard(symbol)
             self._breakeven_set.discard(symbol)
+
+        # 6️⃣ DECISIÓN SCALPING: Cerrar con ganancias pequeñas si momentum se debilita
+        # 🎯 SCALPING: Tomar ganancias RÁPIDO cuando hay oportunidad
+        if pnl_pct >= self.base_config['min_pnl_for_scalp_close']:
+            decision = self._get_intelligent_decision('scalp_close', position, market_conditions)
+
+            if decision['should_execute']:
+                logger.info(
+                    f"🎯 {symbol}: SCALPING CLOSE DECISION "
+                    f"(Confidence: {decision['confidence']:.0%}, P&L: {pnl_pct:+.2f}%)"
+                )
+                logger.info(f"   Razones: {', '.join(decision['reasons'])}")
+
+                # 🧠 Registrar acción en learning system
+                self.learning.record_action(
+                    symbol=symbol,
+                    action_type='scalp_close',
+                    pnl_at_decision=pnl_usdt,
+                    pnl_pct_at_decision=pnl_pct,
+                    conditions=market_conditions,
+                    decision_info=decision
+                )
+
+                # Cerrar posición con ganancia scalping
+                self.futures_trader.close_position(symbol, reason='SCALPING_TP')
+
+                # Limpiar tracking
+                self._position_highs.pop(symbol, None)
+                self._position_lows.pop(symbol, None)
+                self._partial_closed.discard(symbol)
+                self._breakeven_set.discard(symbol)
+
+                logger.info(f"🎯 SCALPING: Trade {symbol} cerrado con {pnl_pct:+.2f}% ganancia")
 
     async def _analyze_market_conditions(self, symbol: str, position: Dict) -> Dict:
         """
@@ -843,6 +879,41 @@ class TradeManager:
                     decision['should_execute'] = True
                     decision['confidence'] = reversal_risk
                     decision['reasons'] = [f'Reversal: High risk ({reversal_risk:.0%})'] + market_reasons
+
+            elif action_type == 'scalp_close':
+                # 🎯 SCALPING: Cerrar con ganancias pequeñas si momentum se debilita
+                # Esta es la CLAVE del scalping exitoso: tomar ganancias RÁPIDO
+
+                # Condición 1: Ganancia >= 0.5% y momentum débil
+                momentum_weak = reversal_risk > self.base_config['momentum_weakness_threshold']
+                if pnl_pct >= 0.5 and momentum_weak:
+                    decision['should_execute'] = True
+                    decision['confidence'] = 0.75
+                    decision['reasons'] = [f'Scalp: P&L={pnl_pct:.2f}%, Momentum débil ({reversal_risk:.0%})']
+
+                # Condición 2: Ganancia >= 1.0% y señal de asegurar ganancias
+                elif pnl_pct >= 1.0 and should_secure:
+                    decision['should_execute'] = True
+                    decision['confidence'] = 0.80
+                    decision['reasons'] = [f'Scalp: P&L={pnl_pct:.2f}%, Señal de asegurar ganancias'] + market_reasons
+
+                # Condición 3: Ganancia >= 1.5% - SIEMPRE considerar scalp close
+                elif pnl_pct >= 1.5:
+                    # Solo cerrar si NO hay fuerte señal de continuación
+                    if not should_let_run or reversal_risk > 0.3:
+                        decision['should_execute'] = True
+                        decision['confidence'] = 0.85
+                        decision['reasons'] = [f'Scalp: P&L excelente ({pnl_pct:.2f}%), asegurando ganancia']
+
+                # Condición 4: El pnl bajó desde un máximo (profit degrading)
+                symbol = position.get('symbol', '')
+                highest_pnl = self._position_highs.get(symbol, pnl_pct)
+                if highest_pnl > pnl_pct and pnl_pct >= 0.5:
+                    degradation = highest_pnl - pnl_pct
+                    if degradation > 0.3:  # Perdió más del 0.3% desde el máximo
+                        decision['should_execute'] = True
+                        decision['confidence'] = 0.70
+                        decision['reasons'] = [f'Scalp: P&L degradando ({highest_pnl:.2f}% → {pnl_pct:.2f}%)']
 
             decision['risk_score'] = reversal_risk
 
