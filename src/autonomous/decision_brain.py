@@ -179,6 +179,10 @@ class DecisionBrain:
         """
         self.analysis_count += 1
 
+        # 🧠 LOG DE ANÁLISIS CEREBRAL
+        logger.info(f"🧠 DECISIÓN CEREBRAL #{self.analysis_count} para {symbol} @ ${current_price:,.2f}")
+        logger.info(f"   📊 Servicios activos: {len(self.active_services)}")
+
         analysis = {
             'symbol': symbol,
             'price': current_price,
