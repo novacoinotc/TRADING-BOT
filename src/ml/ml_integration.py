@@ -765,12 +765,31 @@ Señales en buffer: {stats['training_buffer_size']}
             - features_used: lista de features
         """
         try:
+            # 🔧 FIX: Validar que market_data sea un dict
+            if not isinstance(market_data, dict):
+                logger.warning(f"⚠️ market_data no es dict: {type(market_data)}, usando valores por defecto")
+                market_data = {}
+
             # Crear features desde market_data
             indicators = market_data.get('indicators', {})
+            if not isinstance(indicators, dict):
+                indicators = {}
+
             mtf_indicators = market_data.get('mtf_indicators', {})
+            if not isinstance(mtf_indicators, dict):
+                mtf_indicators = {}
+
             sentiment_features = market_data.get('sentiment', {})
+            if not isinstance(sentiment_features, dict):
+                sentiment_features = {}
+
             orderbook_features = market_data.get('orderbook', {})
+            if not isinstance(orderbook_features, dict):
+                orderbook_features = {}
+
             regime_features = market_data.get('regime', {})
+            if not isinstance(regime_features, dict):
+                regime_features = {}
 
             # Usar feature_engineer para crear features
             features = self.feature_engineer.create_features(
