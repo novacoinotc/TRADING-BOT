@@ -909,6 +909,83 @@ class MarketMonitor:
                 if regime_data:
                     analysis['regime_data'] = regime_data
 
+                # ============================================================
+                # 🧠 MODO AUTÓNOMO: DecisionBrain toma decisiones independientes
+                # ============================================================
+                # Consultar DecisionBrain SIEMPRE (no solo cuando hay señal)
+                # Esto permite que el Brain detecte oportunidades que el
+                # análisis tradicional no detecta
+                if self.auto_trade and self.futures_trader and self.autonomy_controller:
+                    # Verificar si DecisionBrain está disponible
+                    has_decision_brain = (
+                        hasattr(self.autonomy_controller, 'decision_brain') and
+                        self.autonomy_controller.decision_brain is not None
+                    )
+
+                    if has_decision_brain and signals['action'] == 'HOLD':
+                        # El análisis tradicional dice HOLD, pero consultemos al Brain
+                        logger.info(f"🧠 Consultando DecisionBrain para {pair} (señal tradicional: HOLD)")
+
+                        try:
+                            # Construir market_state básico para DecisionBrain
+                            brain_market_state = {
+                                'current_price': current_price,
+                                'timeframe': self.timeframe,
+                                'indicators': analysis.get('indicators', {}),
+                                'regime': regime_data.get('regime', 'SIDEWAYS') if regime_data else 'SIDEWAYS',
+                                'regime_strength': regime_data.get('regime_strength', 'MEDIUM') if regime_data else 'MEDIUM',
+                                'orderbook': orderbook_analysis if orderbook_analysis else {},
+                                'sentiment': sentiment_data if sentiment_data else {},
+                                'action': 'NEUTRAL'  # Signal original es HOLD
+                            }
+
+                            portfolio_metrics_brain = {
+                                'balance': 0,
+                                'equity': 0,
+                                'open_positions': len(open_positions) if open_positions else 0,
+                                'win_rate': 0.5,
+                                'sharpe_ratio': 0.0,
+                                'total_trades': 0
+                            }
+
+                            # Evaluar oportunidad con DecisionBrain
+                            brain_decision = await self.autonomy_controller.evaluate_trade_opportunity(
+                                pair=pair,
+                                signal={'action': 'NEUTRAL', 'score': 0, 'confidence': 50},
+                                market_state=brain_market_state,
+                                portfolio_metrics=portfolio_metrics_brain
+                            )
+
+                            # Si DecisionBrain dice que hay oportunidad, actualizar signals
+                            if brain_decision.get('should_trade', False):
+                                brain_action = brain_decision.get('action', 'SKIP')
+                                if brain_action in ['OPEN', 'BUY', 'SELL', 'FUTURES_LOW', 'FUTURES_MEDIUM', 'FUTURES_HIGH']:
+                                    # Determinar dirección
+                                    # Por defecto, seguir el side que sugiera el Brain o usar indicadores
+                                    rsi = analysis.get('indicators', {}).get('rsi', 50)
+                                    macd_hist = analysis.get('indicators', {}).get('macd_histogram', 0)
+
+                                    if rsi < 40 or macd_hist > 0:
+                                        signals['action'] = 'BUY'
+                                    elif rsi > 60 or macd_hist < 0:
+                                        signals['action'] = 'SELL'
+                                    else:
+                                        signals['action'] = 'BUY'  # Default a BUY en duda
+
+                                    signals['confidence'] = int(brain_decision.get('confidence', 0.5) * 100)
+                                    signals['brain_override'] = True
+                                    signals['brain_decision'] = brain_decision
+
+                                    logger.info(
+                                        f"🧠 DecisionBrain OVERRIDE para {pair}: "
+                                        f"HOLD → {signals['action']} | "
+                                        f"Confidence: {signals['confidence']}% | "
+                                        f"Leverage: {brain_decision.get('leverage', 3)}x"
+                                    )
+
+                        except Exception as e:
+                            logger.error(f"❌ Error consultando DecisionBrain para {pair}: {e}")
+
                 # Execute trade with Binance if auto-trading enabled
                 if self.auto_trade and self.futures_trader and signals['action'] != 'HOLD':
                     # CONSULTAR AL RL AGENT ANTES DE ABRIR TRADE
