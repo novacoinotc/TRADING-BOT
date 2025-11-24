@@ -436,6 +436,18 @@ async def main():
             await autonomy_controller.initialize()
             logger.info("✅ Sistema Autónomo activo - IA tiene control total")
 
+            # 🧠 CRÍTICO: Inicializar DecisionBrain con todos los componentes
+            logger.info("🧠 Configurando DecisionBrain con componentes...")
+            autonomy_controller.set_components(
+                ml_system=monitor.ml_system if hasattr(monitor, 'ml_system') else None,
+                trade_manager=trade_manager,
+                feature_aggregator=monitor.feature_aggregator if hasattr(monitor, 'feature_aggregator') else None,
+                sentiment_analyzer=monitor.sentiment_analyzer if hasattr(monitor, 'sentiment_analyzer') else None,
+                regime_detector=monitor.regime_detector if hasattr(monitor, 'regime_detector') else None,
+                orderbook_analyzer=monitor.orderbook_analyzer if hasattr(monitor, 'orderbook_analyzer') else None
+            )
+            logger.info("✅ DecisionBrain inicializado con todos los servicios")
+
             # Asignar RL agent al Trade Manager si existe
             if trade_manager and hasattr(autonomy_controller, 'rl_agent') and autonomy_controller.rl_agent:
                 trade_manager.rl_agent = autonomy_controller.rl_agent

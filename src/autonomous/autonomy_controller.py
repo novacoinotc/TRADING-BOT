@@ -12,6 +12,7 @@ from .rl_agent import RLAgent
 from .parameter_optimizer import ParameterOptimizer
 from .learning_persistence import LearningPersistence
 from .git_backup import GitBackup
+from .decision_brain import DecisionBrain
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +106,15 @@ class AutonomyController:
         self.recent_trades_pnl: List[float] = []  # Últimos 20 trades para calcular win rate reciente
         self.temporary_adjustment = None  # Ajustes temporales cuando racha negativa
 
+        # 🧠 CEREBRO CENTRAL: Decision Brain (se inicializa después con set_components)
+        self.decision_brain = None
+        self.ml_system = None
+        self.trade_manager = None
+        self.feature_aggregator = None
+        self.sentiment_analyzer = None
+        self.regime_detector = None
+        self.orderbook_analyzer = None
+
         logger.info("🤖 AUTONOMY CONTROLLER INICIALIZADO - MODO: CONTROL ABSOLUTO")
         logger.info(f"   Auto-save: cada {self.auto_save_interval} min")
         logger.info(f"   Optimization check: cada {self.optimization_interval} horas")
@@ -147,6 +157,47 @@ class AutonomyController:
         await self.git_backup.start_auto_backup()
 
         logger.info("✅ Sistema Autónomo ACTIVO - Control total habilitado")
+
+    def set_components(
+        self,
+        ml_system=None,
+        trade_manager=None,
+        feature_aggregator=None,
+        sentiment_analyzer=None,
+        regime_detector=None,
+        orderbook_analyzer=None
+    ):
+        """
+        Configura los componentes externos para el Decision Brain
+
+        Args:
+            ml_system: Sistema de ML para predicciones
+            trade_manager: Gestor de trades activos
+            feature_aggregator: Agregador de features (Arsenal)
+            sentiment_analyzer: Analizador de sentimiento
+            regime_detector: Detector de régimen de mercado
+            orderbook_analyzer: Analizador de orderbook
+        """
+        self.ml_system = ml_system
+        self.trade_manager = trade_manager
+        self.feature_aggregator = feature_aggregator
+        self.sentiment_analyzer = sentiment_analyzer
+        self.regime_detector = regime_detector
+        self.orderbook_analyzer = orderbook_analyzer
+
+        # Crear el Decision Brain con todos los componentes
+        self.decision_brain = DecisionBrain(
+            rl_agent=self.rl_agent,
+            ml_system=ml_system,
+            trade_manager=trade_manager,
+            parameter_optimizer=self.parameter_optimizer,
+            feature_aggregator=feature_aggregator,
+            sentiment_analyzer=sentiment_analyzer,
+            regime_detector=regime_detector,
+            orderbook_analyzer=orderbook_analyzer
+        )
+
+        logger.info("🧠 Decision Brain configurado con todos los componentes")
 
     def _calculate_max_leverage(self) -> int:
         """
@@ -385,6 +436,9 @@ class AutonomyController:
         """
         Evalúa si abrir un trade usando RL Agent ANTES de ejecutarlo
 
+        🧠 CEREBRO CENTRAL: Si DecisionBrain está disponible, usa análisis completo
+        con TODOS los servicios. Si no, usa el flujo tradicional.
+
         Args:
             pair: Par de trading
             signal: Señal generada (BUY/SELL/HOLD)
@@ -405,6 +459,65 @@ class AutonomyController:
             }
 
         try:
+            # 🧠 USAR DECISION BRAIN SI ESTÁ DISPONIBLE
+            if self.decision_brain:
+                current_price = market_state.get('current_price', 0)
+                timeframe = market_state.get('timeframe', '15m')
+
+                # Combinar market_state con signal para análisis completo
+                combined_data = {**market_state, **signal}
+                combined_data['side'] = signal.get('action', 'NEUTRAL')
+
+                # Análisis completo con todos los servicios
+                analysis = self.decision_brain.analyze_opportunity(
+                    symbol=pair.replace('/', ''),
+                    current_price=current_price,
+                    market_data=combined_data,
+                    timeframe=timeframe
+                )
+
+                # Extraer decisión final
+                final_decision = analysis.get('final_decision', {})
+
+                # Aplicar ajustes temporales si existen
+                if self.temporary_adjustment and final_decision.get('action') != 'SKIP':
+                    final_decision['leverage'] = int(
+                        final_decision.get('leverage', 3) * self.temporary_adjustment.get('leverage_multiplier', 1.0)
+                    )
+                    final_decision['position_size_pct'] = (
+                        final_decision.get('position_size_pct', 5.0) * self.temporary_adjustment.get('position_multiplier', 1.0)
+                    )
+                    if 'tp_percentages' in final_decision:
+                        final_decision['tp_percentages'] = [
+                            tp * self.temporary_adjustment.get('tp_multiplier', 1.0)
+                            for tp in final_decision['tp_percentages']
+                        ]
+
+                # Convertir a formato esperado
+                decision = {
+                    'should_trade': final_decision.get('action') == 'OPEN',
+                    'action': final_decision.get('action', 'SKIP'),
+                    'trade_type': 'FUTURES',
+                    'position_size_multiplier': final_decision.get('position_size_pct', 5.0) / 5.0,  # Normalizar a ~1.0
+                    'leverage': final_decision.get('leverage', 3),
+                    'confidence': final_decision.get('consolidated_confidence', 0.5),
+                    'chosen_action': f"BRAIN_{final_decision.get('action', 'SKIP')}",
+                    'composite_score': analysis.get('rl_decision', {}).get('composite_score', 0),
+                    'tp_percentages': final_decision.get('tp_percentages', [0.5, 1.0, 1.5]),
+                    'position_size_pct': final_decision.get('position_size_pct', 5.0),
+                    'ml_confidence': final_decision.get('ml_confidence', 0.5),
+                    'rl_confidence': final_decision.get('rl_confidence', 0.5)
+                }
+
+                logger.info(
+                    f"🧠 BRAIN Decision para {pair}: "
+                    f"{'✅' if decision['should_trade'] else '❌'} {decision['action']} | "
+                    f"Lev={decision['leverage']}x | Conf={decision['confidence']:.1%}"
+                )
+
+                return decision
+
+            # FALLBACK: Flujo tradicional si no hay Decision Brain
             # Determinar side de la señal (BUY/SELL)
             signal_action = signal.get('action', 'HOLD')
             side = 'BUY' if signal_action == 'BUY' else ('SELL' if signal_action == 'SELL' else 'NEUTRAL')
@@ -959,6 +1072,12 @@ class AutonomyController:
         if trade_management_learning:
             logger.info(f"📊 Trade Management Learning incluido: {trade_management_learning.get('total_actions_recorded', 0)} acciones")
 
+        # 🧠 CRÍTICO: Guardar estado del DecisionBrain
+        decision_brain_state = None
+        if hasattr(self, 'decision_brain') and self.decision_brain:
+            decision_brain_state = self.decision_brain.get_state()
+            logger.info(f"🧠 DecisionBrain state incluido: {decision_brain_state.get('trades_analyzed', 0)} trades analizados")
+
         success = self.persistence.save_full_state(
             rl_agent_state=rl_state,
             optimizer_state=optimizer_state,
@@ -967,7 +1086,8 @@ class AutonomyController:
             metadata=metadata,
             paper_trading=paper_trading_state,  # NUEVO: incluir paper trading
             ml_training_buffer=ml_training_buffer,  # NUEVO: incluir training buffer
-            trade_management_learning=trade_management_learning  # NUEVO: incluir learning del Trade Manager
+            trade_management_learning=trade_management_learning,  # NUEVO: incluir learning del Trade Manager
+            decision_brain_state=decision_brain_state  # 🧠 NUEVO: incluir estado del Brain
         )
 
         if success:
