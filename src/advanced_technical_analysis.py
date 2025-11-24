@@ -27,7 +27,8 @@ class AdvancedTechnicalAnalyzer:
     def analyze_multi_timeframe(
         self,
         dfs: Dict[str, pd.DataFrame],
-        dynamic_threshold: float = None
+        dynamic_threshold: float = None,
+        aggressiveness: str = 'MEDIUM'
     ) -> dict:
         """
         Perform multi-timeframe analysis
@@ -36,6 +37,7 @@ class AdvancedTechnicalAnalyzer:
             dfs: Dictionary of DataFrames {timeframe: df}
                  e.g., {'1h': df_1h, '4h': df_4h, '1d': df_1d}
             dynamic_threshold: Threshold dinámico para señales (opcional)
+            aggressiveness: 'LOW', 'MEDIUM', or 'HIGH' for TP sizing
 
         Returns:
             Complete analysis with signals, indicators, and recommendations
@@ -80,7 +82,8 @@ class AdvancedTechnicalAnalyzer:
                 indicators['current_price'],
                 signals['action'],
                 atr,
-                levels
+                levels,
+                aggressiveness=aggressiveness
             )
             signals['stop_loss'] = sl_tp['stop_loss']
             signals['take_profit'] = sl_tp['take_profit']

@@ -1093,6 +1093,45 @@ class MarketMonitor:
                             signals['trade_type'] = rl_decision.get('trade_type', 'FUTURES')  # Default FUTURES
                             signals['leverage'] = rl_decision.get('leverage', 1)  # 1x = sin apalancamiento
 
+                            # ✅ CRÍTICO: RE-CALCULAR TPs CON AGGRESSIVENESS CORRECTO
+                            # Determinar aggressiveness basado en chosen_action del RL Agent
+                            aggressiveness = 'MEDIUM'  # Default
+                            if chosen_action == 'FUTURES_LOW':
+                                aggressiveness = 'LOW'
+                            elif chosen_action == 'FUTURES_MEDIUM':
+                                aggressiveness = 'MEDIUM'
+                            elif chosen_action == 'FUTURES_HIGH':
+                                aggressiveness = 'HIGH'
+
+                            logger.info(f"🎯 Recalculando TPs con aggressiveness={aggressiveness} (based on {chosen_action})")
+
+                            # Re-calcular SL/TP con aggressiveness correcto
+                            if 'atr' in analysis.get('indicators', {}):
+                                atr = analysis['indicators']['atr']
+                                current_price = analysis['indicators'].get('current_price', current_price)
+                                action = signals.get('action', 'BUY')
+
+                                # Re-calcular usando el analyzer correspondiente
+                                if hasattr(self, 'flash_analyzer') and analysis.get('type') == 'FLASH':
+                                    sl_tp = self.flash_analyzer._calculate_flash_sl_tp(
+                                        current_price, action, atr, aggressiveness=aggressiveness
+                                    )
+                                elif hasattr(self, 'analyzer'):
+                                    levels = analysis['indicators'].get('support_resistance', {})
+                                    sl_tp = self.analyzer._calculate_sl_tp(
+                                        current_price, action, atr, levels, aggressiveness=aggressiveness
+                                    )
+                                else:
+                                    sl_tp = None
+
+                                if sl_tp:
+                                    signals['stop_loss'] = sl_tp['stop_loss']
+                                    signals['take_profit'] = sl_tp['take_profit']
+                                    signals['risk_reward'] = sl_tp['risk_reward']
+                                    logger.info(f"✅ TPs recalculados: TP1={sl_tp.get('take_profit_1', 'N/A')}, "
+                                              f"TP2={sl_tp.get('take_profit_2', 'N/A')}, "
+                                              f"TP3={sl_tp.get('take_profit_3', 'N/A')}")
+
                     # Ejecutar trade solo si RL Agent lo aprueba
                     if should_execute_trade:
                         # ===== COMBINAR FEATURES: Sentiment + Orderbook + Regime + ARSENAL =====

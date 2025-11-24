@@ -28,13 +28,14 @@ class FlashSignalAnalyzer:
         self.flash_threshold = config.FLASH_THRESHOLD  # Dynamic threshold from config (5.0)
         self.min_confidence = config.FLASH_MIN_CONFIDENCE  # Minimum confidence (50%)
 
-    def analyze_flash(self, df: pd.DataFrame) -> dict:
+    def analyze_flash(self, df: pd.DataFrame, aggressiveness: str = 'MEDIUM') -> dict:
         """
         Quick analysis on 15-minute timeframe
         Medium threshold: 5.0+ points, 50%+ confidence, MEDIUM risk
 
         Args:
             df: DataFrame with OHLCV data for 15m timeframe
+            aggressiveness: 'LOW', 'MEDIUM', or 'HIGH' for TP sizing
 
         Returns:
             Flash signal analysis (only if score >= 5.0 AND confidence >= 50%)
@@ -93,7 +94,8 @@ class FlashSignalAnalyzer:
             sl_tp = self._calculate_flash_sl_tp(
                 indicators['current_price'],
                 signals['action'],
-                indicators['atr']
+                indicators['atr'],
+                aggressiveness=aggressiveness
             )
             signals['stop_loss'] = sl_tp['stop_loss']
             signals['take_profit'] = sl_tp['take_profit']

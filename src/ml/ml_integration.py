@@ -208,8 +208,14 @@ class MLIntegration:
             # Intentar obtener trades cerrados del position_monitor
             closed_trades = []
 
-            if position_monitor and hasattr(position_monitor, 'closed_trades'):
-                # Convertir dict de closed_trades a lista con formato esperado
+            # ✅ USAR closed_trades_history en lugar de closed_trades (dict)
+            if position_monitor and hasattr(position_monitor, 'closed_trades_history'):
+                # closed_trades_history ya es una lista con el formato completo
+                closed_trades = position_monitor.closed_trades_history
+                logger.info(f"📊 Trades obtenidos de closed_trades_history: {len(closed_trades)}")
+            elif position_monitor and hasattr(position_monitor, 'closed_trades'):
+                # Fallback: usar closed_trades (dict) si history no existe
+                logger.warning("⚠️ closed_trades_history no disponible, usando closed_trades (dict)")
                 for symbol, trade_data in position_monitor.closed_trades.items():
                     if isinstance(trade_data, dict):
                         # Convertir formato de position_monitor a formato esperado
@@ -218,10 +224,10 @@ class MLIntegration:
                             'pnl_pct': trade_data.get('pnl_pct', 0),
                             'reason': trade_data.get('reason', 'UNKNOWN'),
                             'timestamp': trade_data.get('timestamp', datetime.now().isoformat()),
-                            'side': 'BUY',  # Placeholder - real data doesn't have this yet
+                            'side': trade_data.get('side', 'BUY'),
                         }
                         closed_trades.append(trade)
-                logger.info(f"📊 Trades obtenidos de position_monitor: {len(closed_trades)}")
+                logger.info(f"📊 Trades obtenidos de position_monitor.closed_trades: {len(closed_trades)}")
 
             if len(closed_trades) < self.trainer.min_samples:
                 logger.warning(f"⚠️ Insuficientes trades para reentrenar: {len(closed_trades)}")
