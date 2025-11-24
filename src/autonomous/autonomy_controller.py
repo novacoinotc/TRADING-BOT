@@ -924,70 +924,70 @@ class AutonomyController:
 
         # # Verificar si ya están sincronizados TODOS los contadores Y WIN RATE
         # trades_in_sync = (paper_trades == rl_trades and
-                         paper_trades == processed_trades and
-                         paper_trades == all_time_trades)
-        win_rate_in_sync = abs(paper_win_rate - rl_win_rate) < 1.0  # Tolerancia de 1%
+        #                  paper_trades == processed_trades and
+        #                  paper_trades == all_time_trades)
+        # win_rate_in_sync = abs(paper_win_rate - rl_win_rate) < 1.0  # Tolerancia de 1%
 
-        if trades_in_sync and win_rate_in_sync:
-            logger.info(f"✅ Ya están sincronizados todos los contadores y win rate ({paper_win_rate:.1f}%), no se requiere acción")
-            return True
+        # if trades_in_sync and win_rate_in_sync:
+        #     logger.info(f"✅ Ya están sincronizados todos los contadores y win rate ({paper_win_rate:.1f}%), no se requiere acción")
+        #     return True
 
-        # Si solo los contadores están sincronizados pero no el win rate
-        if trades_in_sync and not win_rate_in_sync:
-            logger.warning(
-                f"⚠️ Contadores sincronizados pero WIN RATE desincronizado:\n"
-                f"   Paper Trading: {paper_trades} trades, {paper_win_rate:.1f}% WR\n"
-                f"   RL Agent: {rl_trades} trades, {rl_win_rate:.1f}% WR\n"
-                f"   FORZANDO SINCRONIZACIÓN DE WIN RATE..."
-            )
+        # # Si solo los contadores están sincronizados pero no el win rate
+        # if trades_in_sync and not win_rate_in_sync:
+        #     logger.warning(
+        #         f"⚠️ Contadores sincronizados pero WIN RATE desincronizado:\n"
+        #         f"   Paper Trading: {paper_trades} trades, {paper_win_rate:.1f}% WR\n"
+        #         f"   RL Agent: {rl_trades} trades, {rl_win_rate:.1f}% WR\n"
+        #         f"   FORZANDO SINCRONIZACIÓN DE WIN RATE..."
+        #     )
 
-        logger.warning(
-            f"⚠️ FORZANDO SINCRONIZACIÓN COMPLETA:\n"
-            f"   Paper Trading: {paper_trades} trades (FUENTE DE VERDAD)\n"
-            f"   \n"
-            f"   ANTES:\n"
-            f"   • RL Agent: {rl_trades} trades\n"
-            f"   • Trades Procesados: {processed_trades}\n"
-            f"   • Total All Time: {all_time_trades}\n"
-            f"   \n"
-            f"   DESPUÉS (todos ajustados a {paper_trades}):"
-        )
+        # logger.warning(
+        #     f"⚠️ FORZANDO SINCRONIZACIÓN COMPLETA:\n"
+        #     f"   Paper Trading: {paper_trades} trades (FUENTE DE VERDAD)\n"
+        #     f"   \n"
+        #     f"   ANTES:\n"
+        #     f"   • RL Agent: {rl_trades} trades\n"
+        #     f"   • Trades Procesados: {processed_trades}\n"
+        #     f"   • Total All Time: {all_time_trades}\n"
+        #     f"   \n"
+        #     f"   DESPUÉS (todos ajustados a {paper_trades}):"
+        # )
 
-        # 1. Ajustar contador del RL Agent
-        old_rl_trades = self.rl_agent.total_trades
-        old_successful = self.rl_agent.successful_trades
-        self.rl_agent.total_trades = paper_trades
+        # # 1. Ajustar contador del RL Agent
+        # old_rl_trades = self.rl_agent.total_trades
+        # old_successful = self.rl_agent.successful_trades
+        # self.rl_agent.total_trades = paper_trades
 
-        # 2. Ajustar successful_trades usando SIEMPRE Paper Trading como fuente de verdad
-        # paper_stats y paper_win_rate ya calculados arriba en la línea 941-942
-        new_successful = int(paper_trades * paper_win_rate / 100)
+        # # 2. Ajustar successful_trades usando SIEMPRE Paper Trading como fuente de verdad
+        # # paper_stats y paper_win_rate ya calculados arriba en la línea 941-942
+        # new_successful = int(paper_trades * paper_win_rate / 100)
 
-        logger.info(
-            f"🔄 Actualizando RL Agent:\n"
-            f"   ANTES: total_trades={old_rl_trades}, successful_trades={old_successful} ({(old_successful/old_rl_trades*100) if old_rl_trades > 0 else 0:.1f}% WR)\n"
-            f"   DESPUÉS: total_trades={paper_trades}, successful_trades={new_successful} ({paper_win_rate:.1f}% WR)"
-        )
+        # logger.info(
+        #     f"🔄 Actualizando RL Agent:\n"
+        #     f"   ANTES: total_trades={old_rl_trades}, successful_trades={old_successful} ({(old_successful/old_rl_trades*100) if old_rl_trades > 0 else 0:.1f}% WR)\n"
+        #     f"   DESPUÉS: total_trades={paper_trades}, successful_trades={new_successful} ({paper_win_rate:.1f}% WR)"
+        # )
 
-        self.rl_agent.successful_trades = new_successful
+        # self.rl_agent.successful_trades = new_successful
 
-        # Verificar que se actualizó correctamente
-        actual_wr = self.rl_agent.get_success_rate()
-        logger.info(f"✅ Verificación: RL Agent ahora tiene {self.rl_agent.successful_trades}/{self.rl_agent.total_trades} = {actual_wr:.1f}% WR")
+        # # Verificar que se actualizó correctamente
+        # actual_wr = self.rl_agent.get_success_rate()
+        # logger.info(f"✅ Verificación: RL Agent ahora tiene {self.rl_agent.successful_trades}/{self.rl_agent.total_trades} = {actual_wr:.1f}% WR")
 
-        # 3. Ajustar contadores del AutonomyController
-        self.total_trades_processed = paper_trades
-        self.total_trades_all_time = paper_trades
+        # # 3. Ajustar contadores del AutonomyController
+        # self.total_trades_processed = paper_trades
+        # self.total_trades_all_time = paper_trades
 
-        logger.info(f"✅ Sincronización forzada completada - TODOS los contadores:")
-        logger.info(f"   • Paper Trading: {paper_trades} trades ✅")
-        logger.info(f"   • RL Agent: {self.rl_agent.total_trades} trades ✅")
-        logger.info(f"   • Trades Procesados: {self.total_trades_processed} ✅")
-        logger.info(f"   • Total All Time: {self.total_trades_all_time} ✅")
+        # logger.info(f"✅ Sincronización forzada completada - TODOS los contadores:")
+        # logger.info(f"   • Paper Trading: {paper_trades} trades ✅")
+        # logger.info(f"   • RL Agent: {self.rl_agent.total_trades} trades ✅")
+        # logger.info(f"   • Trades Procesados: {self.total_trades_processed} ✅")
+        # logger.info(f"   • Total All Time: {self.total_trades_all_time} ✅")
 
-        # Guardar el estado sincronizado
-        await self.save_intelligence()
+        # # Guardar el estado sincronizado
+        # await self.save_intelligence()
 
-        return True
+        # return True
 
     def get_statistics(self) -> Dict:
         """Retorna estadísticas completas del sistema autónomo"""
