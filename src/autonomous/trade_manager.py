@@ -83,7 +83,7 @@ class TradeManager:
             'reversal_confidence_threshold': 0.75,  # Para detectar reversiones
             'min_pnl_for_breakeven': 0.5,  # Mínimo 0.5% ganancia para considerar breakeven
             'min_pnl_for_partial': 2.0,  # Mínimo 2% para partial TP
-            'max_drawdown_tolerance': 2.0,  # Máximo 2% de caída desde máximo
+            'max_drawdown_tolerance': 3.0,  # Máximo 3% de caída desde máximo (aumentado de 2%)
         }
 
         # Tracking de máximos/mínimos por posición
@@ -347,16 +347,26 @@ class TradeManager:
                 )
 
         # 4️⃣ DECISIÓN INTELIGENTE: Protección contra movimiento adverso
+        # ⚠️ FIX CRÍTICO: NUNCA cerrar trades en profit por "adverse move"
+        # Solo cerrar si: 1) La posición está en PÉRDIDA (pnl_pct < 0) Y 2) El drawdown es significativo
         if drawdown_from_high >= self.base_config['max_drawdown_tolerance']:
-            decision = self._get_intelligent_decision('close_adverse', position, market_conditions)
-
-            if decision['should_execute']:
-                logger.warning(
-                    f"⚠️ {symbol}: CLOSE ADVERSE DECISION "
-                    f"(Confidence: {decision['confidence']:.0%}, Drawdown: {drawdown_from_high:.2f}%)"
+            # ✅ PROTECCIÓN: Si está en profit, NO cerrar por drawdown
+            if pnl_pct > 0:
+                logger.info(
+                    f"🛡️ {symbol}: Drawdown {drawdown_from_high:.2f}% detectado PERO posición en profit "
+                    f"(P&L: {pnl_pct:+.2f}%) - NO SE CIERRA"
                 )
-                logger.warning(f"   Razones: {', '.join(decision['reasons'])}")
-                await self._close_on_adverse_move(symbol, position, drawdown_from_high)
+            else:
+                # Solo considerar cierre si está en pérdida real
+                decision = self._get_intelligent_decision('close_adverse', position, market_conditions)
+
+                if decision['should_execute']:
+                    logger.warning(
+                        f"⚠️ {symbol}: CLOSE ADVERSE DECISION "
+                        f"(Confidence: {decision['confidence']:.0%}, Drawdown: {drawdown_from_high:.2f}%, P&L: {pnl_pct:+.2f}%)"
+                    )
+                    logger.warning(f"   Razones: {', '.join(decision['reasons'])}")
+                    await self._close_on_adverse_move(symbol, position, drawdown_from_high, pnl_pct)
 
                 # 🧠 Registrar acción en learning system
                 self.learning.record_action(
@@ -1157,12 +1167,19 @@ class TradeManager:
         except Exception as e:
             logger.error(f"❌ Error en partial TP para {symbol}: {e}")
 
-    async def _close_on_adverse_move(self, symbol: str, position: Dict, drawdown: float):
-        """Cierra posición por movimiento adverso significativo"""
+    async def _close_on_adverse_move(self, symbol: str, position: Dict, drawdown: float, pnl_pct: float):
+        """Cierra posición por movimiento adverso significativo (SOLO si está en pérdida)"""
         try:
+            # ✅ Doble verificación: NUNCA cerrar si está en profit
+            if pnl_pct > 0:
+                logger.warning(
+                    f"🛡️ {symbol}: ABORTANDO cierre - Posición en PROFIT ({pnl_pct:+.2f}%)"
+                )
+                return
+
             logger.warning(
-                f"⚠️ {symbol}: Movimiento adverso detectado desde máximo: {drawdown:.2f}%, "
-                f"cerrando posición por protección"
+                f"⚠️ {symbol}: Movimiento adverso detectado - Drawdown: {drawdown:.2f}%, "
+                f"P&L actual: {pnl_pct:+.2f}% - CERRANDO posición en pérdida"
             )
 
             self.futures_trader.close_position(symbol, reason='ADVERSE_MOVE')
