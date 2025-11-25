@@ -313,3 +313,72 @@ ORDER_FLOW_BOOST_MODERATE = float(os.getenv('ORDER_FLOW_BOOST_MODERATE', '1.15')
 #
 # = EL MEJOR TRADER DEL MUNDO, 100% AUTÓNOMO, SIN LÍMITES =
 # ============================================================================
+
+# ============================================================================
+# BINANCE FUTURES LIVE TRADING CONFIGURATION
+# ============================================================================
+# ADVERTENCIA: Esta configuracion habilita trading REAL con dinero real.
+# Asegurate de configurar correctamente antes de activar.
+# ============================================================================
+
+# Trading Mode: 'PAPER' (simulado) o 'LIVE' (real)
+# PAPER: Usa el paper_trader.py (sin riesgo, simulacion)
+# LIVE: Usa live_trader.py con Binance Futures API (dinero real)
+TRADING_MODE = os.getenv('TRADING_MODE', 'PAPER')  # 'PAPER' o 'LIVE'
+
+# Binance Futures API Credentials
+# IMPORTANTE: Estas credenciales deben tener permisos de Futures trading
+# Crealas en: https://www.binance.com/en/my/settings/api-management
+BINANCE_FUTURES_API_KEY = os.getenv('BINANCE_FUTURES_API_KEY', '')
+BINANCE_FUTURES_API_SECRET = os.getenv('BINANCE_FUTURES_API_SECRET', '')
+
+# Testnet Mode (recomendado para pruebas iniciales)
+# Testnet URL: https://testnet.binancefuture.com
+# Testnet API Keys: https://testnet.binancefuture.com/en/futures/BTCUSDT (Settings)
+BINANCE_FUTURES_TESTNET = os.getenv('BINANCE_FUTURES_TESTNET', 'false').lower() == 'true'
+
+# Live Trading Configuration
+LIVE_TRADING_INITIAL_BALANCE = float(os.getenv('LIVE_TRADING_INITIAL_BALANCE', '0'))  # 0 = auto-detect from Binance
+
+# Leverage and Margin Settings
+DEFAULT_LEVERAGE = int(os.getenv('DEFAULT_LEVERAGE', '10'))  # 1-125x (recomendado 5-15x)
+MARGIN_TYPE = os.getenv('MARGIN_TYPE', 'ISOLATED')  # 'ISOLATED' o 'CROSSED' (ISOLATED recomendado)
+USE_HEDGE_MODE = os.getenv('USE_HEDGE_MODE', 'false').lower() == 'true'  # False = One-way mode (recomendado)
+
+# Position Limits for Live Trading (mas conservadores que paper)
+MAX_POSITIONS = int(os.getenv('MAX_POSITIONS', '5'))  # Maximo posiciones simultaneas (reducido para live)
+MAX_DRAWDOWN_LIMIT = float(os.getenv('MAX_DRAWDOWN_LIMIT', '10.0'))  # % drawdown maximo antes de reducir riesgo
+MAX_RISK_PER_TRADE_PCT = float(os.getenv('MAX_RISK_PER_TRADE_PCT', '1.0'))  # % riesgo maximo por trade
+
+# User Data Stream (WebSocket para actualizaciones en tiempo real)
+ENABLE_USER_DATA_STREAM = os.getenv('ENABLE_USER_DATA_STREAM', 'true').lower() == 'true'
+
+# Emergency Settings
+EMERGENCY_STOP_LOSS_PCT = float(os.getenv('EMERGENCY_STOP_LOSS_PCT', '5.0'))  # % de perdida total para cerrar todo
+ENABLE_AUTO_STOP = os.getenv('ENABLE_AUTO_STOP', 'true').lower() == 'true'  # Auto-stop si perdidas excesivas
+
+# Minimum Trade Values (Binance requirements)
+MIN_NOTIONAL_VALUE = float(os.getenv('MIN_NOTIONAL_VALUE', '5.0'))  # Minimo valor de orden en USDT
+
+# ============================================================================
+# LIVE TRADING SAFETY CHECKLIST
+# ============================================================================
+# Antes de cambiar TRADING_MODE a 'LIVE', verifica:
+#
+# 1. [ ] API Keys configuradas correctamente
+# 2. [ ] API Keys tienen permisos de Futures trading
+# 3. [ ] Has probado en TESTNET primero (BINANCE_FUTURES_TESTNET=true)
+# 4. [ ] Entiendes los riesgos del trading con apalancamiento
+# 5. [ ] Has configurado limites de riesgo apropiados
+# 6. [ ] Tienes capital que puedes permitirte perder
+# 7. [ ] Has revisado el historial de paper trading (87%+ win rate)
+#
+# Para activar live trading:
+# 1. TRADING_MODE=LIVE
+# 2. BINANCE_FUTURES_API_KEY=tu_api_key
+# 3. BINANCE_FUTURES_API_SECRET=tu_api_secret
+# 4. BINANCE_FUTURES_TESTNET=false (para produccion real)
+#
+# RECOMENDACION: Empieza con BINANCE_FUTURES_TESTNET=true para validar
+# que todo funciona correctamente antes de usar dinero real.
+# ============================================================================
