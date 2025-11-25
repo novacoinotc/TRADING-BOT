@@ -89,7 +89,7 @@ FLASH_TIMEFRAME = '15m'  # Timeframe for flash signals (risky but faster) - Bina
 # Signal Types Configuration
 ENABLE_FLASH_SIGNALS = os.getenv('ENABLE_FLASH_SIGNALS', 'true').lower() == 'true'
 CONSERVATIVE_THRESHOLD = 5.5  # Score threshold for conservative signals - OPTIMIZADO (antes 7.0, muy estricto)
-FLASH_THRESHOLD = 6.0  # Threshold para flash signals - BALANCEADO (selectivo pero genera señales)
+FLASH_THRESHOLD = 4.5  # Threshold para flash signals - AGRESIVO para scalping (prueba 24h)
 FLASH_MIN_CONFIDENCE = 55  # Minimum confidence % for flash signals - BALANCEADO
 
 # Daily Report Configuration
