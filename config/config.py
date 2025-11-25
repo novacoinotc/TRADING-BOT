@@ -184,7 +184,7 @@ MIN_PROFIT_TO_LOCK_PCT = float(os.getenv('MIN_PROFIT_TO_LOCK_PCT', '0.3'))  # 0.
 # Position Sizing Agresivo
 # Ampliado de 8% a 12% para permitir mayor agresividad en señales excelentes
 MAX_POSITION_SIZE_PCT = float(os.getenv('MAX_POSITION_SIZE_PCT', '12.0'))  # Máximo 12% (antes 8%)
-BASE_POSITION_SIZE_PCT = float(os.getenv('BASE_POSITION_SIZE_PCT', '4.0'))  # 2-12% (optimizable)
+BASE_POSITION_SIZE_PCT = float(os.getenv('BASE_POSITION_SIZE_PCT', '10.0'))  # 10% para scalping (antes 4%)
 
 # Anomaly Detection System
 # Detecta comportamiento anómalo y revierte parámetros automáticamente
