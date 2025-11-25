@@ -209,6 +209,122 @@ class RLAgent:
 
         return action
 
+    async def make_informed_decision(self, state: str, position_data: Optional[Dict] = None,
+                                     trade_manager=None, ml_system=None,
+                                     parameter_optimizer=None) -> Dict:
+        """
+        🧠 RL AGENT COMO CEO: Toma decisión consultando TODOS los asistentes
+
+        El RL Agent actúa como decisor supremo que:
+        1. Obtiene recomendación del Trade Manager
+        2. Consulta confianza del ML System
+        3. Obtiene parámetros optimizados del Parameter Optimizer
+        4. Toma decisión final basándose en su Q-table + asesoría de asistentes
+
+        Args:
+            state: Estado actual del mercado
+            position_data: Datos de posición actual (si existe)
+            trade_manager: Trade Manager (asistente)
+            ml_system: ML System (asistente)
+            parameter_optimizer: Parameter Optimizer (asistente)
+
+        Returns:
+            Dict con decisión final integral
+        """
+        # 1. Obtener acción base de Q-table
+        available_actions = ['FUTURES_LOW', 'FUTURES_MEDIUM', 'FUTURES_HIGH', 'HOLD']
+        base_action = self.choose_action(state, available_actions)
+
+        decision = {
+            'action': base_action,
+            'modified': False,
+            'confidence': 0,
+            'q_confidence': 0,
+            'ml_confidence': 0,
+            'tm_confidence': 0,
+            'advisors_consulted': {
+                'trade_manager': False,
+                'ml_system': False,
+                'parameter_optimizer': False
+            },
+            'reasons': []
+        }
+
+        # 2. Consultar Trade Manager (si hay posición abierta)
+        tm_recommendation = None
+        if position_data and trade_manager:
+            try:
+                symbol = position_data.get('symbol', 'UNKNOWN')
+                tm_recommendation = await trade_manager.analyze_position_for_recommendation(
+                    symbol, position_data
+                )
+                decision['advisors_consulted']['trade_manager'] = True
+                decision['tm_confidence'] = tm_recommendation.get('confidence', 0)
+                logger.debug(f"📋 Trade Manager recomienda: {tm_recommendation['action']} "
+                           f"(conf: {tm_recommendation['confidence']}%)")
+            except Exception as e:
+                logger.error(f"❌ Error consultando Trade Manager: {e}")
+
+        # 3. Consultar ML System
+        ml_confidence = 0
+        if ml_system:
+            try:
+                # Intentar obtener última predicción ML
+                if hasattr(ml_system, 'predictor') and hasattr(ml_system.predictor, 'last_prediction'):
+                    last_pred = ml_system.predictor.last_prediction
+                    if last_pred:
+                        ml_confidence = last_pred.get('confidence', 0) * 100
+                        decision['advisors_consulted']['ml_system'] = True
+                        decision['ml_confidence'] = ml_confidence
+                        logger.debug(f"🤖 ML System confidence: {ml_confidence:.1f}%")
+            except Exception as e:
+                logger.error(f"❌ Error consultando ML System: {e}")
+
+        # 4. Calcular Q-confidence del estado actual
+        if state in self.q_table:
+            state_q_values = self.q_table[state]
+            if base_action in state_q_values:
+                q_value = state_q_values[base_action]
+                # Normalizar Q-value a 0-100%
+                decision['q_confidence'] = min(100, max(0, (q_value + 5) * 10))
+        else:
+            decision['q_confidence'] = 50  # Estado nuevo = confianza media
+
+        # 5. Calcular confianza combinada
+        weights = {'q': 0.5, 'ml': 0.3, 'tm': 0.2}
+        decision['confidence'] = (
+            weights['q'] * decision['q_confidence'] +
+            weights['ml'] * decision['ml_confidence'] +
+            weights['tm'] * decision['tm_confidence']
+        )
+
+        # 6. DECISIÓN INTEGRAL: Modificar acción si hay consenso fuerte de asistentes
+        if position_data:  # Si hay posición abierta
+            # Trade Manager sugiere CLOSE con alta confianza
+            if tm_recommendation and tm_recommendation['action'] == 'CLOSE':
+                if tm_recommendation['confidence'] > 70:
+                    # Verificar si ML también está de acuerdo (baja confianza = riesgo)
+                    if ml_confidence < 40 or tm_recommendation['confidence'] > 80:
+                        decision['action'] = 'CLOSE_POSITION'
+                        decision['modified'] = True
+                        decision['reasons'].append(
+                            f"TM close (conf: {tm_recommendation['confidence']}%) "
+                            f"+ ML low conf ({ml_confidence:.1f}%)"
+                        )
+                        logger.info(f"🧠 RL Agent MODIFICÓ decisión: {base_action} → CLOSE_POSITION")
+
+        # 7. Log decisión final
+        logger.info(f"🧠 RL Agent decisión integral:")
+        logger.info(f"   Base action: {base_action}")
+        logger.info(f"   Final action: {decision['action']}")
+        logger.info(f"   Confidence: {decision['confidence']:.1f}%")
+        logger.info(f"     Q-table: {decision['q_confidence']:.1f}%")
+        logger.info(f"     ML: {decision['ml_confidence']:.1f}%")
+        logger.info(f"     TM: {decision['tm_confidence']:.1f}%")
+        logger.info(f"   Modified: {decision['modified']}")
+
+        return decision
+
     def decide_trade_action(self, market_data: Dict, max_leverage: int = 1) -> Dict:
         """
         Decide si abrir un trade y con qué parámetros basado en el estado del mercado

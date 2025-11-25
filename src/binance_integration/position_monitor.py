@@ -399,16 +399,43 @@ class PositionMonitor:
 
                 logger.info(f"📊 Trade agregado a historial ML: {len(self.closed_trades_history)} trades totales")
 
-                # NUEVO: Llamar a process_trade_closure si autonomy_controller existe
-                if self.autonomy_controller and hasattr(self.autonomy_controller, 'process_trade_closure'):
+                # 🔧 FIX: Llamar a process_trade_outcome (método correcto) en lugar de process_trade_closure
+                if self.autonomy_controller and hasattr(self.autonomy_controller, 'process_trade_outcome'):
                     try:
                         import asyncio
+
+                        # Preparar datos completos para el RL Agent
+                        # Agregar el par en formato correcto
+                        trade_data['pair'] = symbol.replace('USDT', '/USDT')  # BTCUSDT -> BTC/USDT
+                        trade_data['profit_pct'] = trade_data['pnl_pct']  # Alias para compatibilidad
+                        trade_data['action'] = 'SELL' if trade_data['side'] == 'LONG' else 'BUY'  # Acción de cierre
+
+                        # Market state básico
+                        market_state = {
+                            'symbol': symbol,
+                            'current_price': closed_info.get('exit_price', 0),
+                            'close_reason': reason,
+                            'timestamp': trade_data['timestamp']
+                        }
+
+                        # Portfolio metrics básicos
+                        portfolio_metrics = {
+                            'total_pnl': sum(t.get('pnl_usdt', 0) for t in self.closed_trades_history),
+                            'total_trades': len(self.closed_trades_history),
+                            'win_rate': sum(1 for t in self.closed_trades_history if t.get('pnl_pct', 0) > 0) / len(self.closed_trades_history) if self.closed_trades_history else 0
+                        }
+
+                        # Crear task async para no bloquear
                         asyncio.create_task(
-                            self.autonomy_controller.process_trade_closure(trade_data)
+                            self.autonomy_controller.process_trade_outcome(
+                                trade_data=trade_data,
+                                market_state=market_state,
+                                portfolio_metrics=portfolio_metrics
+                            )
                         )
-                        logger.info(f"✅ process_trade_closure llamado para {symbol}")
+                        logger.info(f"✅ RL Agent notificado del cierre de {symbol} (PnL: {realized_pnl_pct:+.2f}%)")
                     except Exception as e:
-                        logger.error(f"❌ Error calling process_trade_closure: {e}")
+                        logger.error(f"❌ Error notificando RL Agent: {e}", exc_info=True)
 
             elif test_mode_active:
                 logger.debug(f"⏭️ No guardando trade (Test Mode activo, ya lo guardó test_mode)")
@@ -540,8 +567,27 @@ class PositionMonitor:
                         logger.info(f"🎯 Cierre detectado: TAKE_PROFIT (order_id={order_id})")
                         break
                     elif order_type == 'MARKET' and order.get('reduceOnly'):
-                        reason = 'MANUAL'
-                        logger.info(f"👤 Cierre detectado: MANUAL (order_id={order_id})")
+                        # Detectar razón inteligente del cierre MARKET
+                        # Calcular PnL preliminar para clasificar
+                        entry_price_temp = position.get('entry_price', 1)
+                        quantity_temp = abs(position.get('position_amt', 1))
+                        leverage_temp = position.get('leverage', 1)
+                        initial_margin_temp = (entry_price_temp * quantity_temp) / leverage_temp if leverage_temp > 0 else entry_price_temp * quantity_temp
+                        roe_pct_temp = (realized_pnl / initial_margin_temp) * 100 if initial_margin_temp > 0 else 0
+
+                        # Clasificar según PnL
+                        if abs(roe_pct_temp) <= 0.5:
+                            reason = 'SCALP_CLOSE'  # Scalping exitoso
+                            logger.info(f"⚡ Cierre detectado: SCALP ({roe_pct_temp:+.2f}%)")
+                        elif roe_pct_temp > 2.0:
+                            reason = 'TP_HIT'  # Take profit alcanzado
+                            logger.info(f"🎯 Cierre detectado: TP_HIT ({roe_pct_temp:+.2f}%)")
+                        elif roe_pct_temp < -1.0:
+                            reason = 'SL_HIT'  # Stop loss alcanzado
+                            logger.info(f"🛑 Cierre detectado: SL_HIT ({roe_pct_temp:+.2f}%)")
+                        else:
+                            reason = 'TRADE_MANAGER_CLOSE'  # Trade Manager sugirió
+                            logger.info(f"🤖 Cierre detectado: TRADE_MANAGER ({roe_pct_temp:+.2f}%)")
                         break
                     elif order_type == 'LIMIT' and order.get('reduceOnly'):
                         reason = 'LIMIT_CLOSE'

@@ -1059,51 +1059,66 @@ class MarketMonitor:
                                 'total_trades': 0
                             }
 
-                        # RL Agent evalúa si abrir el trade
-                        rl_decision = await self.autonomy_controller.evaluate_trade_opportunity(
-                            pair=pair,
-                            signal=signals,
-                            market_state=market_state,
-                            portfolio_metrics=portfolio_metrics
+                        # 🆕 v1.5: RL Agent evalúa si abrir el trade usando make_informed_decision()
+                        # Convertir market_state a state representation
+                        state = self.autonomy_controller.rl_agent.get_state_representation(market_state)
+
+                        # Consultar RL Agent con todos los asistentes para NUEVA posición
+                        rl_decision = await self.autonomy_controller.rl_agent.make_informed_decision(
+                            state=state,
+                            position_data=None,  # No hay posición aún
+                            trade_manager=self.autonomy_controller.trade_manager if hasattr(self.autonomy_controller, 'trade_manager') else None,
+                            ml_system=self.ml_system if hasattr(self, 'ml_system') else None,
+                            parameter_optimizer=self.autonomy_controller.parameter_optimizer if hasattr(self.autonomy_controller, 'parameter_optimizer') else None
                         )
 
                         # Decidir si ejecutar trade basado en RL Agent
-                        should_execute_trade = rl_decision.get('should_trade', True)
+                        # Si el RL Agent dice HOLD o confidence muy baja, no ejecutar
+                        chosen_action = rl_decision.get('action', 'HOLD')
+                        confidence = rl_decision.get('confidence', 0)
+                        should_execute_trade = chosen_action != 'HOLD' and confidence > 50
 
                         # 🔍 DEBUG: Log resultado de decisión del RL Agent
-                        composite = rl_decision.get('composite_score', 0)
-                        chosen_action = rl_decision.get('chosen_action', 'UNKNOWN')
                         if should_execute_trade:
                             logger.info(
                                 f"✅ RL APROBÓ trade {pair}: {chosen_action} | "
-                                f"composite={composite:.2f} | leverage={rl_decision.get('leverage', 1)}x"
+                                f"confidence={confidence:.1f}% | advisors consulted"
                             )
+                            logger.info(f"   Q-confidence: {rl_decision.get('q_confidence', 0):.1f}%")
+                            logger.info(f"   ML-confidence: {rl_decision.get('ml_confidence', 0):.1f}%")
+                            logger.info(f"   TM-confidence: {rl_decision.get('tm_confidence', 0):.1f}%")
                         else:
                             logger.warning(
                                 f"❌ RL BLOQUEÓ trade {pair}: {chosen_action} | "
-                                f"composite={composite:.2f} | SKIP - señal no suficientemente fuerte"
+                                f"confidence={confidence:.1f}% | SKIP - señal no suficientemente fuerte"
                             )
 
-                        # Aplicar parámetros del RL Agent (tamaño, trade_type, leverage)
-                        if should_execute_trade and 'position_size_multiplier' in rl_decision:
-                            # Pasar el multiplicador a la señal para que ml_system lo use
-                            signals['rl_position_multiplier'] = rl_decision['position_size_multiplier']
-                            signals['rl_action'] = rl_decision.get('chosen_action', 'UNKNOWN')
-                            # Pasar trade_type y leverage para futuros
-                            signals['trade_type'] = rl_decision.get('trade_type', 'FUTURES')  # Default FUTURES
-                            signals['leverage'] = rl_decision.get('leverage', 1)  # 1x = sin apalancamiento
-
-                            # ✅ CRÍTICO: RE-CALCULAR TPs CON AGGRESSIVENESS CORRECTO
-                            # Determinar aggressiveness basado en chosen_action del RL Agent
-                            aggressiveness = 'MEDIUM'  # Default
+                        # 🆕 v1.5: Aplicar parámetros basados en la decisión del RL Agent
+                        if should_execute_trade:
+                            # Mapear acción a parámetros de trading
                             if chosen_action == 'FUTURES_LOW':
+                                signals['rl_position_multiplier'] = 0.7  # Conservador
+                                signals['leverage'] = 5
                                 aggressiveness = 'LOW'
                             elif chosen_action == 'FUTURES_MEDIUM':
+                                signals['rl_position_multiplier'] = 1.0  # Normal
+                                signals['leverage'] = 10
                                 aggressiveness = 'MEDIUM'
                             elif chosen_action == 'FUTURES_HIGH':
+                                signals['rl_position_multiplier'] = 1.3  # Agresivo
+                                signals['leverage'] = 15
                                 aggressiveness = 'HIGH'
+                            else:
+                                signals['rl_position_multiplier'] = 1.0  # Default
+                                signals['leverage'] = 10
+                                aggressiveness = 'MEDIUM'
+
+                            signals['rl_action'] = chosen_action
+                            signals['trade_type'] = 'FUTURES'  # Siempre FUTURES para v1.5
 
                             logger.info(f"🎯 Recalculando TPs con aggressiveness={aggressiveness} (based on {chosen_action})")
+                            logger.info(f"   Position multiplier: {signals['rl_position_multiplier']}x")
+                            logger.info(f"   Leverage: {signals['leverage']}x")
 
                             # Re-calcular SL/TP con aggressiveness correcto
                             if 'atr' in analysis.get('indicators', {}):
@@ -1168,9 +1183,55 @@ class MarketMonitor:
                             if self.position_monitor.has_position(binance_symbol):
                                 logger.warning(
                                     f"⚠️ Ya hay posición abierta en {binance_symbol}, "
-                                    f"no abrir duplicada. Omitiendo señal {signals['action']}."
+                                    f"consultando RL Agent sobre qué hacer..."
                                 )
-                                # Continuar al siguiente análisis sin ejecutar trade
+
+                                # 🆕 v1.5: Consultar RL Agent para decisión informada sobre posición existente
+                                if (hasattr(self, 'autonomy_controller') and self.autonomy_controller and
+                                    hasattr(self.autonomy_controller, 'rl_agent') and self.autonomy_controller.rl_agent):
+                                    try:
+                                        # Obtener datos de la posición actual
+                                        open_position = self.position_monitor.get_open_positions().get(binance_symbol, {})
+
+                                        # Preparar estado actual para RL Agent
+                                        state = self.autonomy_controller.rl_agent.get_state_representation(market_state)
+
+                                        # Consultar RL Agent con todos los asistentes
+                                        rl_decision = await self.autonomy_controller.rl_agent.make_informed_decision(
+                                            state=state,
+                                            position_data=open_position,
+                                            trade_manager=self.autonomy_controller.trade_manager if hasattr(self.autonomy_controller, 'trade_manager') else None,
+                                            ml_system=self.ml_system if hasattr(self, 'ml_system') else None,
+                                            parameter_optimizer=self.autonomy_controller.parameter_optimizer if hasattr(self.autonomy_controller, 'parameter_optimizer') else None
+                                        )
+
+                                        # Si RL Agent decide cerrar la posición
+                                        if rl_decision.get('action') == 'CLOSE_POSITION':
+                                            logger.info(f"🧠 RL Agent decidió cerrar posición en {binance_symbol}")
+                                            logger.info(f"   Razones: {rl_decision.get('reasons', [])}")
+                                            logger.info(f"   Confianza: {rl_decision.get('confidence', 0):.1f}%")
+
+                                            try:
+                                                # Cerrar posición a través de futures_trader
+                                                close_result = self.futures_trader.close_position(
+                                                    symbol=binance_symbol,
+                                                    reason="RL_AGENT_DECISION"
+                                                )
+
+                                                if close_result:
+                                                    logger.info(f"✅ Posición cerrada por decisión del RL Agent: {binance_symbol}")
+                                                else:
+                                                    logger.error(f"❌ Error cerrando posición {binance_symbol}")
+                                            except Exception as e:
+                                                logger.error(f"❌ Error ejecutando cierre: {e}", exc_info=True)
+                                        else:
+                                            logger.info(f"🧠 RL Agent decidió MANTENER posición en {binance_symbol}")
+                                            logger.info(f"   Acción: {rl_decision.get('action')}")
+
+                                    except Exception as e:
+                                        logger.error(f"❌ Error consultando RL Agent para posición existente: {e}", exc_info=True)
+
+                                # Continuar al siguiente análisis sin abrir trade duplicado
                                 pass  # El código continúa normalmente sin abrir trade
                             else:
                                 # No hay posición abierta, proceder con el trade
@@ -1207,11 +1268,31 @@ class MarketMonitor:
 
                                 if 'take_profit' in signals and signals['take_profit']:
                                     tp_price = signals['take_profit']
+
+                                    # 🔧 FIX: Extraer TP1 correctamente del dict
                                     if isinstance(tp_price, dict):
-                                        tp_price = tp_price.get('price', tp_price.get('value', current_price))
+                                        # Intentar extraer tp1 (el TP principal para scalping)
+                                        if 'tp1' in tp_price:
+                                            tp_price = tp_price['tp1']
+                                            logger.debug(f"✅ TP extraído de dict: tp1=${tp_price}")
+                                        elif 'take_profit_1' in tp_price:
+                                            tp_price = tp_price['take_profit_1']
+                                            logger.debug(f"✅ TP extraído de dict: take_profit_1=${tp_price}")
+                                        elif 'price' in tp_price:
+                                            tp_price = tp_price['price']
+                                            logger.debug(f"✅ TP extraído de dict: price=${tp_price}")
+                                        elif 'value' in tp_price:
+                                            tp_price = tp_price['value']
+                                            logger.debug(f"✅ TP extraído de dict: value=${tp_price}")
+                                        else:
+                                            # Log para debug y usar primer valor numérico
+                                            logger.warning(f"⚠️ Estructura TP no estándar: {list(tp_price.keys())}")
+                                            tp_values = [v for k, v in tp_price.items() if isinstance(v, (int, float)) and v > 0]
+                                            tp_price = tp_values[0] if tp_values else None
 
                                     if isinstance(tp_price, (int, float)) and tp_price > 0:
                                         take_profit_pct = abs((tp_price - current_price) / current_price * 100)
+                                        logger.info(f"✅ TP calculado: {take_profit_pct:.2f}% (TP: ${tp_price:.2f}, Current: ${current_price:.2f})")
 
                                         # 🔍 VALIDACIÓN: TP debe estar a distancia mínima
                                         min_tp_pct = 0.2  # Mínimo 0.2% de diferencia
