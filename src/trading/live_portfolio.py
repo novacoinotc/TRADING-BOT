@@ -266,13 +266,13 @@ class LivePortfolio:
         position['current_price'] = current_price
 
         # Calculate unrealized P&L
+        # Note: Leverage is already factored into quantity (more coins bought with collateral)
+        # so we do NOT multiply by leverage here - that would be double-counting
         if position['side'] == 'BUY':
             pnl = (current_price - position['entry_price']) * position['quantity']
         else:
             pnl = (position['entry_price'] - current_price) * position['quantity']
 
-        # Apply leverage to P&L
-        pnl = pnl * position['leverage']
         position['unrealized_pnl'] = pnl
 
         # Check for liquidation
@@ -328,6 +328,8 @@ class LivePortfolio:
             return None
 
         # Calculate realized P&L
+        # Note: Leverage is already factored into quantity (more coins bought with collateral)
+        # so we do NOT multiply by leverage here - that would be double-counting
         if position['side'] == 'BUY':
             pnl = (exit_price - position['entry_price']) * position['quantity']
             pnl_pct = ((exit_price / position['entry_price']) - 1) * 100
@@ -335,9 +337,11 @@ class LivePortfolio:
             pnl = (position['entry_price'] - exit_price) * position['quantity']
             pnl_pct = ((position['entry_price'] / exit_price) - 1) * 100
 
-        # Apply leverage
-        pnl = pnl * leverage
-        pnl_pct = pnl_pct * leverage
+        # For ROI percentage, we calculate based on collateral (not full position value)
+        # ROI = PnL / collateral * 100
+        collateral = position.get('collateral', position['position_value'] / leverage)
+        if collateral > 0:
+            pnl_pct = (pnl / collateral) * 100
 
         # Handle liquidation
         if reason == 'LIQUIDATION' or liquidated:
