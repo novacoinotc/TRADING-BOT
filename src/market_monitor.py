@@ -1059,51 +1059,66 @@ class MarketMonitor:
                                 'total_trades': 0
                             }
 
-                        # RL Agent evalúa si abrir el trade
-                        rl_decision = await self.autonomy_controller.evaluate_trade_opportunity(
-                            pair=pair,
-                            signal=signals,
-                            market_state=market_state,
-                            portfolio_metrics=portfolio_metrics
+                        # 🆕 v1.5: RL Agent evalúa si abrir el trade usando make_informed_decision()
+                        # Convertir market_state a state representation
+                        state = self.autonomy_controller.rl_agent.get_state_representation(market_state)
+
+                        # Consultar RL Agent con todos los asistentes para NUEVA posición
+                        rl_decision = await self.autonomy_controller.rl_agent.make_informed_decision(
+                            state=state,
+                            position_data=None,  # No hay posición aún
+                            trade_manager=self.autonomy_controller.trade_manager if hasattr(self.autonomy_controller, 'trade_manager') else None,
+                            ml_system=self.ml_system if hasattr(self, 'ml_system') else None,
+                            parameter_optimizer=self.autonomy_controller.parameter_optimizer if hasattr(self.autonomy_controller, 'parameter_optimizer') else None
                         )
 
                         # Decidir si ejecutar trade basado en RL Agent
-                        should_execute_trade = rl_decision.get('should_trade', True)
+                        # Si el RL Agent dice HOLD o confidence muy baja, no ejecutar
+                        chosen_action = rl_decision.get('action', 'HOLD')
+                        confidence = rl_decision.get('confidence', 0)
+                        should_execute_trade = chosen_action != 'HOLD' and confidence > 50
 
                         # 🔍 DEBUG: Log resultado de decisión del RL Agent
-                        composite = rl_decision.get('composite_score', 0)
-                        chosen_action = rl_decision.get('chosen_action', 'UNKNOWN')
                         if should_execute_trade:
                             logger.info(
                                 f"✅ RL APROBÓ trade {pair}: {chosen_action} | "
-                                f"composite={composite:.2f} | leverage={rl_decision.get('leverage', 1)}x"
+                                f"confidence={confidence:.1f}% | advisors consulted"
                             )
+                            logger.info(f"   Q-confidence: {rl_decision.get('q_confidence', 0):.1f}%")
+                            logger.info(f"   ML-confidence: {rl_decision.get('ml_confidence', 0):.1f}%")
+                            logger.info(f"   TM-confidence: {rl_decision.get('tm_confidence', 0):.1f}%")
                         else:
                             logger.warning(
                                 f"❌ RL BLOQUEÓ trade {pair}: {chosen_action} | "
-                                f"composite={composite:.2f} | SKIP - señal no suficientemente fuerte"
+                                f"confidence={confidence:.1f}% | SKIP - señal no suficientemente fuerte"
                             )
 
-                        # Aplicar parámetros del RL Agent (tamaño, trade_type, leverage)
-                        if should_execute_trade and 'position_size_multiplier' in rl_decision:
-                            # Pasar el multiplicador a la señal para que ml_system lo use
-                            signals['rl_position_multiplier'] = rl_decision['position_size_multiplier']
-                            signals['rl_action'] = rl_decision.get('chosen_action', 'UNKNOWN')
-                            # Pasar trade_type y leverage para futuros
-                            signals['trade_type'] = rl_decision.get('trade_type', 'FUTURES')  # Default FUTURES
-                            signals['leverage'] = rl_decision.get('leverage', 1)  # 1x = sin apalancamiento
-
-                            # ✅ CRÍTICO: RE-CALCULAR TPs CON AGGRESSIVENESS CORRECTO
-                            # Determinar aggressiveness basado en chosen_action del RL Agent
-                            aggressiveness = 'MEDIUM'  # Default
+                        # 🆕 v1.5: Aplicar parámetros basados en la decisión del RL Agent
+                        if should_execute_trade:
+                            # Mapear acción a parámetros de trading
                             if chosen_action == 'FUTURES_LOW':
+                                signals['rl_position_multiplier'] = 0.7  # Conservador
+                                signals['leverage'] = 5
                                 aggressiveness = 'LOW'
                             elif chosen_action == 'FUTURES_MEDIUM':
+                                signals['rl_position_multiplier'] = 1.0  # Normal
+                                signals['leverage'] = 10
                                 aggressiveness = 'MEDIUM'
                             elif chosen_action == 'FUTURES_HIGH':
+                                signals['rl_position_multiplier'] = 1.3  # Agresivo
+                                signals['leverage'] = 15
                                 aggressiveness = 'HIGH'
+                            else:
+                                signals['rl_position_multiplier'] = 1.0  # Default
+                                signals['leverage'] = 10
+                                aggressiveness = 'MEDIUM'
+
+                            signals['rl_action'] = chosen_action
+                            signals['trade_type'] = 'FUTURES'  # Siempre FUTURES para v1.5
 
                             logger.info(f"🎯 Recalculando TPs con aggressiveness={aggressiveness} (based on {chosen_action})")
+                            logger.info(f"   Position multiplier: {signals['rl_position_multiplier']}x")
+                            logger.info(f"   Leverage: {signals['leverage']}x")
 
                             # Re-calcular SL/TP con aggressiveness correcto
                             if 'atr' in analysis.get('indicators', {}):
