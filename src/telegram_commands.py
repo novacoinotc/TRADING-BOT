@@ -323,13 +323,16 @@ class TelegramCommands:
                 message = "📊 **Estadísticas de Trading**\n\n"
 
                 if self.autonomy_controller:
-                    message += f"**📈 Historial:**\n"
+                    # Detectar modo
+                    is_live = hasattr(paper_trader, 'is_live') and paper_trader.is_live() if paper_trader else False
+                    mode_str = "🔴 LIVE" if is_live else "📝 PAPER"
+
+                    message += f"**📈 Historial ({mode_str}):**\n"
                     message += f"  • Total trades: {self.autonomy_controller.total_trades_all_time}\n"
                     message += f"  • Win rate RL: {self.autonomy_controller.rl_agent.success_rate:.1f}%\n"
                     message += f"  • Estados aprendidos: {len(self.autonomy_controller.rl_agent.q_table)}\n\n"
-                    message += f"**💰 Paper Trading:**\n"
+                    message += f"**💰 Trading:**\n"
                     message += f"  • Estado: Inicializándose...\n"
-                    message += f"  • Balance inicial: $50,000\n"
                     message += f"  • Se activará con el primer trade\n"
                 else:
                     message = "⚠️ Sistema no disponible"
@@ -347,14 +350,18 @@ class TelegramCommands:
 
             sync_emoji = "✅" if sync['in_sync'] else "⚠️"
 
-            # Calcular métricas
+            # Calcular métricas - usar initial_balance del portfolio (real para LIVE, paper para PAPER)
             equity = portfolio.get_equity()
-            initial_balance = 50000  # Balance inicial
+            initial_balance = getattr(portfolio, 'initial_balance', 50000)  # Obtener del portfolio
             pnl = equity - initial_balance
-            pnl_pct = (pnl / initial_balance) * 100
+            pnl_pct = (pnl / initial_balance) * 100 if initial_balance > 0 else 0
+
+            # Detectar modo de trading
+            is_live = hasattr(paper_trader, 'is_live') and paper_trader.is_live()
+            mode_str = "🔴 LIVE" if is_live else "📝 PAPER"
 
             message = (
-                "📈 **Estadísticas de Trading**\n\n"
+                f"📈 **Estadísticas de Trading** ({mode_str})\n\n"
                 "**💰 Balance:**\n"
                 f"  • Equity actual: ${equity:,.2f} USDT\n"
                 f"  • Balance inicial: ${initial_balance:,.2f} USDT\n"
