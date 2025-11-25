@@ -123,6 +123,13 @@ class TradeManager:
         else:
             logger.warning("   ⚠️ Feature Aggregator NO disponible - Arsenal desactivado")
 
+        # 🆕 NUEVO: Modo ADVISOR - Trade Manager como asistente del RL Agent
+        self.mode = 'ADVISOR'  # 'ADVISOR' = solo recomendaciones | 'EXECUTOR' = ejecuta automáticamente
+        self.recommendations = {}  # {symbol: recommendation_dict}
+        logger.info(f"🎯 Trade Manager en modo: {self.mode}")
+        if self.mode == 'ADVISOR':
+            logger.info("   📋 Modo ADVISOR: Solo genera recomendaciones para el RL Agent")
+
     async def start_monitoring(self):
         """Inicia monitoreo activo de trades"""
         if self._running:
@@ -151,6 +158,111 @@ class TradeManager:
         """Detiene monitoreo"""
         logger.info("🛑 Deteniendo Trade Manager...")
         self._running = False
+
+    def set_mode(self, mode: str):
+        """
+        Cambia el modo de operación del Trade Manager
+
+        Args:
+            mode: 'ADVISOR' o 'EXECUTOR'
+        """
+        if mode in ['ADVISOR', 'EXECUTOR']:
+            self.mode = mode
+            logger.info(f"🎯 Trade Manager modo cambiado a: {mode}")
+        else:
+            logger.warning(f"⚠️ Modo inválido: {mode}. Usando ADVISOR")
+            self.mode = 'ADVISOR'
+
+    def get_recommendation(self, symbol: str) -> Optional[Dict]:
+        """
+        RL Agent consulta recomendación para un símbolo específico
+
+        Args:
+            symbol: Símbolo a consultar (ej: 'BTCUSDT')
+
+        Returns:
+            Dict con recomendación o None si no hay
+        """
+        return self.recommendations.get(symbol, {
+            'action': 'HOLD',
+            'confidence': 0,
+            'reasons': [],
+            'risk_score': 0
+        })
+
+    async def analyze_position_for_recommendation(self, symbol: str, position_data: Dict) -> Dict:
+        """
+        Analiza posición y genera recomendación (NO ejecuta)
+        Este método es llamado por el RL Agent para obtener asesoramiento
+
+        Args:
+            symbol: Símbolo de la posición
+            position_data: Datos actuales de la posición
+
+        Returns:
+            Dict con recomendación: {action, confidence, reasons, risk_score, momentum_score}
+        """
+        recommendation = {
+            'action': 'HOLD',  # HOLD, CLOSE, PARTIAL_CLOSE, MOVE_BREAKEVEN
+            'confidence': 0,
+            'reasons': [],
+            'risk_score': 0,
+            'momentum_score': 0,
+            'suggested_action_price': None,
+            'timestamp': datetime.now().isoformat()
+        }
+
+        try:
+            pnl_pct = position_data.get('unrealized_pnl_pct', 0)
+            time_in_trade = position_data.get('time_elapsed', 0)
+            highest_pnl = self._position_highs.get(symbol, pnl_pct)
+
+            # ANÁLISIS 1: Scalping rápido
+            if pnl_pct >= 0.5 and time_in_trade < 300:  # +0.5% en menos de 5min
+                recommendation['action'] = 'CLOSE'
+                recommendation['confidence'] = 85
+                recommendation['reasons'].append(f'Quick scalp: +{pnl_pct:.2f}% in {time_in_trade}s')
+
+            # ANÁLISIS 2: Momentum débil en ganancia
+            elif pnl_pct > 0.3 and time_in_trade > 180:
+                # Consultar condiciones de mercado
+                market_conditions = await self._analyze_market_conditions(symbol, position_data)
+
+                if market_conditions.get('momentum_weakening'):
+                    recommendation['action'] = 'CLOSE'
+                    recommendation['confidence'] = 75
+                    recommendation['reasons'].append('Momentum weakening with profit')
+                    recommendation['momentum_score'] = market_conditions.get('momentum_score', 0)
+
+            # ANÁLISIS 3: Riesgo creciente
+            if position_data.get('volatility_increasing'):
+                recommendation['risk_score'] = 80
+                recommendation['reasons'].append('Volatility spike detected')
+
+                if pnl_pct > 0 and recommendation['action'] == 'HOLD':
+                    recommendation['action'] = 'CLOSE'
+                    recommendation['confidence'] = 70
+                    recommendation['reasons'].append('Take profit before volatility impact')
+
+            # ANÁLISIS 4: Caída desde máximo
+            drawdown_from_high = highest_pnl - pnl_pct
+            if drawdown_from_high > 2.0 and pnl_pct > 0.5:  # Cayó 2%+ desde máximo pero aún en ganancia
+                recommendation['action'] = 'CLOSE'
+                recommendation['confidence'] = 80
+                recommendation['reasons'].append(f'Drawdown from high: {drawdown_from_high:.2f}%')
+
+            # Guardar recomendación
+            self.recommendations[symbol] = recommendation
+
+            logger.debug(
+                f"📋 Recomendación para {symbol}: {recommendation['action']} "
+                f"(confidence: {recommendation['confidence']}%, reasons: {len(recommendation['reasons'])})"
+            )
+
+        except Exception as e:
+            logger.error(f"❌ Error generando recomendación para {symbol}: {e}", exc_info=True)
+
+        return recommendation
 
     async def _detect_closed_positions(self):
         """Detecta posiciones que cerraron desde el último check"""

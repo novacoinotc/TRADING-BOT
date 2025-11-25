@@ -1207,11 +1207,31 @@ class MarketMonitor:
 
                                 if 'take_profit' in signals and signals['take_profit']:
                                     tp_price = signals['take_profit']
+
+                                    # 🔧 FIX: Extraer TP1 correctamente del dict
                                     if isinstance(tp_price, dict):
-                                        tp_price = tp_price.get('price', tp_price.get('value', current_price))
+                                        # Intentar extraer tp1 (el TP principal para scalping)
+                                        if 'tp1' in tp_price:
+                                            tp_price = tp_price['tp1']
+                                            logger.debug(f"✅ TP extraído de dict: tp1=${tp_price}")
+                                        elif 'take_profit_1' in tp_price:
+                                            tp_price = tp_price['take_profit_1']
+                                            logger.debug(f"✅ TP extraído de dict: take_profit_1=${tp_price}")
+                                        elif 'price' in tp_price:
+                                            tp_price = tp_price['price']
+                                            logger.debug(f"✅ TP extraído de dict: price=${tp_price}")
+                                        elif 'value' in tp_price:
+                                            tp_price = tp_price['value']
+                                            logger.debug(f"✅ TP extraído de dict: value=${tp_price}")
+                                        else:
+                                            # Log para debug y usar primer valor numérico
+                                            logger.warning(f"⚠️ Estructura TP no estándar: {list(tp_price.keys())}")
+                                            tp_values = [v for k, v in tp_price.items() if isinstance(v, (int, float)) and v > 0]
+                                            tp_price = tp_values[0] if tp_values else None
 
                                     if isinstance(tp_price, (int, float)) and tp_price > 0:
                                         take_profit_pct = abs((tp_price - current_price) / current_price * 100)
+                                        logger.info(f"✅ TP calculado: {take_profit_pct:.2f}% (TP: ${tp_price:.2f}, Current: ${current_price:.2f})")
 
                                         # 🔍 VALIDACIÓN: TP debe estar a distancia mínima
                                         min_tp_pct = 0.2  # Mínimo 0.2% de diferencia
