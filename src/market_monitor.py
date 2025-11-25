@@ -1168,9 +1168,55 @@ class MarketMonitor:
                             if self.position_monitor.has_position(binance_symbol):
                                 logger.warning(
                                     f"⚠️ Ya hay posición abierta en {binance_symbol}, "
-                                    f"no abrir duplicada. Omitiendo señal {signals['action']}."
+                                    f"consultando RL Agent sobre qué hacer..."
                                 )
-                                # Continuar al siguiente análisis sin ejecutar trade
+
+                                # 🆕 v1.5: Consultar RL Agent para decisión informada sobre posición existente
+                                if (hasattr(self, 'autonomy_controller') and self.autonomy_controller and
+                                    hasattr(self.autonomy_controller, 'rl_agent') and self.autonomy_controller.rl_agent):
+                                    try:
+                                        # Obtener datos de la posición actual
+                                        open_position = self.position_monitor.get_open_positions().get(binance_symbol, {})
+
+                                        # Preparar estado actual para RL Agent
+                                        state = self.autonomy_controller.rl_agent.get_state_representation(market_state)
+
+                                        # Consultar RL Agent con todos los asistentes
+                                        rl_decision = await self.autonomy_controller.rl_agent.make_informed_decision(
+                                            state=state,
+                                            position_data=open_position,
+                                            trade_manager=self.autonomy_controller.trade_manager if hasattr(self.autonomy_controller, 'trade_manager') else None,
+                                            ml_system=self.ml_system if hasattr(self, 'ml_system') else None,
+                                            parameter_optimizer=self.autonomy_controller.parameter_optimizer if hasattr(self.autonomy_controller, 'parameter_optimizer') else None
+                                        )
+
+                                        # Si RL Agent decide cerrar la posición
+                                        if rl_decision.get('action') == 'CLOSE_POSITION':
+                                            logger.info(f"🧠 RL Agent decidió cerrar posición en {binance_symbol}")
+                                            logger.info(f"   Razones: {rl_decision.get('reasons', [])}")
+                                            logger.info(f"   Confianza: {rl_decision.get('confidence', 0):.1f}%")
+
+                                            try:
+                                                # Cerrar posición a través de futures_trader
+                                                close_result = self.futures_trader.close_position(
+                                                    symbol=binance_symbol,
+                                                    reason="RL_AGENT_DECISION"
+                                                )
+
+                                                if close_result:
+                                                    logger.info(f"✅ Posición cerrada por decisión del RL Agent: {binance_symbol}")
+                                                else:
+                                                    logger.error(f"❌ Error cerrando posición {binance_symbol}")
+                                            except Exception as e:
+                                                logger.error(f"❌ Error ejecutando cierre: {e}", exc_info=True)
+                                        else:
+                                            logger.info(f"🧠 RL Agent decidió MANTENER posición en {binance_symbol}")
+                                            logger.info(f"   Acción: {rl_decision.get('action')}")
+
+                                    except Exception as e:
+                                        logger.error(f"❌ Error consultando RL Agent para posición existente: {e}", exc_info=True)
+
+                                # Continuar al siguiente análisis sin abrir trade duplicado
                                 pass  # El código continúa normalmente sin abrir trade
                             else:
                                 # No hay posición abierta, proceder con el trade

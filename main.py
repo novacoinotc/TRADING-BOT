@@ -378,15 +378,16 @@ async def main():
                     market_analyzer=monitor
                 )
 
-                # CRÍTICO: Iniciar monitoreo en el loop actual
-                logger.info("🔄 Iniciando Trade Manager en background...")
-                loop = asyncio.get_running_loop()
-                trade_manager_task = loop.create_task(trade_manager.start_monitoring())
+                # 🆕 v1.5: Trade Manager en modo ADVISOR - NO iniciar loop automático
+                # El RL Agent consultará al Trade Manager cuando necesite asesoramiento
+                logger.info("🎯 Trade Manager configurado en modo ADVISOR")
+                logger.info("   El RL Agent consultará al Trade Manager para decisiones")
 
-                # Esperar confirmación
-                await asyncio.sleep(1)
+                # COMENTADO: NO iniciar loop automático en v1.5
+                # loop = asyncio.get_running_loop()
+                # trade_manager_task = loop.create_task(trade_manager.start_monitoring())
 
-                logger.info("✅ Trade Manager activo - Gestión inteligente de trades en tiempo real")
+                logger.info("✅ Trade Manager configurado - Modo asesor para RL Agent")
                 logger.info("   - Breakeven protection: 1.5%")
                 logger.info("   - Trailing stop: 3.0%")
                 logger.info("   - Partial TP: 4.0%")
@@ -453,6 +454,32 @@ async def main():
             if trade_manager:
                 autonomy_controller.trade_manager = trade_manager
                 logger.info("✅ Trade Manager asignado al autonomy_controller (para export)")
+
+            # 🆕 v1.5: CONECTAR ASISTENTES AL RL AGENT (RL Agent como CEO)
+            if hasattr(autonomy_controller, 'rl_agent') and autonomy_controller.rl_agent:
+                logger.info("🧠 Configurando RL Agent como CEO con todos los asistentes...")
+
+                # Asignar Trade Manager como asistente
+                if trade_manager:
+                    autonomy_controller.rl_agent.trade_manager = trade_manager
+                    logger.info("   ✅ Trade Manager conectado al RL Agent")
+
+                # Asignar ML System como asistente
+                if hasattr(monitor, 'ml_system') and monitor.ml_system:
+                    autonomy_controller.rl_agent.ml_system = monitor.ml_system
+                    logger.info("   ✅ ML System conectado al RL Agent")
+
+                # Asignar Parameter Optimizer como asistente
+                if hasattr(autonomy_controller, 'parameter_optimizer') and autonomy_controller.parameter_optimizer:
+                    autonomy_controller.rl_agent.parameter_optimizer = autonomy_controller.parameter_optimizer
+                    logger.info("   ✅ Parameter Optimizer conectado al RL Agent")
+
+                # Poner Trade Manager en modo ADVISOR
+                if trade_manager:
+                    trade_manager.set_mode('ADVISOR')
+                    logger.info("   🎯 Trade Manager configurado en modo ADVISOR")
+
+                logger.info("✅ RL Agent como CEO - Todos los asistentes conectados")
 
             # Initialize Test Mode
             test_mode = TestMode(
