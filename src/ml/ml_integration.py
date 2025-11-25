@@ -1,9 +1,15 @@
 """
 ML Integration - Capa de integración que coordina todos los componentes ML
-Conecta Predictor, Trainer, Optimizer y Paper Trader
+Conecta Predictor, Trainer, Optimizer y Sistema de Trading (Paper o Live)
+
+Soporta:
+- Paper Trading (simulado, sin riesgo)
+- Live Trading (real, con Binance Futures)
+
+El modo se configura via config.TRADING_MODE ('PAPER' o 'LIVE')
 """
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from datetime import datetime
 from pathlib import Path
 import json
@@ -14,24 +20,45 @@ from src.ml.feature_engineer import FeatureEngineer
 from src.ml.optimizer import AutoOptimizer
 from src.trading.paper_trader import PaperTrader
 
+# Import condicional para live trading
+try:
+    from src.trading.trading_system import TradingSystem, TradingMode
+    TRADING_SYSTEM_AVAILABLE = True
+except ImportError:
+    TRADING_SYSTEM_AVAILABLE = False
+    TradingMode = None
+
 logger = logging.getLogger(__name__)
 
 
 class MLIntegration:
     """
-    Sistema completo de ML + Paper Trading
+    Sistema completo de ML + Trading (Paper o Live)
     - Predice señales con ML
-    - Ejecuta trades en paper trading
+    - Ejecuta trades en paper trading o live trading
     - Entrena modelos automáticamente
     - Optimiza parámetros continuamente
+
+    Modos de trading:
+    - PAPER: Trading simulado (default, sin riesgo)
+    - LIVE: Trading real con Binance Futures (requiere API keys)
     """
 
-    def __init__(self, initial_balance: float = 50000.0, enable_ml: bool = True, telegram_notifier=None):
+    def __init__(
+        self,
+        initial_balance: float = 50000.0,
+        enable_ml: bool = True,
+        telegram_notifier=None,
+        trading_mode: str = None,  # 'PAPER' o 'LIVE' (None = usar config)
+        live_trading_config: Dict = None  # Config para live trading
+    ):
         """
         Args:
             initial_balance: Balance inicial en USDT
-            enable_ml: Habilitar predicciones ML (False = solo paper trading sin ML)
+            enable_ml: Habilitar predicciones ML (False = solo trading sin ML)
             telegram_notifier: Notificador de Telegram para enviar alertas de trades
+            trading_mode: 'PAPER' o 'LIVE' (si es None, usa config.TRADING_MODE)
+            live_trading_config: Configuracion para live trading (api_key, api_secret, etc)
         """
         # Componentes ML
         self.predictor = MLPredictor()
@@ -39,8 +66,20 @@ class MLIntegration:
         self.feature_engineer = FeatureEngineer()
         self.optimizer = AutoOptimizer()
 
-        # Paper Trading
-        self.paper_trader = PaperTrader(initial_balance=initial_balance)
+        # Determinar modo de trading
+        self.trading_mode = self._determine_trading_mode(trading_mode)
+
+        # Inicializar sistema de trading segun modo
+        if self.trading_mode == 'LIVE' and TRADING_SYSTEM_AVAILABLE:
+            self.trading_system = self._init_live_trading(live_trading_config, initial_balance)
+            self.paper_trader = self.trading_system  # Alias para compatibilidad
+            logger.info("LIVE Trading Mode Activated")
+        else:
+            # Paper Trading (default)
+            self.paper_trader = PaperTrader(initial_balance=initial_balance)
+            self.trading_system = None
+            self.trading_mode = 'PAPER'  # Forzar PAPER si no hay live disponible
+            logger.info("PAPER Trading Mode Activated")
 
         # Telegram notifier para alertas de trades
         self.telegram_notifier = telegram_notifier
@@ -62,9 +101,51 @@ class MLIntegration:
         # Cargar buffer si existe
         self._load_buffer()
 
-        logger.info("🚀 ML Integration System inicializado")
+        logger.info("ML Integration System inicializado")
+        logger.info(f"   Trading Mode: {self.trading_mode}")
         logger.info(f"   ML Enabled: {enable_ml}")
         logger.info(f"   Initial Balance: ${initial_balance:,.2f} USDT")
+
+    def _determine_trading_mode(self, explicit_mode: str = None) -> str:
+        """Determina el modo de trading a usar"""
+        if explicit_mode:
+            return explicit_mode.upper()
+
+        # Intentar obtener de config
+        try:
+            from config import config
+            return getattr(config, 'TRADING_MODE', 'PAPER').upper()
+        except ImportError:
+            return 'PAPER'
+
+    def _init_live_trading(self, live_config: Dict = None, initial_balance: float = 0) -> 'TradingSystem':
+        """Inicializa live trading si esta disponible"""
+        if not TRADING_SYSTEM_AVAILABLE:
+            logger.warning("TradingSystem not available, falling back to PAPER mode")
+            return None
+
+        try:
+            if live_config:
+                return TradingSystem(
+                    mode='LIVE',
+                    initial_balance=initial_balance,
+                    **live_config
+                )
+            else:
+                # Usar configuracion de config.py
+                return TradingSystem.from_config()
+        except Exception as e:
+            logger.error(f"Error initializing live trading: {e}")
+            logger.warning("Falling back to PAPER mode")
+            return None
+
+    def is_live_trading(self) -> bool:
+        """Retorna True si estamos en modo LIVE"""
+        return self.trading_mode == 'LIVE'
+
+    def is_paper_trading(self) -> bool:
+        """Retorna True si estamos en modo PAPER"""
+        return self.trading_mode == 'PAPER'
 
     def process_signal(
         self,
