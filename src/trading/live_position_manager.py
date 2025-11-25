@@ -5,7 +5,7 @@ Reemplaza PositionManager de paper trading para modo produccion
 
 import logging
 import math
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from src.trading.binance_futures_client import BinanceFuturesClient
@@ -549,7 +549,3 @@ class LivePositionManager:
     def sync_positions_with_binance(self):
         """Sincroniza posiciones locales con las reales de Binance"""
         self.portfolio._sync_with_binance()
-
-
-# Type alias for compatibility
-from typing import List
