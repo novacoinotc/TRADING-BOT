@@ -225,7 +225,20 @@ class AutonomyController:
             # ========== PASO 4: RESTAURAR PAPER TRADING (CRÍTICO) ==========
             logger.info("📥 Paso 4/4: Restaurando Paper Trading...")
 
-            if paper_trading_to_restore:
+            # NUEVO: Detectar si estamos en modo LIVE
+            is_live_mode = False
+            if hasattr(self, 'paper_trader') and self.paper_trader:
+                # Verificar si es TradingSystem en modo LIVE
+                if hasattr(self.paper_trader, 'is_live') and callable(self.paper_trader.is_live):
+                    is_live_mode = self.paper_trader.is_live()
+
+            if is_live_mode:
+                # En modo LIVE, NO restauramos paper_trading (balance viene de Binance)
+                logger.info("🔴 MODO LIVE DETECTADO - Saltando restauración de paper trading")
+                logger.info("   • Balance real viene de Binance, no del export")
+                logger.info("   • Solo se restauró: RL Agent, Optimizer, Change History")
+                logger.info("   • La inteligencia (Q-table) SÍ fue restaurada ✅")
+            elif paper_trading_to_restore:
                 logger.info("🔄 Intentando restaurar paper trading desde export...")
 
                 # VERIFICAR que paper_trader existe
@@ -1291,7 +1304,19 @@ class AutonomyController:
         try:
             logger.info("📥 Verificando Paper Trading en archivo...")
 
-            if 'paper_trading' in loaded and loaded['paper_trading']:
+            # NUEVO: Detectar si estamos en modo LIVE
+            is_live_mode = False
+            if hasattr(self, 'paper_trader') and self.paper_trader:
+                if hasattr(self.paper_trader, 'is_live') and callable(self.paper_trader.is_live):
+                    is_live_mode = self.paper_trader.is_live()
+
+            if is_live_mode:
+                # En modo LIVE, NO restauramos paper_trading
+                logger.info("🔴 MODO LIVE DETECTADO - Saltando restauración de paper trading")
+                logger.info("   • Balance real viene de Binance, no del export")
+                logger.info("   • Inteligencia restaurada: RL Agent ✅, Optimizer ✅, Change History ✅")
+                logger.info("   • Q-table con 226 trades de experiencia lista para trading real")
+            elif 'paper_trading' in loaded and loaded['paper_trading']:
                 paper_data = loaded['paper_trading']
 
                 # Verificar estructura del export (NUEVO FORMATO con counters)
