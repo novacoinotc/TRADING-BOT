@@ -103,6 +103,9 @@ TRACKING_FILE = 'logs/signal_tracking.json'
 PROFIT_THRESHOLD = 1.5  # 1.5% profit to consider signal successful - OPTIMIZADO (antes 2.0%, más realista)
 
 # Paper Trading + ML Configuration
+# NOTA: ENABLE_PAPER_TRADING habilita el sistema de trading (Paper o Live)
+# El modo actual se determina por TRADING_MODE ('PAPER' o 'LIVE')
+# Si TRADING_MODE=LIVE, usara Binance Futures real en lugar de simulacion
 ENABLE_PAPER_TRADING = os.getenv('ENABLE_PAPER_TRADING', 'true').lower() == 'true'
 PAPER_TRADING_INITIAL_BALANCE = float(os.getenv('PAPER_TRADING_INITIAL_BALANCE', '50000.0'))  # $50,000 USDT
 
