@@ -72,7 +72,7 @@ class LivePortfolio:
             # Get real positions from Binance
             real_positions = self.client.get_open_positions()
 
-            # Update local tracking
+            # Build set of symbols that exist in Binance
             synced_symbols = set()
             for pos in real_positions:
                 symbol = pos.symbol
@@ -82,6 +82,10 @@ class LivePortfolio:
                 pair = self._symbol_to_pair(symbol)
                 side = 'BUY' if pos.position_amt > 0 else 'SELL'
 
+                # Check if this is a new position we didn't have locally
+                if pair not in self.local_positions:
+                    logger.info(f"New position detected on Binance: {pair}")
+
                 self.local_positions[pair] = {
                     'pair': pair,
                     'symbol': symbol,
@@ -89,30 +93,136 @@ class LivePortfolio:
                     'trade_type': 'FUTURES',
                     'leverage': pos.leverage,
                     'entry_price': pos.entry_price,
-                    'entry_time': datetime.now().isoformat(),  # Approximate
+                    'entry_time': self.local_positions.get(pair, {}).get('entry_time', datetime.now().isoformat()),
                     'quantity': abs(pos.position_amt),
                     'position_value': abs(pos.notional),
                     'collateral': abs(pos.isolated_margin) if pos.margin_type == 'isolated' else abs(pos.notional) / pos.leverage,
                     'liquidation_price': pos.liquidation_price,
                     'liquidated': False,
-                    'stop_loss': None,  # Not tracked by Binance API directly
-                    'take_profit': {},
+                    'stop_loss': self.local_positions.get(pair, {}).get('stop_loss'),
+                    'take_profit': self.local_positions.get(pair, {}).get('take_profit', {}),
                     'current_price': pos.mark_price,
                     'unrealized_pnl': pos.unrealized_profit,
                     'status': 'OPEN',
                     'margin_type': pos.margin_type
                 }
 
-            # Remove positions that no longer exist in Binance
-            pairs_to_remove = [p for p in self.local_positions if self._pair_to_symbol(p) not in synced_symbols]
-            for pair in pairs_to_remove:
-                logger.warning(f"Position {pair} no longer exists in Binance, removing from local tracking")
-                del self.local_positions[pair]
+            # Detect positions that were closed on Binance
+            pairs_to_close = [p for p in self.local_positions if self._pair_to_symbol(p) not in synced_symbols]
 
-            logger.info(f"Synced {len(self.local_positions)} positions with Binance")
+            for pair in pairs_to_close:
+                position = self.local_positions[pair]
+                logger.warning(f"Position {pair} closed on Binance (SL/TP hit or manual close)")
+
+                # Try to get the last price for this symbol
+                try:
+                    symbol = self._pair_to_symbol(pair)
+                    ticker = self.client.get_ticker_price(symbol)
+                    exit_price = float(ticker['price'])
+                except Exception:
+                    exit_price = position.get('current_price', position.get('entry_price', 0))
+
+                # Register the closed position properly (so stats are updated)
+                if exit_price > 0:
+                    self._register_external_close(pair, exit_price)
+                else:
+                    # Just remove if we can't get exit price
+                    del self.local_positions[pair]
+
+            if self.local_positions:
+                logger.info(f"Synced {len(self.local_positions)} open positions with Binance")
+            else:
+                logger.debug("No open positions on Binance")
 
         except Exception as e:
             logger.error(f"Error syncing with Binance: {e}")
+
+    def _register_external_close(self, pair: str, exit_price: float):
+        """
+        Registra una posición cerrada externamente (SL/TP en Binance o cierre manual)
+
+        Args:
+            pair: Par de trading
+            exit_price: Precio de salida estimado
+        """
+        if pair not in self.local_positions:
+            return
+
+        position = self.local_positions[pair]
+        leverage = position.get('leverage', 1)
+
+        # Calculate P&L
+        if position['side'] == 'BUY':
+            pnl = (exit_price - position['entry_price']) * position['quantity']
+        else:
+            pnl = (position['entry_price'] - exit_price) * position['quantity']
+
+        # Calculate P&L percentage based on collateral
+        collateral = position.get('collateral', position['position_value'] / leverage)
+        pnl_pct = (pnl / collateral) * 100 if collateral > 0 else 0
+
+        # Determine close reason based on price movement
+        reason = 'EXTERNAL_CLOSE'
+        stop_loss = position.get('stop_loss')
+        take_profit = position.get('take_profit', {})
+
+        if stop_loss:
+            if position['side'] == 'BUY' and exit_price <= stop_loss:
+                reason = 'STOP_LOSS'
+            elif position['side'] == 'SELL' and exit_price >= stop_loss:
+                reason = 'STOP_LOSS'
+
+        if take_profit:
+            tp1 = take_profit.get('tp1')
+            if tp1:
+                if position['side'] == 'BUY' and exit_price >= tp1:
+                    reason = 'TP1'
+                elif position['side'] == 'SELL' and exit_price <= tp1:
+                    reason = 'TP1'
+
+        # Update statistics
+        if not (math.isnan(pnl) or math.isinf(pnl)):
+            if pnl > 0:
+                self.winning_trades += 1
+                self.total_profit += pnl
+            else:
+                self.losing_trades += 1
+                self.total_loss += abs(pnl)
+
+        # Calculate duration
+        duration_minutes = 0
+        if 'entry_time' in position:
+            entry_time = position['entry_time']
+            if isinstance(entry_time, str):
+                entry_time = datetime.fromisoformat(entry_time)
+            duration_minutes = (datetime.now() - entry_time).total_seconds() / 60
+
+        # Create closed trade record
+        closed_trade = {
+            **position,
+            'exit_price': exit_price,
+            'exit_time': datetime.now().isoformat(),
+            'exit_value': collateral + pnl,
+            'pnl': pnl,
+            'pnl_pct': pnl_pct,
+            'reason': reason,
+            'status': 'CLOSED',
+            'duration': duration_minutes,
+            'detected_by_sync': True
+        }
+
+        self.closed_trades.append(closed_trade)
+
+        # Remove from local positions
+        del self.local_positions[pair]
+
+        # Update equity tracking
+        self._update_equity_tracking()
+
+        emoji = "+" if pnl > 0 else ""
+        logger.info(f"External close registered: {pair} | P&L: {emoji}${pnl:.2f} ({pnl_pct:+.2f}%) | Reason: {reason}")
+
+        self._save_portfolio()
 
     def _symbol_to_pair(self, symbol: str) -> str:
         """Convierte BTCUSDT -> BTC/USDT (usando mapeo de símbolos del cliente)"""

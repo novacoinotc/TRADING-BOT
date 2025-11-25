@@ -1082,6 +1082,15 @@ class MarketMonitor:
                         # Small delay between pairs to avoid rate limits
                         await asyncio.sleep(2)
 
+                # 🔄 Sync with Binance to detect externally closed positions (LIVE mode)
+                if self.enable_paper_trading and self.ml_system:
+                    paper_trader = self.ml_system.paper_trader
+                    if hasattr(paper_trader, 'is_live') and paper_trader.is_live():
+                        try:
+                            paper_trader.sync_with_binance()
+                        except Exception as e:
+                            logger.error(f"Error syncing with Binance: {e}")
+
                 # 🔥 FIX CRÍTICO: Actualizar TODAS las posiciones abiertas cada ciclo
                 if self.enable_paper_trading and self.ml_system:
                     paper_trader = self.ml_system.paper_trader
