@@ -72,8 +72,14 @@ class MLIntegration:
         # Inicializar sistema de trading segun modo
         if self.trading_mode == 'LIVE' and TRADING_SYSTEM_AVAILABLE:
             self.trading_system = self._init_live_trading(live_trading_config, initial_balance)
-            self.paper_trader = self.trading_system  # Alias para compatibilidad
-            logger.info("LIVE Trading Mode Activated")
+            if self.trading_system is not None:
+                self.paper_trader = self.trading_system  # Alias para compatibilidad
+                logger.info("LIVE Trading Mode Activated")
+            else:
+                # Fallback a paper trading si live falla
+                logger.warning("Live trading init failed, falling back to PAPER mode")
+                self.paper_trader = PaperTrader(initial_balance=initial_balance)
+                self.trading_mode = 'PAPER'
         else:
             # Paper Trading (default)
             self.paper_trader = PaperTrader(initial_balance=initial_balance)
