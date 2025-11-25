@@ -4,7 +4,7 @@ Usa Q-Learning con Experience Replay para aprender patrones de trading exitosos
 """
 import numpy as np
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 from collections import deque
 import json
 from datetime import datetime
