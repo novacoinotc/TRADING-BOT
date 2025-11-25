@@ -239,7 +239,17 @@ class BinanceFuturesClient:
                 error_code = error_data.get('code', response.status_code)
                 error_msg = error_data.get('msg', response.text)
 
-                logger.error(f"Binance API Error: [{error_code}] {error_msg}")
+                # Expected/benign errors - log as DEBUG instead of ERROR
+                benign_errors = {
+                    -4046,  # No need to change margin type
+                    -4059,  # No need to change position side
+                    -2011,  # Unknown order sent (already cancelled/filled)
+                }
+
+                if error_code in benign_errors:
+                    logger.debug(f"Binance API (expected): [{error_code}] {error_msg}")
+                else:
+                    logger.error(f"Binance API Error: [{error_code}] {error_msg}")
                 raise BinanceAPIError(error_code, error_msg)
 
         except requests.exceptions.RequestException as e:

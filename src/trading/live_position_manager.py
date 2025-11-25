@@ -237,7 +237,8 @@ class LivePositionManager:
                 quantity=actual_quantity,
                 stop_loss=stop_loss,
                 take_profit=take_profit,
-                position_side=position_side
+                position_side=position_side,
+                entry_price=actual_entry_price
             )
 
             logger.info(
@@ -262,7 +263,8 @@ class LivePositionManager:
         quantity: float,
         stop_loss: float,
         take_profit: Dict,
-        position_side: PositionSide
+        position_side: PositionSide,
+        entry_price: float = 0
     ):
         """
         Coloca ordenes de Stop Loss y Take Profit
@@ -275,28 +277,49 @@ class LivePositionManager:
             stop_loss: Precio de stop loss
             take_profit: Dict con tp1, tp2, tp3
             position_side: Position side
+            entry_price: Precio de entrada para validacion
         """
         self.stop_orders[pair] = {'sl': None, 'tp': []}
 
         # Determine close side (opposite of entry)
         close_side = OrderSide.SELL if side == 'BUY' else OrderSide.BUY
 
+        # Get current price to validate TP/SL
+        try:
+            ticker = self.client.get_ticker_price(symbol)
+            current_price = float(ticker['price'])
+        except Exception:
+            current_price = entry_price if entry_price > 0 else 0
+
         # 1. Place Stop Loss (STOP_MARKET)
         if stop_loss and stop_loss > 0:
-            try:
-                sl_order = self.client.place_stop_market_order(
-                    symbol=symbol,
-                    side=close_side,
-                    quantity=quantity,
-                    stop_price=stop_loss,
-                    position_side=position_side,
-                    reduce_only=True
-                )
-                self.stop_orders[pair]['sl'] = sl_order.order_id
-                logger.info(f"Stop Loss placed for {pair} @ ${stop_loss:.2f}")
+            # Validate SL price won't trigger immediately
+            # For LONG: SL must be below current price
+            # For SHORT: SL must be above current price
+            sl_valid = True
+            if current_price > 0:
+                if side == 'BUY' and stop_loss >= current_price:
+                    logger.warning(f"SL ${stop_loss:.4f} >= current ${current_price:.4f} for LONG {pair}, skipping")
+                    sl_valid = False
+                elif side == 'SELL' and stop_loss <= current_price:
+                    logger.warning(f"SL ${stop_loss:.4f} <= current ${current_price:.4f} for SHORT {pair}, skipping")
+                    sl_valid = False
 
-            except Exception as e:
-                logger.error(f"Error placing stop loss for {pair}: {e}")
+            if sl_valid:
+                try:
+                    sl_order = self.client.place_stop_market_order(
+                        symbol=symbol,
+                        side=close_side,
+                        quantity=quantity,
+                        stop_price=stop_loss,
+                        position_side=position_side,
+                        reduce_only=True
+                    )
+                    self.stop_orders[pair]['sl'] = sl_order.order_id
+                    logger.info(f"Stop Loss placed for {pair} @ ${stop_loss:.4f}")
+
+                except Exception as e:
+                    logger.error(f"Error placing stop loss for {pair}: {e}")
 
         # 2. Place Take Profit orders (TAKE_PROFIT_MARKET)
         # For multiple TPs, we need to split the quantity
@@ -311,22 +334,35 @@ class LivePositionManager:
 
         for tp_name, tp_price, tp_pct in tp_levels:
             if tp_price and tp_price > 0:
-                try:
-                    tp_quantity = quantity * tp_pct
-                    if tp_quantity > 0:
-                        tp_order = self.client.place_take_profit_market_order(
-                            symbol=symbol,
-                            side=close_side,
-                            quantity=tp_quantity,
-                            stop_price=tp_price,
-                            position_side=position_side,
-                            reduce_only=True
-                        )
-                        self.stop_orders[pair]['tp'].append(tp_order.order_id)
-                        logger.info(f"{tp_name} placed for {pair} @ ${tp_price:.2f} ({tp_pct*100:.0f}%)")
+                # Validate TP price won't trigger immediately
+                # For LONG: TP must be above current price
+                # For SHORT: TP must be below current price
+                tp_valid = True
+                if current_price > 0:
+                    if side == 'BUY' and tp_price <= current_price:
+                        logger.warning(f"{tp_name} ${tp_price:.4f} <= current ${current_price:.4f} for LONG {pair}, skipping")
+                        tp_valid = False
+                    elif side == 'SELL' and tp_price >= current_price:
+                        logger.warning(f"{tp_name} ${tp_price:.4f} >= current ${current_price:.4f} for SHORT {pair}, skipping")
+                        tp_valid = False
 
-                except Exception as e:
-                    logger.error(f"Error placing {tp_name} for {pair}: {e}")
+                if tp_valid:
+                    try:
+                        tp_quantity = quantity * tp_pct
+                        if tp_quantity > 0:
+                            tp_order = self.client.place_take_profit_market_order(
+                                symbol=symbol,
+                                side=close_side,
+                                quantity=tp_quantity,
+                                stop_price=tp_price,
+                                position_side=position_side,
+                                reduce_only=True
+                            )
+                            self.stop_orders[pair]['tp'].append(tp_order.order_id)
+                            logger.info(f"{tp_name} placed for {pair} @ ${tp_price:.4f} ({tp_pct*100:.0f}%)")
+
+                    except Exception as e:
+                        logger.error(f"Error placing {tp_name} for {pair}: {e}")
 
     def update_positions(self, pair: str, current_price: float) -> Optional[Dict]:
         """

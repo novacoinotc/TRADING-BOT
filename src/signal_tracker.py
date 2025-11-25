@@ -22,16 +22,43 @@ def _sanitize_for_json(obj):
 
     if isinstance(obj, (pd.Series, pd.DataFrame)):
         return obj.to_dict()
+    elif isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
     elif isinstance(obj, (np.integer, np.floating)):
         return float(obj)
+    elif isinstance(obj, np.bool_):
+        return bool(obj)
     elif isinstance(obj, dict):
-        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+        # Sanitize both keys and values
+        return {_sanitize_key(k): _sanitize_for_json(v) for k, v in obj.items()}
     elif isinstance(obj, (list, tuple)):
         return [_sanitize_for_json(item) for item in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
     else:
         return obj
+
+
+def _sanitize_key(key):
+    """
+    Convierte una llave de diccionario a un tipo JSON válido (str)
+    """
+    import pandas as pd
+    import numpy as np
+
+    if isinstance(key, pd.Timestamp):
+        return key.isoformat()
+    elif isinstance(key, datetime):
+        return key.isoformat()
+    elif isinstance(key, (np.integer, np.floating)):
+        return str(key)
+    elif isinstance(key, np.bool_):
+        return str(key)
+    elif not isinstance(key, (str, int, float, bool, type(None))):
+        return str(key)
+    return key
 
 
 class SignalTracker:

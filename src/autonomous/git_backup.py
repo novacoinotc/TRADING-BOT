@@ -18,6 +18,7 @@ class GitBackup:
     - Auto-commit cada 24h
     - Notifica a Telegram cuando guarda
     - Maneja errores de git gracefully
+    - Se desactiva automáticamente si git no está disponible
     """
 
     def __init__(
@@ -38,11 +39,31 @@ class GitBackup:
         self.last_backup_time = None
         self.running = False
         self.backup_task = None
+        self.git_available = self._check_git_available()
 
-        logger.info(f"💾 Git Backup inicializado (intervalo: {backup_interval_hours}h)")
+        if self.git_available:
+            logger.info(f"💾 Git Backup inicializado (intervalo: {backup_interval_hours}h)")
+        else:
+            logger.info("💾 Git no disponible - Auto-backup desactivado (Railway no tiene git)")
+
+    def _check_git_available(self) -> bool:
+        """Verifica si git está disponible en el sistema"""
+        try:
+            result = subprocess.run(
+                ["git", "--version"],
+                capture_output=True,
+                timeout=5
+            )
+            return result.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
 
     async def start_auto_backup(self):
         """Inicia el loop de auto-backup"""
+        if not self.git_available:
+            logger.debug("Auto-backup no iniciado (git no disponible)")
+            return
+
         self.running = True
         self.backup_task = asyncio.create_task(self._backup_loop())
         logger.info("🔄 Auto-backup iniciado")
@@ -91,6 +112,10 @@ class GitBackup:
         Returns:
             True si backup fue exitoso
         """
+        if not self.git_available:
+            logger.debug("Backup omitido (git no disponible)")
+            return False
+
         try:
             logger.info("💾 Iniciando backup de inteligencia a Git...")
 
