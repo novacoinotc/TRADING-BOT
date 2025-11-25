@@ -115,15 +115,14 @@ class LivePortfolio:
             logger.error(f"Error syncing with Binance: {e}")
 
     def _symbol_to_pair(self, symbol: str) -> str:
-        """Convierte BTCUSDT -> BTC/USDT"""
-        if symbol.endswith('USDT'):
-            base = symbol[:-4]
-            return f"{base}/USDT"
-        return symbol
+        """Convierte BTCUSDT -> BTC/USDT (usando mapeo de símbolos del cliente)"""
+        # Usar el método del cliente que maneja símbolos especiales como 1000SHIB
+        return self.client.convert_symbol_to_pair(symbol)
 
     def _pair_to_symbol(self, pair: str) -> str:
-        """Convierte BTC/USDT -> BTCUSDT"""
-        return pair.replace('/', '')
+        """Convierte BTC/USDT -> BTCUSDT (usando mapeo de símbolos del cliente)"""
+        # Usar el método del cliente que maneja símbolos especiales como 1000SHIB
+        return self.client.convert_pair_format(pair)
 
     def get_available_balance(self) -> float:
         """Retorna balance USDT disponible para trading (REAL de Binance)"""

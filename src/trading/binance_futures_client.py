@@ -842,17 +842,77 @@ class BinanceFuturesClient:
                     return f"{price:.{precision}f}"
         return str(price)
 
+    # Mapeo de símbolos que usan formato 1000x en Binance Futures
+    # Estas memecoins tienen precio muy bajo, así que Binance usa 1000 unidades por contrato
+    FUTURES_SYMBOL_MAPPING = {
+        'SHIB': '1000SHIB',
+        'PEPE': '1000PEPE',
+        'BONK': '1000BONK',
+        'FLOKI': '1000FLOKI',
+        'LUNC': '1000LUNC',
+        'XEC': '1000XEC',
+        'SATS': '1000SATS',
+        'RATS': '1000RATS',
+        'CAT': '1000CAT',
+        'CHEEMS': '1000CHEEMS',
+        'APU': '1000APU',
+        'X': '1000X',
+        'WHY': '1000WHY',
+        'TURBO': '1000TURBO',
+    }
+
     def convert_pair_format(self, pair: str) -> str:
         """
         Convierte formato de par (BTC/USDT -> BTCUSDT)
+        Maneja símbolos especiales que usan formato 1000x en Futures
 
         Args:
             pair: Par en formato con slash
 
         Returns:
-            Par en formato Binance (sin slash)
+            Par en formato Binance Futures (sin slash, con prefijo 1000 si aplica)
         """
-        return pair.replace('/', '')
+        # Separar base y quote
+        if '/' in pair:
+            base, quote = pair.split('/')
+        else:
+            # Ya está en formato Binance
+            return pair
+
+        # Verificar si necesita mapeo 1000x
+        if base.upper() in self.FUTURES_SYMBOL_MAPPING:
+            mapped_base = self.FUTURES_SYMBOL_MAPPING[base.upper()]
+            result = f"{mapped_base}{quote}"
+            logger.debug(f"Symbol mapping: {pair} -> {result}")
+            return result
+
+        return f"{base}{quote}"
+
+    def convert_symbol_to_pair(self, symbol: str) -> str:
+        """
+        Convierte formato Binance Futures a par (BTCUSDT -> BTC/USDT)
+        Maneja símbolos especiales que usan formato 1000x
+
+        Args:
+            symbol: Símbolo en formato Binance (ej. 1000SHIBUSDT)
+
+        Returns:
+            Par en formato con slash (ej. SHIB/USDT)
+        """
+        if not symbol.endswith('USDT'):
+            return symbol
+
+        base = symbol[:-4]  # Remove USDT
+
+        # Verificar si tiene prefijo 1000
+        if base.startswith('1000'):
+            original_base = base[4:]  # Remove '1000' prefix
+            # Verificar que está en nuestro mapeo
+            if original_base in self.FUTURES_SYMBOL_MAPPING.values() or \
+               f"1000{original_base}" == self.FUTURES_SYMBOL_MAPPING.get(original_base, ''):
+                base = original_base
+
+        return f"{base}/USDT"
 
     def validate_connection(self) -> bool:
         """

@@ -83,8 +83,9 @@ class LivePositionManager:
         return PositionSide.LONG if side == 'BUY' else PositionSide.SHORT
 
     def _pair_to_symbol(self, pair: str) -> str:
-        """Convierte BTC/USDT -> BTCUSDT"""
-        return pair.replace('/', '')
+        """Convierte BTC/USDT -> BTCUSDT (usando mapeo de símbolos del cliente)"""
+        # Usar el método del cliente que maneja símbolos especiales como 1000SHIB
+        return self.client.convert_pair_format(pair)
 
     def process_signal(
         self,
