@@ -391,20 +391,26 @@ class RLAgent:
             }
         else:
             # Acciones LONG/SHORT conservadoras (OPEN_CONSERVATIVE, OPEN_NORMAL, OPEN_AGGRESSIVE)
-            # Migrado a FUTURES con leverage 1x (equivalente a SPOT pero permite SHORT)
+            # Ahora usan leverage basado en experiencia (no hardcoded 1x)
             if chosen_action == 'OPEN_CONSERVATIVE':
                 multiplier = 0.5
+                # 15% del max leverage (muy conservador)
+                leverage = max(2, int(max_leverage * 0.15)) if max_leverage > 1 else 1
             elif chosen_action == 'OPEN_AGGRESSIVE':
                 multiplier = 1.5
+                # 50% del max leverage (moderado-agresivo)
+                leverage = max(2, int(max_leverage * 0.50)) if max_leverage > 1 else 1
             else:  # OPEN_NORMAL
                 multiplier = 1.0
+                # 30% del max leverage (conservador)
+                leverage = max(2, int(max_leverage * 0.30)) if max_leverage > 1 else 1
 
             decision = {
                 'should_trade': True,
                 'action': 'OPEN',
-                'trade_type': 'FUTURES',  # Migrado a FUTURES (permite LONG y SHORT)
+                'trade_type': 'FUTURES',  # FUTURES (permite LONG y SHORT)
                 'position_size_multiplier': multiplier,
-                'leverage': 1,  # 1x = sin apalancamiento (equivalente a SPOT)
+                'leverage': leverage,  # Leverage basado en experiencia del bot
                 'confidence': self._get_action_confidence(state, chosen_action),
                 'chosen_action': chosen_action,
                 'composite_score': composite_score  # Para telemetría/debugging
