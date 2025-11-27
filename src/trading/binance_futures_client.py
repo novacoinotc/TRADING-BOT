@@ -1145,29 +1145,30 @@ class BinanceFuturesClient:
 
         return response
 
-    def place_entry_with_sl_tp(
+    def place_scalping_order(
         self,
         symbol: str,
         side: OrderSide,
         quantity: float,
         stop_loss_price: float,
-        take_profit_prices: List[float],
-        take_profit_percentages: List[float] = None,
+        take_profit_price: float,
         position_side: PositionSide = PositionSide.BOTH,
         working_type: str = "MARK_PRICE"
     ) -> Dict:
         """
-        Coloca entrada + SL + multiples TPs en una sola request
+        Coloca entrada + SL + TP en una sola request (SCALPING PURO)
 
-        Optimizado para scalping: abre posicion con proteccion completa.
+        Optimizado para scalping:
+        - 1 orden de entrada (MARKET)
+        - 1 SL que cierra 100% de la posicion
+        - 1 TP que cierra 100% de la posicion (el primero que llegue gana)
 
         Args:
             symbol: Par de trading
             side: BUY (long) o SELL (short)
             quantity: Cantidad total
             stop_loss_price: Precio de stop loss
-            take_profit_prices: Lista de precios TP (max 3)
-            take_profit_percentages: Porcentaje de qty por TP (default: distribucion igual)
+            take_profit_price: Precio de take profit (UN SOLO TP)
             position_side: BOTH, LONG, SHORT
             working_type: MARK_PRICE o CONTRACT_PRICE
 
@@ -1177,23 +1178,7 @@ class BinanceFuturesClient:
         # Determinar lado de cierre
         close_side = OrderSide.SELL if side == OrderSide.BUY else OrderSide.BUY
 
-        # Calcular distribución de TPs
-        num_tps = len(take_profit_prices)
-        if take_profit_percentages is None:
-            # Distribucion igual entre TPs
-            take_profit_percentages = [1.0 / num_tps] * num_tps
-
-        # Validar cantidades
-        min_qty = self.get_symbol_min_qty(symbol)
-        validated_tps = []
-        for i, (tp_price, tp_pct) in enumerate(zip(take_profit_prices, take_profit_percentages)):
-            tp_qty = self.round_quantity(symbol, quantity * tp_pct)
-            if tp_qty >= min_qty:
-                validated_tps.append((tp_price, tp_qty))
-            else:
-                logger.warning(f"TP{i+1} quantity {tp_qty} too small, skipping")
-
-        # Construir ordenes batch
+        # Construir ordenes batch (solo 3 ordenes para scalping)
         orders = []
 
         # 1. Orden de entrada (MARKET)
@@ -1203,58 +1188,66 @@ class BinanceFuturesClient:
             "type": "MARKET",
             "quantity": str(quantity),
             "positionSide": position_side.value,
-            "newClientOrderId": f"entry_{symbol}_{int(time.time()*1000)}"
+            "newClientOrderId": f"scalp_entry_{symbol}_{int(time.time()*1000)}"
         }
         orders.append(entry_order)
 
-        # 2. Stop Loss (STOP_MARKET con closePosition para cerrar todo)
+        # 2. Stop Loss (STOP_MARKET con closePosition=true)
         sl_order = {
             "symbol": symbol,
             "side": close_side.value,
             "type": "STOP_MARKET",
             "stopPrice": self._format_price(symbol, stop_loss_price),
-            "closePosition": "true",  # Cierra toda la posicion
+            "closePosition": "true",  # Cierra 100% de la posicion
             "positionSide": position_side.value,
             "timeInForce": "GTE_GTC",  # Auto-cancela cuando posicion cierra
             "workingType": working_type,
             "priceProtect": "true",
-            "newClientOrderId": f"sl_{symbol}_{int(time.time()*1000)}"
+            "newClientOrderId": f"scalp_sl_{symbol}_{int(time.time()*1000)}"
         }
         orders.append(sl_order)
 
-        # 3. Take Profits (TAKE_PROFIT_MARKET)
-        for i, (tp_price, tp_qty) in enumerate(validated_tps):
-            tp_order = {
-                "symbol": symbol,
-                "side": close_side.value,
-                "type": "TAKE_PROFIT_MARKET",
-                "stopPrice": self._format_price(symbol, tp_price),
-                "quantity": str(tp_qty),
-                "positionSide": position_side.value,
-                "reduceOnly": "true",
-                "timeInForce": "GTE_GTC",
-                "workingType": working_type,
-                "newClientOrderId": f"tp{i+1}_{symbol}_{int(time.time()*1000)}"
-            }
-            orders.append(tp_order)
+        # 3. Take Profit (TAKE_PROFIT_MARKET con closePosition=true) - UN SOLO TP
+        tp_order = {
+            "symbol": symbol,
+            "side": close_side.value,
+            "type": "TAKE_PROFIT_MARKET",
+            "stopPrice": self._format_price(symbol, take_profit_price),
+            "closePosition": "true",  # Cierra 100% de la posicion
+            "positionSide": position_side.value,
+            "timeInForce": "GTE_GTC",  # Auto-cancela cuando posicion cierra
+            "workingType": working_type,
+            "newClientOrderId": f"scalp_tp_{symbol}_{int(time.time()*1000)}"
+        }
+        orders.append(tp_order)
 
-        # Ejecutar batch (max 5 ordenes)
-        if len(orders) > 5:
-            logger.warning(f"Too many orders ({len(orders)}), splitting batch")
-            # Primero entrada + SL + primeros TPs
-            first_batch = orders[:5]
-            remaining = orders[5:]
+        # Ejecutar batch (3 ordenes)
+        results = self.place_batch_orders(orders)
 
-            results = {
-                'first_batch': self.place_batch_orders(first_batch),
-                'second_batch': self.place_batch_orders(remaining) if remaining else []
-            }
+        # Log resumen
+        entry_price_est = float(self.get_ticker_price(symbol)['price'])
+        if side == OrderSide.BUY:
+            sl_pct = ((stop_loss_price - entry_price_est) / entry_price_est) * 100
+            tp_pct = ((take_profit_price - entry_price_est) / entry_price_est) * 100
         else:
-            results = {
-                'orders': self.place_batch_orders(orders)
-            }
+            sl_pct = ((entry_price_est - stop_loss_price) / entry_price_est) * 100
+            tp_pct = ((entry_price_est - take_profit_price) / entry_price_est) * 100
 
-        return results
+        logger.info(f"📈 SCALPING ORDER: {symbol} {side.value} qty={quantity}")
+        logger.info(f"   SL: ${stop_loss_price:.2f} ({sl_pct:.2f}%) | TP: ${take_profit_price:.2f} ({tp_pct:.2f}%)")
+
+        return {
+            'orders': results,
+            'summary': {
+                'symbol': symbol,
+                'side': side.value,
+                'quantity': quantity,
+                'sl_price': stop_loss_price,
+                'tp_price': take_profit_price,
+                'sl_pct': sl_pct,
+                'tp_pct': tp_pct
+            }
+        }
 
     # ==================== POSITION CLOSE HELPERS ====================
 

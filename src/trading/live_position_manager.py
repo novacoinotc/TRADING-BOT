@@ -332,86 +332,64 @@ class LivePositionManager:
                 except Exception as e:
                     logger.error(f"Error placing stop loss for {pair}: {e}")
 
-        # 2. Place Take Profit orders (TAKE_PROFIT_MARKET)
-        # Calculate quantities that respect minimum requirements
-        tp_levels = []
+        # 2. Place Take Profit (TAKE_PROFIT_MARKET) - SCALPING: Single TP closes 100%
+        # For scalping, we use ONE TP that closes the entire position
+        # The AI determines the optimal TP price based on market analysis
+        tp_price = None
+
         if take_profit:
-            if 'tp1' in take_profit and take_profit['tp1']:
-                tp_levels.append(('TP1', take_profit['tp1'], 0.5))  # 50% at TP1
-            if 'tp2' in take_profit and take_profit['tp2']:
-                tp_levels.append(('TP2', take_profit['tp2'], 0.3))  # 30% at TP2
-            if 'tp3' in take_profit and take_profit['tp3']:
-                tp_levels.append(('TP3', take_profit['tp3'], 0.2))  # 20% at TP3
+            # Support both old format (tp1/tp2/tp3) and new scalping format (tp)
+            if 'tp' in take_profit and take_profit['tp']:
+                # New scalping format: single TP
+                tp_price = take_profit['tp']
+            elif 'tp1' in take_profit and take_profit['tp1']:
+                # Legacy format: use tp1 as the single TP for scalping
+                tp_price = take_profit['tp1']
+                logger.info(f"Using tp1 as single TP for scalping: ${tp_price:.4f}")
 
-        # Calculate and validate TP quantities BEFORE placing any orders
-        validated_tps = []
-        remaining_qty = quantity
+        if tp_price and tp_price > 0:
+            # Validate TP price won't trigger immediately
+            tp_valid = True
+            if current_price > 0:
+                if side == 'BUY' and tp_price <= current_price:
+                    logger.warning(f"TP ${tp_price:.4f} <= current ${current_price:.4f} for LONG {pair}, skipping")
+                    tp_valid = False
+                elif side == 'SELL' and tp_price >= current_price:
+                    logger.warning(f"TP ${tp_price:.4f} >= current ${current_price:.4f} for SHORT {pair}, skipping")
+                    tp_valid = False
 
-        for tp_name, tp_price, tp_pct in tp_levels:
-            if tp_price and tp_price > 0:
-                # Validate TP price won't trigger immediately
-                tp_valid = True
-                if current_price > 0:
-                    if side == 'BUY' and tp_price <= current_price:
-                        logger.warning(f"{tp_name} ${tp_price:.4f} <= current ${current_price:.4f} for LONG {pair}, skipping")
-                        tp_valid = False
-                    elif side == 'SELL' and tp_price >= current_price:
-                        logger.warning(f"{tp_name} ${tp_price:.4f} >= current ${current_price:.4f} for SHORT {pair}, skipping")
-                        tp_valid = False
+            if tp_valid:
+                try:
+                    # SCALPING: Single TP with closePosition=true closes 100% of position
+                    # GTE_GTC: auto-cancels when position closes
+                    # MARK_PRICE: more stable trigger price
+                    tp_order = self.client.place_take_profit_market_order(
+                        symbol=symbol,
+                        side=close_side,
+                        quantity=quantity,  # Ignored when close_position=True
+                        stop_price=tp_price,
+                        position_side=position_side,
+                        reduce_only=True,
+                        close_position=True,  # SCALPING: Close 100% of position
+                        time_in_force=TimeInForce.GTE_GTC,
+                        working_type="MARK_PRICE"
+                    )
+                    self.stop_orders[pair]['tp'].append(tp_order.order_id)
 
-                if tp_valid:
-                    # Calculate quantity and round to step size
-                    raw_qty = quantity * tp_pct
-                    rounded_qty = self.client.round_quantity(symbol, raw_qty)
-
-                    # Check if quantity meets minimum
-                    if rounded_qty >= min_qty:
-                        validated_tps.append((tp_name, tp_price, rounded_qty))
+                    # Calculate profit % for logging
+                    if entry_price > 0:
+                        if side == 'BUY':
+                            profit_pct = ((tp_price - entry_price) / entry_price) * 100
+                        else:
+                            profit_pct = ((entry_price - tp_price) / entry_price) * 100
+                        logger.info(f"✅ SCALPING TP placed for {pair} @ ${tp_price:.4f} (+{profit_pct:.2f}%) [closes 100%]")
                     else:
-                        logger.warning(f"{tp_name} quantity {rounded_qty:.6f} < min {min_qty:.6f} for {pair}, will redistribute")
+                        logger.info(f"✅ SCALPING TP placed for {pair} @ ${tp_price:.4f} [closes 100%]")
 
-        # If we have valid TPs, redistribute any missing quantities
-        if validated_tps:
-            # Calculate total allocated
-            total_allocated = sum(qty for _, _, qty in validated_tps)
-
-            # If we couldn't place all TPs, add remaining to the last valid TP
-            if total_allocated < quantity * 0.95:  # Allow 5% tolerance for rounding
-                remaining = quantity - total_allocated
-                remaining_rounded = self.client.round_quantity(symbol, remaining)
-
-                if remaining_rounded > 0:
-                    # Add to the last TP (usually the furthest one)
-                    last_tp = validated_tps[-1]
-                    new_qty = last_tp[2] + remaining_rounded
-                    validated_tps[-1] = (last_tp[0], last_tp[1], new_qty)
-                    logger.info(f"Redistributed {remaining_rounded:.6f} to {last_tp[0]} for {pair}")
-
-        # Now place all validated TP orders
-        for tp_name, tp_price, tp_quantity in validated_tps:
-            try:
-                # GTE_GTC: auto-cancels when position closes
-                # MARK_PRICE: more stable trigger price
-                tp_order = self.client.place_take_profit_market_order(
-                    symbol=symbol,
-                    side=close_side,
-                    quantity=tp_quantity,
-                    stop_price=tp_price,
-                    position_side=position_side,
-                    reduce_only=True,
-                    time_in_force=TimeInForce.GTE_GTC,  # Auto-cancel when position closes
-                    working_type="MARK_PRICE"  # More stable trigger price
-                )
-                self.stop_orders[pair]['tp'].append(tp_order.order_id)
-                tp_pct_actual = (tp_quantity / quantity) * 100
-                logger.info(f"{tp_name} placed for {pair} @ ${tp_price:.4f} qty={tp_quantity:.6f} ({tp_pct_actual:.0f}%) [GTE_GTC]")
-
-            except Exception as e:
-                logger.error(f"Error placing {tp_name} for {pair}: {e}")
-
-        # Log summary
-        if not validated_tps:
-            logger.warning(f"No valid TP orders could be placed for {pair} - position too small for multiple TPs")
+                except Exception as e:
+                    logger.error(f"Error placing TP for {pair}: {e}")
+        else:
+            logger.warning(f"No valid TP price for {pair} - position opened without TP protection")
 
     def update_positions(self, pair: str, current_price: float) -> Optional[Dict]:
         """
