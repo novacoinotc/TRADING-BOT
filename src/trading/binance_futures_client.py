@@ -1037,6 +1037,218 @@ class BinanceFuturesClient:
             params['endTime'] = end_time
         return self._make_request('GET', '/fapi/v1/forceOrders', params, signed=True)
 
+    # ==================== USER DATA STREAM ====================
+
+    def create_listen_key(self) -> str:
+        """
+        Crea un listenKey para User Data Stream WebSocket
+
+        El listenKey expira en 60 minutos si no se renueva.
+        Usa keep_alive_listen_key() cada 30 minutos para mantenerlo activo.
+
+        Returns:
+            listenKey string para conexion WebSocket
+        """
+        response = self._make_request('POST', '/fapi/v1/listenKey', signed=True)
+        listen_key = response.get('listenKey')
+        logger.info(f"ListenKey created: {listen_key[:20]}...")
+        return listen_key
+
+    def keep_alive_listen_key(self) -> bool:
+        """
+        Renueva el listenKey para mantener el User Data Stream activo
+
+        Debe llamarse cada 30-60 minutos para evitar que expire.
+
+        Returns:
+            True si exitoso
+        """
+        try:
+            self._make_request('PUT', '/fapi/v1/listenKey', signed=True)
+            logger.debug("ListenKey renewed successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Error renewing listenKey: {e}")
+            return False
+
+    def close_listen_key(self) -> bool:
+        """
+        Cierra el User Data Stream y invalida el listenKey
+
+        Returns:
+            True si exitoso
+        """
+        try:
+            self._make_request('DELETE', '/fapi/v1/listenKey', signed=True)
+            logger.info("ListenKey closed")
+            return True
+        except Exception as e:
+            logger.error(f"Error closing listenKey: {e}")
+            return False
+
+    # ==================== BATCH ORDERS ====================
+
+    def place_batch_orders(self, orders: List[Dict]) -> List[Dict]:
+        """
+        Coloca multiples ordenes en una sola request (max 5)
+
+        Ideal para scalping: colocar entrada + SL + multiples TPs juntos.
+        Las ordenes se procesan concurrentemente (orden no garantizado).
+
+        Args:
+            orders: Lista de ordenes (max 5), cada una con:
+                - symbol: Par de trading
+                - side: BUY o SELL
+                - type: Tipo de orden
+                - quantity: Cantidad (excepto si closePosition=true)
+                - price: Precio (para LIMIT)
+                - stopPrice: Precio de activacion (para STOP/TP)
+                - timeInForce: GTC, IOC, FOK, GTX, GTE_GTC
+                - reduceOnly: true/false
+                - closePosition: true/false (solo para STOP_MARKET/TP_MARKET)
+                - workingType: CONTRACT_PRICE o MARK_PRICE
+                - priceProtect: true/false
+                - newClientOrderId: ID personalizado
+
+        Returns:
+            Lista de resultados (exito o error por cada orden)
+
+        Example:
+            orders = [
+                {"symbol": "BTCUSDT", "side": "BUY", "type": "MARKET", "quantity": 0.01},
+                {"symbol": "BTCUSDT", "side": "SELL", "type": "STOP_MARKET",
+                 "stopPrice": 45000, "quantity": 0.01, "reduceOnly": "true",
+                 "timeInForce": "GTE_GTC", "workingType": "MARK_PRICE"},
+                {"symbol": "BTCUSDT", "side": "SELL", "type": "TAKE_PROFIT_MARKET",
+                 "stopPrice": 48000, "quantity": 0.005, "reduceOnly": "true",
+                 "timeInForce": "GTE_GTC"},
+            ]
+            results = client.place_batch_orders(orders)
+        """
+        if len(orders) > 5:
+            raise ValueError(f"Maximum 5 orders per batch, got {len(orders)}")
+
+        if len(orders) == 0:
+            return []
+
+        import json
+        params = {
+            'batchOrders': json.dumps(orders)
+        }
+
+        response = self._make_request('POST', '/fapi/v1/batchOrders', params, signed=True)
+
+        # Log results
+        success_count = sum(1 for r in response if 'orderId' in r)
+        error_count = sum(1 for r in response if 'code' in r)
+        logger.info(f"Batch orders: {success_count} success, {error_count} errors")
+
+        return response
+
+    def place_scalping_order(
+        self,
+        symbol: str,
+        side: OrderSide,
+        quantity: float,
+        stop_loss_price: float,
+        take_profit_price: float,
+        position_side: PositionSide = PositionSide.BOTH,
+        working_type: str = "MARK_PRICE"
+    ) -> Dict:
+        """
+        Coloca entrada + SL + TP en una sola request (SCALPING PURO)
+
+        Optimizado para scalping:
+        - 1 orden de entrada (MARKET)
+        - 1 SL que cierra 100% de la posicion
+        - 1 TP que cierra 100% de la posicion (el primero que llegue gana)
+
+        Args:
+            symbol: Par de trading
+            side: BUY (long) o SELL (short)
+            quantity: Cantidad total
+            stop_loss_price: Precio de stop loss
+            take_profit_price: Precio de take profit (UN SOLO TP)
+            position_side: BOTH, LONG, SHORT
+            working_type: MARK_PRICE o CONTRACT_PRICE
+
+        Returns:
+            Dict con resultados de cada orden
+        """
+        # Determinar lado de cierre
+        close_side = OrderSide.SELL if side == OrderSide.BUY else OrderSide.BUY
+
+        # Construir ordenes batch (solo 3 ordenes para scalping)
+        orders = []
+
+        # 1. Orden de entrada (MARKET)
+        entry_order = {
+            "symbol": symbol,
+            "side": side.value,
+            "type": "MARKET",
+            "quantity": str(quantity),
+            "positionSide": position_side.value,
+            "newClientOrderId": f"scalp_entry_{symbol}_{int(time.time()*1000)}"
+        }
+        orders.append(entry_order)
+
+        # 2. Stop Loss (STOP_MARKET con closePosition=true)
+        sl_order = {
+            "symbol": symbol,
+            "side": close_side.value,
+            "type": "STOP_MARKET",
+            "stopPrice": self._format_price(symbol, stop_loss_price),
+            "closePosition": "true",  # Cierra 100% de la posicion
+            "positionSide": position_side.value,
+            "timeInForce": "GTE_GTC",  # Auto-cancela cuando posicion cierra
+            "workingType": working_type,
+            "priceProtect": "true",
+            "newClientOrderId": f"scalp_sl_{symbol}_{int(time.time()*1000)}"
+        }
+        orders.append(sl_order)
+
+        # 3. Take Profit (TAKE_PROFIT_MARKET con closePosition=true) - UN SOLO TP
+        tp_order = {
+            "symbol": symbol,
+            "side": close_side.value,
+            "type": "TAKE_PROFIT_MARKET",
+            "stopPrice": self._format_price(symbol, take_profit_price),
+            "closePosition": "true",  # Cierra 100% de la posicion
+            "positionSide": position_side.value,
+            "timeInForce": "GTE_GTC",  # Auto-cancela cuando posicion cierra
+            "workingType": working_type,
+            "newClientOrderId": f"scalp_tp_{symbol}_{int(time.time()*1000)}"
+        }
+        orders.append(tp_order)
+
+        # Ejecutar batch (3 ordenes)
+        results = self.place_batch_orders(orders)
+
+        # Log resumen
+        entry_price_est = float(self.get_ticker_price(symbol)['price'])
+        if side == OrderSide.BUY:
+            sl_pct = ((stop_loss_price - entry_price_est) / entry_price_est) * 100
+            tp_pct = ((take_profit_price - entry_price_est) / entry_price_est) * 100
+        else:
+            sl_pct = ((entry_price_est - stop_loss_price) / entry_price_est) * 100
+            tp_pct = ((entry_price_est - take_profit_price) / entry_price_est) * 100
+
+        logger.info(f"📈 SCALPING ORDER: {symbol} {side.value} qty={quantity}")
+        logger.info(f"   SL: ${stop_loss_price:.2f} ({sl_pct:.2f}%) | TP: ${take_profit_price:.2f} ({tp_pct:.2f}%)")
+
+        return {
+            'orders': results,
+            'summary': {
+                'symbol': symbol,
+                'side': side.value,
+                'quantity': quantity,
+                'sl_price': stop_loss_price,
+                'tp_price': take_profit_price,
+                'sl_pct': sl_pct,
+                'tp_pct': tp_pct
+            }
+        }
+
     # ==================== POSITION CLOSE HELPERS ====================
 
     def close_position(
