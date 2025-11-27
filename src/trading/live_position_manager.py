@@ -312,6 +312,8 @@ class LivePositionManager:
             if sl_valid:
                 try:
                     # Use close_position=True so SL closes whatever is remaining after TPs
+                    # GTE_GTC: auto-cancels when position closes (critical for scalping)
+                    # MARK_PRICE: more stable, less prone to manipulation
                     sl_order = self.client.place_stop_market_order(
                         symbol=symbol,
                         side=close_side,
@@ -319,10 +321,13 @@ class LivePositionManager:
                         stop_price=stop_loss,
                         position_side=position_side,
                         reduce_only=True,
-                        close_position=True  # Close ALL remaining position at SL
+                        close_position=True,  # Close ALL remaining position at SL
+                        time_in_force=TimeInForce.GTE_GTC,  # Auto-cancel when position closes
+                        price_protect=True,  # Protect against extreme price movements
+                        working_type="MARK_PRICE"  # More stable trigger price
                     )
                     self.stop_orders[pair]['sl'] = sl_order.order_id
-                    logger.info(f"Stop Loss placed for {pair} @ ${stop_loss:.4f} (close_position=True)")
+                    logger.info(f"Stop Loss placed for {pair} @ ${stop_loss:.4f} (GTE_GTC, MARK_PRICE)")
 
                 except Exception as e:
                     logger.error(f"Error placing stop loss for {pair}: {e}")
@@ -385,17 +390,21 @@ class LivePositionManager:
         # Now place all validated TP orders
         for tp_name, tp_price, tp_quantity in validated_tps:
             try:
+                # GTE_GTC: auto-cancels when position closes
+                # MARK_PRICE: more stable trigger price
                 tp_order = self.client.place_take_profit_market_order(
                     symbol=symbol,
                     side=close_side,
                     quantity=tp_quantity,
                     stop_price=tp_price,
                     position_side=position_side,
-                    reduce_only=True
+                    reduce_only=True,
+                    time_in_force=TimeInForce.GTE_GTC,  # Auto-cancel when position closes
+                    working_type="MARK_PRICE"  # More stable trigger price
                 )
                 self.stop_orders[pair]['tp'].append(tp_order.order_id)
                 tp_pct_actual = (tp_quantity / quantity) * 100
-                logger.info(f"{tp_name} placed for {pair} @ ${tp_price:.4f} qty={tp_quantity:.6f} ({tp_pct_actual:.0f}%)")
+                logger.info(f"{tp_name} placed for {pair} @ ${tp_price:.4f} qty={tp_quantity:.6f} ({tp_pct_actual:.0f}%) [GTE_GTC]")
 
             except Exception as e:
                 logger.error(f"Error placing {tp_name} for {pair}: {e}")
