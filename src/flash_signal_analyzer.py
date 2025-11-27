@@ -324,6 +324,20 @@ class FlashSignalAnalyzer:
                 f"Ajustado a {tp_rounded} ({action})"
             )
 
+        # VALIDACIÓN FINAL: TP debe estar en el lado correcto del entry
+        if action == 'BUY' and tp_rounded <= entry_price:
+            tp_rounded = entry_price + (tick_size * 3)  # Force minimum profit
+            logger.warning(
+                f"⚠️ FLASH BUY TP estaba debajo/igual a entry ({entry_price}). "
+                f"Forzado a {tp_rounded}"
+            )
+        elif action == 'SELL' and tp_rounded >= entry_price:
+            tp_rounded = entry_price - (tick_size * 3)  # Force minimum profit
+            logger.warning(
+                f"⚠️ FLASH SELL TP estaba arriba/igual a entry ({entry_price}). "
+                f"Forzado a {tp_rounded}"
+            )
+
         # Calcular riesgo/recompensa con valores finales
         risk = abs(entry_price - stop_loss_rounded)
         reward = abs(tp_rounded - entry_price)
