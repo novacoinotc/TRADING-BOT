@@ -75,7 +75,10 @@ class AdvancedTechnicalAnalyzer:
                 indicators['current_price'],
                 signals['action'],
                 atr,
-                levels
+                levels,
+                signals['confidence'],
+                signals['score'],
+                indicators.get('volume_ratio', 1.0)
             )
             signals['stop_loss'] = sl_tp['stop_loss']
             signals['take_profit'] = sl_tp['take_profit']
@@ -419,10 +422,17 @@ class AdvancedTechnicalAnalyzer:
             'confidence': confidence
         }
 
-    def _calculate_sl_tp(self, entry_price: float, action: str, atr: float, levels: dict) -> dict:
+    def _calculate_sl_tp(self, entry_price: float, action: str, atr: float, levels: dict,
+                         confidence: int = 50, score: float = 5.0,
+                         volume_ratio: float = 1.0) -> dict:
         """
         Calculate dynamic stop-loss and take-profit levels
-        SCALPING PURO: Single TP que cierra 100% de la posición
+        SCALPING PURO: TP dinámico basado en condiciones del mercado
+
+        TP Range: 0.3% - 1.5% depending on:
+        - Confidence: Higher confidence = larger TP
+        - Score: Stronger signal = larger TP
+        - Volume: Higher volume = larger TP (momentum)
         """
         # Use ATR for dynamic stops
         atr_multiplier_sl = 2.0  # Stop loss at 2x ATR
@@ -430,9 +440,30 @@ class AdvancedTechnicalAnalyzer:
         # MÍNIMO porcentual para SL (protección contra SL = entry_price)
         min_sl_pct = 0.0015  # 0.15% mínimo de diferencia
 
-        # SCALPING PURO: Single TP for quick wins
-        # Closes 100% of position on first TP hit
-        tp_pct = 0.005  # Single TP at 0.5% for pure scalping
+        # SCALPING DINÁMICO: TP variable entre 0.3% y 1.5%
+        # Base TP starts at 0.3%
+        base_tp = 0.003  # 0.3% minimum
+        max_tp = 0.015   # 1.5% maximum
+
+        # Factor 1: Confidence (50-100% → adds 0-0.4%)
+        confidence_factor = ((confidence - 50) / 50) * 0.004 if confidence > 50 else 0
+
+        # Factor 2: Score strength (5-10 → adds 0-0.4%)
+        score_factor = ((score - 5) / 5) * 0.004 if score > 5 else 0
+
+        # Factor 3: Volume ratio (1.0-2.0+ → adds 0-0.4%)
+        volume_factor = min((volume_ratio - 1.0) * 0.004, 0.004) if volume_ratio > 1.0 else 0
+
+        # Calculate dynamic TP
+        tp_pct = base_tp + confidence_factor + score_factor + volume_factor
+        tp_pct = min(tp_pct, max_tp)  # Cap at maximum
+
+        logger.info(
+            f"📊 Dynamic TP: {tp_pct*100:.2f}% "
+            f"(conf:{confidence}% +{confidence_factor*100:.2f}%, "
+            f"score:{score:.1f} +{score_factor*100:.2f}%, "
+            f"vol:{volume_ratio:.1f}x +{volume_factor*100:.2f}%)"
+        )
 
         if action == 'BUY':
             # Calcular SL usando ATR
