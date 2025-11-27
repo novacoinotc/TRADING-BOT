@@ -422,7 +422,7 @@ class AdvancedTechnicalAnalyzer:
     def _calculate_sl_tp(self, entry_price: float, action: str, atr: float, levels: dict) -> dict:
         """
         Calculate dynamic stop-loss and take-profit levels
-        SCALPING STRATEGY: TPs pequeños y frecuentes (0.3%, 0.8%, 1.5%)
+        SCALPING PURO: Single TP que cierra 100% de la posición
         """
         # Use ATR for dynamic stops
         atr_multiplier_sl = 2.0  # Stop loss at 2x ATR
@@ -430,11 +430,9 @@ class AdvancedTechnicalAnalyzer:
         # MÍNIMO porcentual para SL (protección contra SL = entry_price)
         min_sl_pct = 0.0015  # 0.15% mínimo de diferencia
 
-        # SCALPING: Percentage-based TPs for many small wins
-        # Increased from 0.3% to 0.5% minimum to avoid rounding issues
-        tp_pct_1 = 0.005  # TP1 at 0.5%
-        tp_pct_2 = 0.010  # TP2 at 1.0%
-        tp_pct_3 = 0.018  # TP3 at 1.8%
+        # SCALPING PURO: Single TP for quick wins
+        # Closes 100% of position on first TP hit
+        tp_pct = 0.005  # Single TP at 0.5% for pure scalping
 
         if action == 'BUY':
             # Calcular SL usando ATR
@@ -448,17 +446,13 @@ class AdvancedTechnicalAnalyzer:
             if levels['nearest_support'] and levels['nearest_support'] < entry_price:
                 stop_loss = max(stop_loss, levels['nearest_support'] * 0.98)
 
-            # Percentage-based TPs for scalping
-            tp1 = entry_price * (1 + tp_pct_1)
-            tp2 = entry_price * (1 + tp_pct_2)
-            tp3 = entry_price * (1 + tp_pct_3)
+            # Single TP for scalping (above entry for BUY)
+            tp = entry_price * (1 + tp_pct)
 
-            # Adjust TPs if near resistance (only TP3 to avoid blocking small wins)
+            # Adjust TP if near resistance
             if levels['nearest_resistance'] and levels['nearest_resistance'] > entry_price:
-                if tp3 > levels['nearest_resistance']:
-                    adjusted_tp3 = levels['nearest_resistance'] * 0.99
-                    # Ensure TP3 always > TP2 (maintain proper order: TP1 < TP2 < TP3)
-                    tp3 = max(adjusted_tp3, tp2 * 1.001)  # TP3 at least 0.1% above TP2
+                if tp > levels['nearest_resistance']:
+                    tp = levels['nearest_resistance'] * 0.99
         else:  # SELL
             # Calcular SL usando ATR
             stop_loss_atr = entry_price + (atr * atr_multiplier_sl)
@@ -471,17 +465,13 @@ class AdvancedTechnicalAnalyzer:
             if levels['nearest_resistance'] and levels['nearest_resistance'] > entry_price:
                 stop_loss = min(stop_loss, levels['nearest_resistance'] * 1.02)
 
-            # Percentage-based TPs for scalping
-            tp1 = entry_price * (1 - tp_pct_1)
-            tp2 = entry_price * (1 - tp_pct_2)
-            tp3 = entry_price * (1 - tp_pct_3)
+            # Single TP for scalping (below entry for SELL)
+            tp = entry_price * (1 - tp_pct)
 
-            # Adjust TPs if near support (only TP3 to avoid blocking small wins)
+            # Adjust TP if near support
             if levels['nearest_support'] and levels['nearest_support'] < entry_price:
-                if tp3 < levels['nearest_support']:
-                    adjusted_tp3 = levels['nearest_support'] * 1.01
-                    # Ensure TP3 always < TP2 (maintain proper order: TP1 > TP2 > TP3 for SELL)
-                    tp3 = min(adjusted_tp3, tp2 * 0.999)  # TP3 at least 0.1% below TP2
+                if tp < levels['nearest_support']:
+                    tp = levels['nearest_support'] * 1.01
 
         # Ajustar decimales de redondeo según el precio
         # Para precios bajos (< $10), usar más decimales para evitar que TP = entry_price
@@ -498,9 +488,7 @@ class AdvancedTechnicalAnalyzer:
 
         # Redondear valores
         stop_loss_rounded = round(stop_loss, decimals)
-        tp1_rounded = round(tp1, decimals)
-        tp2_rounded = round(tp2, decimals)
-        tp3_rounded = round(tp3, decimals)
+        tp_rounded = round(tp, decimals)
 
         # PROTECCIÓN CRÍTICA: Verificar que SL ≠ entry_price después del redondeo
         # Si son iguales, forzar al menos 1 tick de diferencia
@@ -515,27 +503,25 @@ class AdvancedTechnicalAnalyzer:
             )
 
         # PROTECCIÓN CRÍTICA: Verificar que TP ≠ entry_price después del redondeo
-        if tp1_rounded == entry_price:
+        if tp_rounded == entry_price:
             if action == 'BUY':
-                tp1_rounded = entry_price + (tick_size * 2)
+                tp_rounded = entry_price + (tick_size * 2)
             else:  # SELL
-                tp1_rounded = entry_price - (tick_size * 2)
+                tp_rounded = entry_price - (tick_size * 2)
             logger.warning(
-                f"⚠️ TP1 igualaba entry price ({entry_price}) después de redondeo. "
-                f"Ajustado a {tp1_rounded} ({action})"
+                f"⚠️ TP igualaba entry price ({entry_price}) después de redondeo. "
+                f"Ajustado a {tp_rounded} ({action})"
             )
 
         # Calcular riesgo/recompensa con valores finales
         risk = abs(entry_price - stop_loss_rounded)
-        reward = abs(tp2_rounded - entry_price)  # Use TP2 for R:R calculation
+        reward = abs(tp_rounded - entry_price)
         risk_reward = round(reward / risk, 2) if risk > 0 else 0
 
         return {
             'stop_loss': stop_loss_rounded,
             'take_profit': {
-                'tp1': tp1_rounded,
-                'tp2': tp2_rounded,
-                'tp3': tp3_rounded
+                'tp': tp_rounded  # SCALPING: Single TP closes 100% of position
             },
             'risk_reward': risk_reward,
             'risk_amount': round(risk, decimals),
