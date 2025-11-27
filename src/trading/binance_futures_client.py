@@ -49,6 +49,7 @@ class TimeInForce(Enum):
     IOC = "IOC"  # Immediate or Cancel
     FOK = "FOK"  # Fill or Kill
     GTX = "GTX"  # Good Till Crossing (Post Only)
+    GTE_GTC = "GTE_GTC"  # Good Till Expired - auto cancels when position closes (for STOP_MARKET/TAKE_PROFIT_MARKET)
 
 
 @dataclass
@@ -501,7 +502,8 @@ class BinanceFuturesClient:
         reduce_only: bool = False,
         close_position: bool = False,
         working_type: str = "CONTRACT_PRICE",
-        new_client_order_id: Optional[str] = None
+        new_client_order_id: Optional[str] = None,
+        price_protect: bool = False
     ) -> OrderResult:
         """
         Coloca una orden en el mercado
@@ -514,11 +516,12 @@ class BinanceFuturesClient:
             price: Precio (para LIMIT orders)
             stop_price: Precio de activacion (para STOP orders)
             position_side: BOTH, LONG, SHORT
-            time_in_force: GTC, IOC, FOK, GTX
+            time_in_force: GTC, IOC, FOK, GTX, GTE_GTC
             reduce_only: True para solo reducir posicion
             close_position: True para cerrar toda la posicion
             working_type: CONTRACT_PRICE o MARK_PRICE
             new_client_order_id: ID personalizado para la orden
+            price_protect: True para proteger contra precios extremos (solo STOP/TP orders)
 
         Returns:
             OrderResult con detalles de la orden
@@ -557,6 +560,11 @@ class BinanceFuturesClient:
 
         if new_client_order_id:
             params['newClientOrderId'] = new_client_order_id
+
+        # priceProtect - only for STOP_MARKET, TAKE_PROFIT_MARKET, STOP, TAKE_PROFIT orders
+        if price_protect and order_type in [OrderType.STOP_MARKET, OrderType.TAKE_PROFIT_MARKET,
+                                             OrderType.STOP, OrderType.TAKE_PROFIT]:
+            params['priceProtect'] = 'true'
 
         response = self._make_request('POST', '/fapi/v1/order', params, signed=True)
 
@@ -655,7 +663,10 @@ class BinanceFuturesClient:
         stop_price: float,
         position_side: PositionSide = PositionSide.BOTH,
         reduce_only: bool = True,
-        close_position: bool = False
+        close_position: bool = False,
+        time_in_force: Optional[TimeInForce] = None,
+        price_protect: bool = False,
+        working_type: str = "CONTRACT_PRICE"
     ) -> OrderResult:
         """
         Coloca una orden STOP MARKET (para stop loss)
@@ -668,6 +679,9 @@ class BinanceFuturesClient:
             position_side: BOTH, LONG, SHORT
             reduce_only: True para solo reducir posicion
             close_position: True para cerrar toda la posicion
+            time_in_force: GTE_GTC recomendado (auto-cancela al cerrar posicion)
+            price_protect: True para proteger contra precios extremos
+            working_type: CONTRACT_PRICE o MARK_PRICE
         """
         return self.place_order(
             symbol=symbol,
@@ -677,7 +691,10 @@ class BinanceFuturesClient:
             stop_price=stop_price,
             position_side=position_side,
             reduce_only=reduce_only,
-            close_position=close_position
+            close_position=close_position,
+            time_in_force=time_in_force,
+            price_protect=price_protect,
+            working_type=working_type
         )
 
     def place_take_profit_market_order(
@@ -688,7 +705,10 @@ class BinanceFuturesClient:
         stop_price: float,
         position_side: PositionSide = PositionSide.BOTH,
         reduce_only: bool = True,
-        close_position: bool = False
+        close_position: bool = False,
+        time_in_force: Optional[TimeInForce] = None,
+        price_protect: bool = False,
+        working_type: str = "CONTRACT_PRICE"
     ) -> OrderResult:
         """
         Coloca una orden TAKE PROFIT MARKET
@@ -701,6 +721,9 @@ class BinanceFuturesClient:
             position_side: BOTH, LONG, SHORT
             reduce_only: True para solo reducir posicion
             close_position: True para cerrar toda la posicion
+            time_in_force: GTE_GTC recomendado (auto-cancela al cerrar posicion)
+            price_protect: True para proteger contra precios extremos
+            working_type: CONTRACT_PRICE o MARK_PRICE
         """
         return self.place_order(
             symbol=symbol,
@@ -710,7 +733,10 @@ class BinanceFuturesClient:
             stop_price=stop_price,
             position_side=position_side,
             reduce_only=reduce_only,
-            close_position=close_position
+            close_position=close_position,
+            time_in_force=time_in_force,
+            price_protect=price_protect,
+            working_type=working_type
         )
 
     def cancel_order(self, symbol: str, order_id: Optional[int] = None,
