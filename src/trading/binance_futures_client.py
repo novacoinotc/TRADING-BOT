@@ -49,6 +49,20 @@ class TimeInForce(Enum):
     IOC = "IOC"  # Immediate or Cancel
     FOK = "FOK"  # Fill or Kill
     GTX = "GTX"  # Good Till Crossing (Post Only)
+    GTE_GTC = "GTE_GTC"  # Good Till Expired - auto cancels when position closes (for STOP_MARKET/TAKE_PROFIT_MARKET)
+    GTD = "GTD"  # Good Till Date
+
+
+class OrderResponseType(Enum):
+    ACK = "ACK"  # Only orderId and status
+    RESULT = "RESULT"  # Full order result (default)
+
+
+class SelfTradePreventionMode(Enum):
+    NONE = "NONE"  # No self-trade prevention
+    EXPIRE_TAKER = "EXPIRE_TAKER"  # Expire taker order
+    EXPIRE_MAKER = "EXPIRE_MAKER"  # Expire maker order
+    EXPIRE_BOTH = "EXPIRE_BOTH"  # Expire both orders
 
 
 @dataclass
@@ -501,7 +515,13 @@ class BinanceFuturesClient:
         reduce_only: bool = False,
         close_position: bool = False,
         working_type: str = "CONTRACT_PRICE",
-        new_client_order_id: Optional[str] = None
+        new_client_order_id: Optional[str] = None,
+        price_protect: bool = False,
+        activation_price: Optional[float] = None,
+        callback_rate: Optional[float] = None,
+        new_order_resp_type: Optional[str] = None,
+        self_trade_prevention_mode: Optional[str] = None,
+        good_till_date: Optional[int] = None
     ) -> OrderResult:
         """
         Coloca una orden en el mercado
@@ -514,11 +534,17 @@ class BinanceFuturesClient:
             price: Precio (para LIMIT orders)
             stop_price: Precio de activacion (para STOP orders)
             position_side: BOTH, LONG, SHORT
-            time_in_force: GTC, IOC, FOK, GTX
+            time_in_force: GTC, IOC, FOK, GTX, GTE_GTC, GTD
             reduce_only: True para solo reducir posicion
             close_position: True para cerrar toda la posicion
             working_type: CONTRACT_PRICE o MARK_PRICE
             new_client_order_id: ID personalizado para la orden
+            price_protect: True para proteger contra precios extremos (solo STOP/TP orders)
+            activation_price: Precio de activacion para TRAILING_STOP_MARKET
+            callback_rate: Porcentaje de callback para TRAILING_STOP_MARKET (min 0.1, max 5)
+            new_order_resp_type: Tipo de respuesta (ACK o RESULT)
+            self_trade_prevention_mode: Modo de prevencion de auto-trading (NONE, EXPIRE_TAKER, EXPIRE_MAKER, EXPIRE_BOTH)
+            good_till_date: Timestamp en ms para ordenes GTD (Good Till Date)
 
         Returns:
             OrderResult con detalles de la orden
@@ -545,16 +571,45 @@ class BinanceFuturesClient:
         elif order_type == OrderType.LIMIT:
             params['timeInForce'] = TimeInForce.GTC.value
 
-        if reduce_only:
-            params['reduceOnly'] = 'true'
-
+        # IMPORTANT: reduceOnly and closePosition are mutually exclusive per Binance API
+        # When closePosition=true, do NOT send reduceOnly (causes error -1106)
         if close_position:
             params['closePosition'] = 'true'
+            # Do NOT add reduceOnly when closePosition is true
+        elif reduce_only:
+            params['reduceOnly'] = 'true'
 
         params['workingType'] = working_type
 
         if new_client_order_id:
             params['newClientOrderId'] = new_client_order_id
+
+        # priceProtect - only for STOP_MARKET, TAKE_PROFIT_MARKET, STOP, TAKE_PROFIT orders
+        if price_protect and order_type in [OrderType.STOP_MARKET, OrderType.TAKE_PROFIT_MARKET,
+                                             OrderType.STOP, OrderType.TAKE_PROFIT]:
+            params['priceProtect'] = 'true'
+
+        # TRAILING_STOP_MARKET specific parameters
+        if order_type == OrderType.TRAILING_STOP_MARKET:
+            if activation_price:
+                params['activationPrice'] = self._format_price(symbol, activation_price)
+            if callback_rate is not None:
+                # Validate callback rate (0.1% to 5%)
+                if callback_rate < 0.1 or callback_rate > 5:
+                    raise ValueError(f"callbackRate must be between 0.1 and 5, got {callback_rate}")
+                params['callbackRate'] = str(callback_rate)
+
+        # Response type
+        if new_order_resp_type:
+            params['newOrderRespType'] = new_order_resp_type
+
+        # Self-trade prevention mode
+        if self_trade_prevention_mode:
+            params['selfTradePreventionMode'] = self_trade_prevention_mode
+
+        # Good Till Date (for GTD time in force)
+        if good_till_date and time_in_force == TimeInForce.GTD:
+            params['goodTillDate'] = good_till_date
 
         response = self._make_request('POST', '/fapi/v1/order', params, signed=True)
 
@@ -653,7 +708,10 @@ class BinanceFuturesClient:
         stop_price: float,
         position_side: PositionSide = PositionSide.BOTH,
         reduce_only: bool = True,
-        close_position: bool = False
+        close_position: bool = False,
+        time_in_force: Optional[TimeInForce] = None,
+        price_protect: bool = False,
+        working_type: str = "CONTRACT_PRICE"
     ) -> OrderResult:
         """
         Coloca una orden STOP MARKET (para stop loss)
@@ -666,6 +724,9 @@ class BinanceFuturesClient:
             position_side: BOTH, LONG, SHORT
             reduce_only: True para solo reducir posicion
             close_position: True para cerrar toda la posicion
+            time_in_force: GTE_GTC recomendado (auto-cancela al cerrar posicion)
+            price_protect: True para proteger contra precios extremos
+            working_type: CONTRACT_PRICE o MARK_PRICE
         """
         return self.place_order(
             symbol=symbol,
@@ -675,7 +736,10 @@ class BinanceFuturesClient:
             stop_price=stop_price,
             position_side=position_side,
             reduce_only=reduce_only,
-            close_position=close_position
+            close_position=close_position,
+            time_in_force=time_in_force,
+            price_protect=price_protect,
+            working_type=working_type
         )
 
     def place_take_profit_market_order(
@@ -686,7 +750,10 @@ class BinanceFuturesClient:
         stop_price: float,
         position_side: PositionSide = PositionSide.BOTH,
         reduce_only: bool = True,
-        close_position: bool = False
+        close_position: bool = False,
+        time_in_force: Optional[TimeInForce] = None,
+        price_protect: bool = False,
+        working_type: str = "CONTRACT_PRICE"
     ) -> OrderResult:
         """
         Coloca una orden TAKE PROFIT MARKET
@@ -699,6 +766,9 @@ class BinanceFuturesClient:
             position_side: BOTH, LONG, SHORT
             reduce_only: True para solo reducir posicion
             close_position: True para cerrar toda la posicion
+            time_in_force: GTE_GTC recomendado (auto-cancela al cerrar posicion)
+            price_protect: True para proteger contra precios extremos
+            working_type: CONTRACT_PRICE o MARK_PRICE
         """
         return self.place_order(
             symbol=symbol,
@@ -708,7 +778,53 @@ class BinanceFuturesClient:
             stop_price=stop_price,
             position_side=position_side,
             reduce_only=reduce_only,
-            close_position=close_position
+            close_position=close_position,
+            time_in_force=time_in_force,
+            price_protect=price_protect,
+            working_type=working_type
+        )
+
+    def place_trailing_stop_order(
+        self,
+        symbol: str,
+        side: OrderSide,
+        quantity: float,
+        callback_rate: float,
+        activation_price: Optional[float] = None,
+        position_side: PositionSide = PositionSide.BOTH,
+        reduce_only: bool = True,
+        working_type: str = "CONTRACT_PRICE"
+    ) -> OrderResult:
+        """
+        Coloca una orden TRAILING STOP MARKET
+
+        El trailing stop sigue el precio a una distancia definida por el callback_rate.
+        Si el precio se mueve a favor, el stop se mueve también.
+        Si el precio se revierte por el callback_rate%, se ejecuta la orden.
+
+        Args:
+            symbol: Par de trading
+            side: BUY o SELL
+            quantity: Cantidad
+            callback_rate: Porcentaje de callback (0.1% a 5%)
+            activation_price: Precio de activacion (opcional, si no se especifica usa precio actual)
+            position_side: BOTH, LONG, SHORT
+            reduce_only: True para solo reducir posicion
+            working_type: CONTRACT_PRICE o MARK_PRICE
+
+        Returns:
+            OrderResult con detalles de la orden
+        """
+        return self.place_order(
+            symbol=symbol,
+            side=side,
+            order_type=OrderType.TRAILING_STOP_MARKET,
+            quantity=quantity,
+            position_side=position_side,
+            reduce_only=reduce_only,
+            working_type=working_type,
+            activation_price=activation_price,
+            callback_rate=callback_rate
         )
 
     def cancel_order(self, symbol: str, order_id: Optional[int] = None,
@@ -762,6 +878,164 @@ class BinanceFuturesClient:
         """Obtiene historial de ordenes de un simbolo"""
         params = {'symbol': symbol, 'limit': limit}
         return self._make_request('GET', '/fapi/v1/allOrders', params, signed=True)
+
+    # ==================== TRADE & INCOME HISTORY ====================
+
+    def get_user_trades(
+        self,
+        symbol: str,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        from_id: Optional[int] = None,
+        limit: int = 500
+    ) -> List[Dict]:
+        """
+        Obtiene historial de trades ejecutados
+
+        Args:
+            symbol: Par de trading
+            start_time: Timestamp inicio en ms (opcional)
+            end_time: Timestamp fin en ms (opcional)
+            from_id: Trade ID desde el cual obtener (opcional)
+            limit: Numero maximo de trades (default 500, max 1000)
+
+        Returns:
+            Lista de trades con detalles (precio, cantidad, comision, etc)
+        """
+        params = {'symbol': symbol, 'limit': min(limit, 1000)}
+        if start_time:
+            params['startTime'] = start_time
+        if end_time:
+            params['endTime'] = end_time
+        if from_id:
+            params['fromId'] = from_id
+        return self._make_request('GET', '/fapi/v1/userTrades', params, signed=True)
+
+    def get_income_history(
+        self,
+        symbol: Optional[str] = None,
+        income_type: Optional[str] = None,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        limit: int = 100
+    ) -> List[Dict]:
+        """
+        Obtiene historial de ingresos/gastos (P&L realizado, comisiones, funding, etc)
+
+        Args:
+            symbol: Par de trading (opcional, todos si no se especifica)
+            income_type: Tipo de ingreso (REALIZED_PNL, FUNDING_FEE, COMMISSION, etc)
+            start_time: Timestamp inicio en ms
+            end_time: Timestamp fin en ms
+            limit: Numero maximo de registros (default 100, max 1000)
+
+        Income types disponibles:
+            - TRANSFER: Transferencias
+            - WELCOME_BONUS: Bonus de bienvenida
+            - REALIZED_PNL: P&L realizado
+            - FUNDING_FEE: Comisiones de funding
+            - COMMISSION: Comisiones de trading
+            - INSURANCE_CLEAR: Liquidacion por seguro
+            - REFERRAL_KICKBACK: Comision referidos
+            - COMMISSION_REBATE: Rebate comisiones
+            - API_REBATE: Rebate API
+            - CONTEST_REWARD: Premio concurso
+            - CROSS_COLLATERAL_TRANSFER: Transferencia colateral
+            - OPTIONS_PREMIUM_FEE: Comision opciones
+            - OPTIONS_SETTLE_PROFIT: Profit liquidacion opciones
+            - INTERNAL_TRANSFER: Transferencia interna
+            - AUTO_EXCHANGE: Intercambio automatico
+            - DELIVERED_SETTELMENT: Liquidacion entrega
+            - COIN_SWAP_DEPOSIT/WITHDRAW: Deposito/retiro swap
+            - POSITION_LIMIT_INCREASE_FEE: Comision aumento limite
+
+        Returns:
+            Lista de registros de ingreso/gasto
+        """
+        params = {'limit': min(limit, 1000)}
+        if symbol:
+            params['symbol'] = symbol
+        if income_type:
+            params['incomeType'] = income_type
+        if start_time:
+            params['startTime'] = start_time
+        if end_time:
+            params['endTime'] = end_time
+        return self._make_request('GET', '/fapi/v1/income', params, signed=True)
+
+    def get_leverage_brackets(self, symbol: Optional[str] = None) -> List[Dict]:
+        """
+        Obtiene brackets de leverage permitidos por simbolo
+
+        Cada bracket tiene:
+        - notionalCap: Limite de nocional para ese bracket
+        - notionalFloor: Piso de nocional para ese bracket
+        - maintMarginRatio: Ratio de margen de mantenimiento
+        - initialLeverage: Leverage maximo permitido
+        - cum: Valor cumulativo para calculo
+
+        Args:
+            symbol: Par de trading (opcional, todos si no se especifica)
+
+        Returns:
+            Lista de brackets de leverage por simbolo
+        """
+        params = {}
+        if symbol:
+            params['symbol'] = symbol
+        return self._make_request('GET', '/fapi/v1/leverageBracket', params, signed=True)
+
+    def get_position_adl_quantile(self, symbol: Optional[str] = None) -> List[Dict]:
+        """
+        Obtiene el quantil de ADL (Auto-Deleveraging) de las posiciones
+
+        El ADL quantil indica la probabilidad de ser auto-deleveraged
+        en caso de liquidaciones masivas:
+        - 5: Mayor prioridad de ADL (mayor riesgo)
+        - 1: Menor prioridad de ADL (menor riesgo)
+
+        Args:
+            symbol: Par de trading (opcional)
+
+        Returns:
+            Lista con quantiles ADL por posicion
+        """
+        params = {}
+        if symbol:
+            params['symbol'] = symbol
+        return self._make_request('GET', '/fapi/v1/adlQuantile', params, signed=True)
+
+    def get_force_orders(
+        self,
+        symbol: Optional[str] = None,
+        auto_close_type: Optional[str] = None,
+        start_time: Optional[int] = None,
+        end_time: Optional[int] = None,
+        limit: int = 50
+    ) -> List[Dict]:
+        """
+        Obtiene historial de ordenes forzadas (liquidaciones)
+
+        Args:
+            symbol: Par de trading (opcional)
+            auto_close_type: LIQUIDATION o ADL
+            start_time: Timestamp inicio
+            end_time: Timestamp fin
+            limit: Numero maximo (default 50, max 100)
+
+        Returns:
+            Lista de ordenes de liquidacion/ADL
+        """
+        params = {'limit': min(limit, 100)}
+        if symbol:
+            params['symbol'] = symbol
+        if auto_close_type:
+            params['autoCloseType'] = auto_close_type
+        if start_time:
+            params['startTime'] = start_time
+        if end_time:
+            params['endTime'] = end_time
+        return self._make_request('GET', '/fapi/v1/forceOrders', params, signed=True)
 
     # ==================== POSITION CLOSE HELPERS ====================
 
