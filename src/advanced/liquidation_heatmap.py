@@ -144,7 +144,7 @@ class LiquidationHeatmap:
         liquidations = {}
 
         try:
-            if 'data' in data:
+            if 'data' in data and data['data'] is not None:
                 for level in data['data']:
                     price = float(level.get('price', 0))
                     volume = float(level.get('volume', 0))
