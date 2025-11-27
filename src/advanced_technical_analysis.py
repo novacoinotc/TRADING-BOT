@@ -480,10 +480,14 @@ class AdvancedTechnicalAnalyzer:
             # Single TP for scalping (above entry for BUY)
             tp = entry_price * (1 + tp_pct)
 
-            # Adjust TP if near resistance
+            # Adjust TP if near resistance (but NEVER below entry!)
             if levels['nearest_resistance'] and levels['nearest_resistance'] > entry_price:
                 if tp > levels['nearest_resistance']:
-                    tp = levels['nearest_resistance'] * 0.99
+                    adjusted_tp = levels['nearest_resistance'] * 0.99
+                    # CRITICAL: Ensure TP stays ABOVE entry for BUY
+                    min_tp_for_buy = entry_price * 1.002  # Minimum 0.2% profit
+                    tp = max(adjusted_tp, min_tp_for_buy)
+                    logger.info(f"📊 BUY TP adjusted: resistance={levels['nearest_resistance']:.4f}, tp={tp:.4f}")
         else:  # SELL
             # Calcular SL usando ATR
             stop_loss_atr = entry_price + (atr * atr_multiplier_sl)
@@ -499,10 +503,14 @@ class AdvancedTechnicalAnalyzer:
             # Single TP for scalping (below entry for SELL)
             tp = entry_price * (1 - tp_pct)
 
-            # Adjust TP if near support
+            # Adjust TP if near support (but NEVER above entry!)
             if levels['nearest_support'] and levels['nearest_support'] < entry_price:
                 if tp < levels['nearest_support']:
-                    tp = levels['nearest_support'] * 1.01
+                    adjusted_tp = levels['nearest_support'] * 1.01
+                    # CRITICAL: Ensure TP stays BELOW entry for SELL
+                    max_tp_for_sell = entry_price * 0.998  # Minimum 0.2% profit
+                    tp = min(adjusted_tp, max_tp_for_sell)
+                    logger.info(f"📊 SELL TP adjusted: support={levels['nearest_support']:.4f}, tp={tp:.4f}")
 
         # Ajustar decimales de redondeo según el precio
         # Para precios bajos (< $10), usar más decimales para evitar que TP = entry_price
@@ -542,6 +550,20 @@ class AdvancedTechnicalAnalyzer:
             logger.warning(
                 f"⚠️ TP igualaba entry price ({entry_price}) después de redondeo. "
                 f"Ajustado a {tp_rounded} ({action})"
+            )
+
+        # VALIDACIÓN FINAL: TP debe estar en el lado correcto del entry
+        if action == 'BUY' and tp_rounded <= entry_price:
+            tp_rounded = entry_price + (tick_size * 3)  # Force minimum profit
+            logger.warning(
+                f"⚠️ BUY TP estaba debajo/igual a entry ({entry_price}). "
+                f"Forzado a {tp_rounded}"
+            )
+        elif action == 'SELL' and tp_rounded >= entry_price:
+            tp_rounded = entry_price - (tick_size * 3)  # Force minimum profit
+            logger.warning(
+                f"⚠️ SELL TP estaba arriba/igual a entry ({entry_price}). "
+                f"Forzado a {tp_rounded}"
             )
 
         # Calcular riesgo/recompensa con valores finales
