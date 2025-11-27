@@ -545,11 +545,13 @@ class BinanceFuturesClient:
         elif order_type == OrderType.LIMIT:
             params['timeInForce'] = TimeInForce.GTC.value
 
-        if reduce_only:
-            params['reduceOnly'] = 'true'
-
+        # IMPORTANT: reduceOnly and closePosition are mutually exclusive per Binance API
+        # When closePosition=true, do NOT send reduceOnly (causes error -1106)
         if close_position:
             params['closePosition'] = 'true'
+            # Do NOT add reduceOnly when closePosition is true
+        elif reduce_only:
+            params['reduceOnly'] = 'true'
 
         params['workingType'] = working_type
 
