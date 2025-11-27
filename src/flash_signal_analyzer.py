@@ -228,9 +228,10 @@ class FlashSignalAnalyzer:
         min_sl_pct = 0.0015  # 0.15% mínimo de diferencia
 
         # SCALPING: Percentage-based TPs for many small wins
-        tp_pct_1 = 0.003  # TP1 at 0.3%
-        tp_pct_2 = 0.008  # TP2 at 0.8%
-        tp_pct_3 = 0.015  # TP3 at 1.5%
+        # Increased from 0.3% to 0.5% minimum to avoid rounding issues
+        tp_pct_1 = 0.005  # TP1 at 0.5%
+        tp_pct_2 = 0.010  # TP2 at 1.0%
+        tp_pct_3 = 0.018  # TP3 at 1.8%
 
         if action == 'BUY':
             # Calcular SL usando ATR
@@ -258,8 +259,17 @@ class FlashSignalAnalyzer:
             tp3 = entry_price * (1 - tp_pct_3)
 
         # Ajustar decimales de redondeo según el precio
-        # Para precios bajos (< $1), usar más decimales para evitar que TP = entry_price
-        decimals = 4 if entry_price < 1.0 else 2
+        # Para precios bajos (< $10), usar más decimales para evitar que TP = entry_price
+        if entry_price < 0.1:
+            decimals = 6
+        elif entry_price < 1.0:
+            decimals = 5
+        elif entry_price < 10.0:
+            decimals = 4  # Fixed: was 2, now 4 for prices $1-$10
+        else:
+            decimals = 2
+
+        tick_size = 10 ** (-decimals)
 
         # Redondear valores
         stop_loss_rounded = round(stop_loss, decimals)
@@ -270,7 +280,6 @@ class FlashSignalAnalyzer:
         # PROTECCIÓN CRÍTICA: Verificar que SL ≠ entry_price después del redondeo
         # Si son iguales, forzar al menos 1 tick de diferencia
         if stop_loss_rounded == entry_price:
-            tick_size = 10 ** (-decimals)  # 1 tick = 0.0001 para 4 decimales
             if action == 'BUY':
                 stop_loss_rounded = entry_price - tick_size
             else:  # SELL
@@ -278,6 +287,18 @@ class FlashSignalAnalyzer:
             logger.warning(
                 f"⚠️ FLASH SL igualaba entry price ({entry_price}) después de redondeo. "
                 f"Ajustado a {stop_loss_rounded} ({action})"
+            )
+
+        # PROTECCIÓN CRÍTICA: Verificar que TP ≠ entry_price después del redondeo
+        # Si son iguales, forzar al menos 2 ticks de diferencia
+        if tp1_rounded == entry_price:
+            if action == 'BUY':
+                tp1_rounded = entry_price + (tick_size * 2)
+            else:  # SELL
+                tp1_rounded = entry_price - (tick_size * 2)
+            logger.warning(
+                f"⚠️ FLASH TP1 igualaba entry price ({entry_price}) después de redondeo. "
+                f"Ajustado a {tp1_rounded} ({action})"
             )
 
         # Calcular riesgo/recompensa con valores finales
