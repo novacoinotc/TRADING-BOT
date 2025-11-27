@@ -43,7 +43,8 @@ class LiveTrader:
         default_leverage: int = 10,
         margin_type: str = 'ISOLATED',
         use_hedge_mode: bool = False,
-        proxy: Optional[Dict] = None
+        proxy: Optional[Dict] = None,
+        telegram_notifier=None
     ):
         """
         Inicializa el motor de trading real
@@ -61,7 +62,9 @@ class LiveTrader:
             margin_type: 'ISOLATED' o 'CROSSED'
             use_hedge_mode: True para Hedge Mode, False para One-way Mode
             proxy: Configuracion de proxy (opcional)
+            telegram_notifier: Instancia de TelegramNotifier para notificaciones (opcional)
         """
+        self.telegram_notifier = telegram_notifier
         # Initialize Binance client
         self.client = BinanceFuturesClient(
             api_key=api_key,
@@ -84,10 +87,11 @@ class LiveTrader:
                 logger.error(f"Error getting initial balance: {e}")
                 initial_reference_balance = 50000.0  # Fallback
 
-        # Initialize portfolio
+        # Initialize portfolio with telegram notifier for close notifications
         self.portfolio = LivePortfolio(
             binance_client=self.client,
-            initial_reference_balance=initial_reference_balance
+            initial_reference_balance=initial_reference_balance,
+            telegram_notifier=telegram_notifier
         )
 
         # Initialize risk manager (uses same logic as paper trading)
@@ -268,6 +272,28 @@ class LiveTrader:
         """Sincroniza estado local con Binance"""
         self.position_manager.sync_positions_with_binance()
 
+    def sync_with_exchange(self):
+        """Alias para sync_with_binance (compatibilidad)"""
+        self.sync_with_binance()
+
+    def set_telegram_notifier(self, notifier):
+        """
+        Configura el notificador de Telegram (puede llamarse despues de __init__)
+
+        Args:
+            notifier: Instancia de TelegramNotifier
+        """
+        self.telegram_notifier = notifier
+        self.portfolio.set_telegram_notifier(notifier)
+
+    def is_live(self) -> bool:
+        """Retorna True - este es siempre un trader LIVE"""
+        return True
+
+    def is_paper(self) -> bool:
+        """Retorna False - este NO es paper trading"""
+        return False
+
     def get_performance_summary(self) -> str:
         """
         Genera resumen de performance para reportes
@@ -346,12 +372,13 @@ Should Reduce Risk: {'Yes' if stats['risk']['should_reduce_risk'] else 'No'}
             return 0
 
 
-def create_live_trader_from_config(config) -> LiveTrader:
+def create_live_trader_from_config(config, telegram_notifier=None) -> LiveTrader:
     """
     Crea un LiveTrader desde la configuracion
 
     Args:
         config: Objeto de configuracion con API keys y parametros
+        telegram_notifier: Instancia de TelegramNotifier para notificaciones (opcional)
 
     Returns:
         Instancia de LiveTrader configurada
@@ -382,5 +409,6 @@ def create_live_trader_from_config(config) -> LiveTrader:
         default_leverage=getattr(config, 'DEFAULT_LEVERAGE', 10),
         margin_type=getattr(config, 'MARGIN_TYPE', 'ISOLATED'),
         use_hedge_mode=getattr(config, 'USE_HEDGE_MODE', False),
-        proxy=proxy
+        proxy=proxy,
+        telegram_notifier=telegram_notifier
     )

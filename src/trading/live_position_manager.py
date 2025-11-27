@@ -291,7 +291,11 @@ class LivePositionManager:
         except Exception:
             current_price = entry_price if entry_price > 0 else 0
 
-        # 1. Place Stop Loss (STOP_MARKET)
+        # Get minimum quantity for this symbol
+        min_qty = self.client.get_symbol_min_qty(symbol)
+        step_size = self.client.get_symbol_step_size(symbol)
+
+        # 1. Place Stop Loss (STOP_MARKET) - Use close_position=True to close ALL remaining
         if stop_loss and stop_loss > 0:
             # Validate SL price won't trigger immediately
             # For LONG: SL must be below current price
@@ -307,22 +311,24 @@ class LivePositionManager:
 
             if sl_valid:
                 try:
+                    # Use close_position=True so SL closes whatever is remaining after TPs
                     sl_order = self.client.place_stop_market_order(
                         symbol=symbol,
                         side=close_side,
-                        quantity=quantity,
+                        quantity=quantity,  # This is ignored when close_position=True
                         stop_price=stop_loss,
                         position_side=position_side,
-                        reduce_only=True
+                        reduce_only=True,
+                        close_position=True  # Close ALL remaining position at SL
                     )
                     self.stop_orders[pair]['sl'] = sl_order.order_id
-                    logger.info(f"Stop Loss placed for {pair} @ ${stop_loss:.4f}")
+                    logger.info(f"Stop Loss placed for {pair} @ ${stop_loss:.4f} (close_position=True)")
 
                 except Exception as e:
                     logger.error(f"Error placing stop loss for {pair}: {e}")
 
         # 2. Place Take Profit orders (TAKE_PROFIT_MARKET)
-        # For multiple TPs, we need to split the quantity
+        # Calculate quantities that respect minimum requirements
         tp_levels = []
         if take_profit:
             if 'tp1' in take_profit and take_profit['tp1']:
@@ -332,11 +338,13 @@ class LivePositionManager:
             if 'tp3' in take_profit and take_profit['tp3']:
                 tp_levels.append(('TP3', take_profit['tp3'], 0.2))  # 20% at TP3
 
+        # Calculate and validate TP quantities BEFORE placing any orders
+        validated_tps = []
+        remaining_qty = quantity
+
         for tp_name, tp_price, tp_pct in tp_levels:
             if tp_price and tp_price > 0:
                 # Validate TP price won't trigger immediately
-                # For LONG: TP must be above current price
-                # For SHORT: TP must be below current price
                 tp_valid = True
                 if current_price > 0:
                     if side == 'BUY' and tp_price <= current_price:
@@ -347,22 +355,54 @@ class LivePositionManager:
                         tp_valid = False
 
                 if tp_valid:
-                    try:
-                        tp_quantity = quantity * tp_pct
-                        if tp_quantity > 0:
-                            tp_order = self.client.place_take_profit_market_order(
-                                symbol=symbol,
-                                side=close_side,
-                                quantity=tp_quantity,
-                                stop_price=tp_price,
-                                position_side=position_side,
-                                reduce_only=True
-                            )
-                            self.stop_orders[pair]['tp'].append(tp_order.order_id)
-                            logger.info(f"{tp_name} placed for {pair} @ ${tp_price:.4f} ({tp_pct*100:.0f}%)")
+                    # Calculate quantity and round to step size
+                    raw_qty = quantity * tp_pct
+                    rounded_qty = self.client.round_quantity(symbol, raw_qty)
 
-                    except Exception as e:
-                        logger.error(f"Error placing {tp_name} for {pair}: {e}")
+                    # Check if quantity meets minimum
+                    if rounded_qty >= min_qty:
+                        validated_tps.append((tp_name, tp_price, rounded_qty))
+                    else:
+                        logger.warning(f"{tp_name} quantity {rounded_qty:.6f} < min {min_qty:.6f} for {pair}, will redistribute")
+
+        # If we have valid TPs, redistribute any missing quantities
+        if validated_tps:
+            # Calculate total allocated
+            total_allocated = sum(qty for _, _, qty in validated_tps)
+
+            # If we couldn't place all TPs, add remaining to the last valid TP
+            if total_allocated < quantity * 0.95:  # Allow 5% tolerance for rounding
+                remaining = quantity - total_allocated
+                remaining_rounded = self.client.round_quantity(symbol, remaining)
+
+                if remaining_rounded > 0:
+                    # Add to the last TP (usually the furthest one)
+                    last_tp = validated_tps[-1]
+                    new_qty = last_tp[2] + remaining_rounded
+                    validated_tps[-1] = (last_tp[0], last_tp[1], new_qty)
+                    logger.info(f"Redistributed {remaining_rounded:.6f} to {last_tp[0]} for {pair}")
+
+        # Now place all validated TP orders
+        for tp_name, tp_price, tp_quantity in validated_tps:
+            try:
+                tp_order = self.client.place_take_profit_market_order(
+                    symbol=symbol,
+                    side=close_side,
+                    quantity=tp_quantity,
+                    stop_price=tp_price,
+                    position_side=position_side,
+                    reduce_only=True
+                )
+                self.stop_orders[pair]['tp'].append(tp_order.order_id)
+                tp_pct_actual = (tp_quantity / quantity) * 100
+                logger.info(f"{tp_name} placed for {pair} @ ${tp_price:.4f} qty={tp_quantity:.6f} ({tp_pct_actual:.0f}%)")
+
+            except Exception as e:
+                logger.error(f"Error placing {tp_name} for {pair}: {e}")
+
+        # Log summary
+        if not validated_tps:
+            logger.warning(f"No valid TP orders could be placed for {pair} - position too small for multiple TPs")
 
     def update_positions(self, pair: str, current_price: float) -> Optional[Dict]:
         """

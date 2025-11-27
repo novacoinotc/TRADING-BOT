@@ -69,11 +69,17 @@ class MLIntegration:
         # Determinar modo de trading
         self.trading_mode = self._determine_trading_mode(trading_mode)
 
+        # Telegram notifier para alertas de trades
+        self.telegram_notifier = telegram_notifier
+
         # Inicializar sistema de trading segun modo
         if self.trading_mode == 'LIVE' and TRADING_SYSTEM_AVAILABLE:
             self.trading_system = self._init_live_trading(live_trading_config, initial_balance)
             if self.trading_system is not None:
                 self.paper_trader = self.trading_system  # Alias para compatibilidad
+                # Configure telegram notifier for close notifications
+                if telegram_notifier and hasattr(self.trading_system, 'set_telegram_notifier'):
+                    self.trading_system.set_telegram_notifier(telegram_notifier)
                 logger.info("LIVE Trading Mode Activated")
             else:
                 # Fallback a paper trading si live falla
@@ -86,9 +92,6 @@ class MLIntegration:
             self.trading_system = None
             self.trading_mode = 'PAPER'  # Forzar PAPER si no hay live disponible
             logger.info("PAPER Trading Mode Activated")
-
-        # Telegram notifier para alertas de trades
-        self.telegram_notifier = telegram_notifier
 
         # Estado
         self.enable_ml = enable_ml
