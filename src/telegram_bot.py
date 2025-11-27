@@ -191,10 +191,22 @@ class TelegramNotifier:
         if 'stop_loss' in signals and signals['stop_loss']:
             sl = signals['stop_loss']
             tp = signals['take_profit']
-            message += f"🎯 <b>Take Profit:</b>\n"
-            message += f"   TP1: ${tp['tp1']:,.2f} ({((tp['tp1']/current_price-1)*100):+.1f}%)\n"
-            message += f"   TP2: ${tp['tp2']:,.2f} ({((tp['tp2']/current_price-1)*100):+.1f}%)\n"
-            message += f"   TP3: ${tp['tp3']:,.2f} ({((tp['tp3']/current_price-1)*100):+.1f}%)\n\n"
+
+            # SCALPING: Single TP format (new) or 3 TPs format (legacy)
+            if tp and 'tp' in tp and tp['tp']:
+                # Single TP for scalping strategy
+                tp_price = tp['tp']
+                tp_pct = ((tp_price/current_price-1)*100) if signals['action'] == 'BUY' else ((current_price/tp_price-1)*100)
+                message += f"🎯 <b>Take Profit:</b> ${tp_price:,.2f} ({tp_pct:+.1f}%)\n\n"
+            elif tp and 'tp1' in tp and tp['tp1']:
+                # Legacy 3 TPs format (backward compatibility)
+                message += f"🎯 <b>Take Profit:</b>\n"
+                message += f"   TP1: ${tp['tp1']:,.2f} ({((tp['tp1']/current_price-1)*100):+.1f}%)\n"
+                if tp.get('tp2'):
+                    message += f"   TP2: ${tp['tp2']:,.2f} ({((tp['tp2']/current_price-1)*100):+.1f}%)\n"
+                if tp.get('tp3'):
+                    message += f"   TP3: ${tp['tp3']:,.2f} ({((tp['tp3']/current_price-1)*100):+.1f}%)\n"
+                message += "\n"
 
             sl_pct = ((sl/current_price-1)*100) if signals['action'] == 'BUY' else ((current_price/sl-1)*100)
             message += f"🛡️ <b>Stop Loss:</b> ${sl:,.2f} ({sl_pct:+.1f}%)\n"
@@ -437,23 +449,31 @@ class TelegramNotifier:
                 f"💵 <b>Valor Posición:</b> ${position_value:,.2f}\n"
             )
 
-            # Add TPs if available
+            # Add TPs if available - SCALPING: Single TP or legacy 3 TPs
             take_profit = trade_data.get('take_profit', {})
             if take_profit:
-                tp1 = take_profit.get('tp1', 0)
-                tp2 = take_profit.get('tp2', 0)
-                tp3 = take_profit.get('tp3', 0)
+                # Check for single TP format (scalping strategy)
+                if 'tp' in take_profit and take_profit['tp']:
+                    tp_price = take_profit['tp']
+                    tp_pct = ((tp_price / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp_price - 1) * 100)
+                    message += f"\n🎯 <b>Take Profit:</b> ${tp_price:,.4f} ({tp_pct:+.2f}%)\n"
+                else:
+                    # Legacy 3 TPs format (backward compatibility)
+                    tp1 = take_profit.get('tp1', 0)
+                    tp2 = take_profit.get('tp2', 0)
+                    tp3 = take_profit.get('tp3', 0)
 
-                message += f"\n🎯 <b>Take Profits:</b>\n"
-                if tp1:
-                    tp1_pct = ((tp1 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp1 - 1) * 100)
-                    message += f"   TP1: ${tp1:,.4f} ({tp1_pct:+.2f}%)\n"
-                if tp2:
-                    tp2_pct = ((tp2 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp2 - 1) * 100)
-                    message += f"   TP2: ${tp2:,.4f} ({tp2_pct:+.2f}%)\n"
-                if tp3:
-                    tp3_pct = ((tp3 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp3 - 1) * 100)
-                    message += f"   TP3: ${tp3:,.4f} ({tp3_pct:+.2f}%)\n"
+                    if tp1 or tp2 or tp3:
+                        message += f"\n🎯 <b>Take Profits:</b>\n"
+                        if tp1:
+                            tp1_pct = ((tp1 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp1 - 1) * 100)
+                            message += f"   TP1: ${tp1:,.4f} ({tp1_pct:+.2f}%)\n"
+                        if tp2:
+                            tp2_pct = ((tp2 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp2 - 1) * 100)
+                            message += f"   TP2: ${tp2:,.4f} ({tp2_pct:+.2f}%)\n"
+                        if tp3:
+                            tp3_pct = ((tp3 / entry_price - 1) * 100) if side == 'BUY' else ((entry_price / tp3 - 1) * 100)
+                            message += f"   TP3: ${tp3:,.4f} ({tp3_pct:+.2f}%)\n"
 
             # Add SL if available
             stop_loss = trade_data.get('stop_loss')

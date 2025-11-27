@@ -227,11 +227,9 @@ class FlashSignalAnalyzer:
         # MÍNIMO porcentual para SL (protección contra SL = entry_price)
         min_sl_pct = 0.0015  # 0.15% mínimo de diferencia
 
-        # SCALPING: Percentage-based TPs for many small wins
-        # Increased from 0.3% to 0.5% minimum to avoid rounding issues
-        tp_pct_1 = 0.005  # TP1 at 0.5%
-        tp_pct_2 = 0.010  # TP2 at 1.0%
-        tp_pct_3 = 0.018  # TP3 at 1.8%
+        # SCALPING PURO: Single TP for quick wins
+        # Closes 100% of position on first TP hit
+        tp_pct = 0.005  # Single TP at 0.5% for pure scalping
 
         if action == 'BUY':
             # Calcular SL usando ATR
@@ -241,10 +239,8 @@ class FlashSignalAnalyzer:
             # Usar el que esté más lejos (más protección)
             stop_loss = min(stop_loss_atr, stop_loss_min)
 
-            # Percentage-based TPs for scalping
-            tp1 = entry_price * (1 + tp_pct_1)
-            tp2 = entry_price * (1 + tp_pct_2)
-            tp3 = entry_price * (1 + tp_pct_3)
+            # Single TP for scalping (above entry for BUY)
+            tp = entry_price * (1 + tp_pct)
         else:  # SELL
             # Calcular SL usando ATR
             stop_loss_atr = entry_price + (atr * atr_multiplier_sl)
@@ -253,10 +249,8 @@ class FlashSignalAnalyzer:
             # Usar el que esté más lejos (más protección)
             stop_loss = max(stop_loss_atr, stop_loss_min)
 
-            # Percentage-based TPs for scalping
-            tp1 = entry_price * (1 - tp_pct_1)
-            tp2 = entry_price * (1 - tp_pct_2)
-            tp3 = entry_price * (1 - tp_pct_3)
+            # Single TP for scalping (below entry for SELL)
+            tp = entry_price * (1 - tp_pct)
 
         # Ajustar decimales de redondeo según el precio
         # Para precios bajos (< $10), usar más decimales para evitar que TP = entry_price
@@ -273,9 +267,7 @@ class FlashSignalAnalyzer:
 
         # Redondear valores
         stop_loss_rounded = round(stop_loss, decimals)
-        tp1_rounded = round(tp1, decimals)
-        tp2_rounded = round(tp2, decimals)
-        tp3_rounded = round(tp3, decimals)
+        tp_rounded = round(tp, decimals)
 
         # PROTECCIÓN CRÍTICA: Verificar que SL ≠ entry_price después del redondeo
         # Si son iguales, forzar al menos 1 tick de diferencia
@@ -291,27 +283,25 @@ class FlashSignalAnalyzer:
 
         # PROTECCIÓN CRÍTICA: Verificar que TP ≠ entry_price después del redondeo
         # Si son iguales, forzar al menos 2 ticks de diferencia
-        if tp1_rounded == entry_price:
+        if tp_rounded == entry_price:
             if action == 'BUY':
-                tp1_rounded = entry_price + (tick_size * 2)
+                tp_rounded = entry_price + (tick_size * 2)
             else:  # SELL
-                tp1_rounded = entry_price - (tick_size * 2)
+                tp_rounded = entry_price - (tick_size * 2)
             logger.warning(
-                f"⚠️ FLASH TP1 igualaba entry price ({entry_price}) después de redondeo. "
-                f"Ajustado a {tp1_rounded} ({action})"
+                f"⚠️ FLASH TP igualaba entry price ({entry_price}) después de redondeo. "
+                f"Ajustado a {tp_rounded} ({action})"
             )
 
         # Calcular riesgo/recompensa con valores finales
         risk = abs(entry_price - stop_loss_rounded)
-        reward = abs(tp1_rounded - entry_price)
+        reward = abs(tp_rounded - entry_price)
         risk_reward = round(reward / risk, 2) if risk > 0 else 0
 
         return {
             'stop_loss': stop_loss_rounded,
             'take_profit': {
-                'tp1': tp1_rounded,
-                'tp2': tp2_rounded,
-                'tp3': tp3_rounded
+                'tp': tp_rounded  # SCALPING: Single TP closes 100% of position
             },
             'risk_reward': risk_reward,
             'risk_amount': round(risk, decimals),
