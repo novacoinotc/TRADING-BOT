@@ -852,6 +852,58 @@ class BinanceFuturesClient:
                     return f"{price:.{precision}f}"
         return str(price)
 
+    def get_symbol_min_qty(self, symbol: str) -> float:
+        """
+        Obtiene la cantidad minima permitida para un simbolo
+
+        Args:
+            symbol: Par de trading (ej. BTCUSDT)
+
+        Returns:
+            Cantidad minima (minQty) o 0 si no se encuentra
+        """
+        symbol_info = self._get_symbol_info(symbol)
+        if symbol_info:
+            for filter in symbol_info['filters']:
+                if filter['filterType'] == 'LOT_SIZE':
+                    return float(filter['minQty'])
+        return 0.0
+
+    def get_symbol_step_size(self, symbol: str) -> float:
+        """
+        Obtiene el step size (precision de cantidad) para un simbolo
+
+        Args:
+            symbol: Par de trading (ej. BTCUSDT)
+
+        Returns:
+            Step size o 0.001 como default
+        """
+        symbol_info = self._get_symbol_info(symbol)
+        if symbol_info:
+            for filter in symbol_info['filters']:
+                if filter['filterType'] == 'LOT_SIZE':
+                    return float(filter['stepSize'])
+        return 0.001
+
+    def round_quantity(self, symbol: str, quantity: float) -> float:
+        """
+        Redondea cantidad al step size del simbolo
+
+        Args:
+            symbol: Par de trading
+            quantity: Cantidad a redondear
+
+        Returns:
+            Cantidad redondeada hacia abajo al step size mas cercano
+        """
+        import math
+        step_size = self.get_symbol_step_size(symbol)
+        if step_size > 0:
+            # Redondear hacia abajo al step size mas cercano
+            return math.floor(quantity / step_size) * step_size
+        return quantity
+
     # Mapeo de símbolos que usan formato 1000x en Binance Futures
     # Estas memecoins tienen precio muy bajo, así que Binance usa 1000 unidades por contrato
     FUTURES_SYMBOL_MAPPING = {

@@ -29,16 +29,19 @@ class LivePortfolio:
     def __init__(
         self,
         binance_client: 'BinanceFuturesClient',
-        initial_reference_balance: float = 50000.0
+        initial_reference_balance: float = 50000.0,
+        telegram_notifier=None
     ):
         """
         Args:
             binance_client: Cliente de Binance Futures
             initial_reference_balance: Balance de referencia para calcular ROI
                                        (deberia ser el balance al iniciar el bot)
+            telegram_notifier: Instancia de TelegramNotifier para notificaciones (opcional)
         """
         self.client = binance_client
         self.initial_balance = initial_reference_balance
+        self.telegram_notifier = telegram_notifier
 
         # Cache de posiciones locales (para tracking interno)
         self.local_positions: Dict[str, Dict] = {}  # {symbol: position_data}
@@ -223,6 +226,49 @@ class LivePortfolio:
         logger.info(f"External close registered: {pair} | P&L: {emoji}${pnl:.2f} ({pnl_pct:+.2f}%) | Reason: {reason}")
 
         self._save_portfolio()
+
+        # Send Telegram notification for external close
+        self._send_close_notification(closed_trade)
+
+    def _send_close_notification(self, closed_trade: Dict):
+        """
+        Envia notificacion de Telegram para un trade cerrado
+
+        Args:
+            closed_trade: Datos del trade cerrado
+        """
+        if not self.telegram_notifier:
+            return
+
+        try:
+            import asyncio
+
+            # Get or create event loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            # Send notification asynchronously
+            if loop.is_running():
+                # If we're already in an async context, create a task
+                asyncio.create_task(self.telegram_notifier.send_trade_closed(closed_trade))
+            else:
+                # Otherwise, run synchronously
+                loop.run_until_complete(self.telegram_notifier.send_trade_closed(closed_trade))
+
+        except Exception as e:
+            logger.error(f"Error sending close notification: {e}")
+
+    def set_telegram_notifier(self, notifier):
+        """
+        Configura el notificador de Telegram (puede llamarse despues de __init__)
+
+        Args:
+            notifier: Instancia de TelegramNotifier
+        """
+        self.telegram_notifier = notifier
 
     def _symbol_to_pair(self, symbol: str) -> str:
         """Convierte BTCUSDT -> BTC/USDT (usando mapeo de símbolos del cliente)"""
@@ -506,6 +552,10 @@ class LivePortfolio:
         logger.info(f"Position closed: {pair} | P&L: {emoji}${pnl:.2f} ({pnl_pct:+.2f}%) | Reason: {reason}")
 
         self._save_portfolio()
+
+        # Send Telegram notification for closed position
+        self._send_close_notification(closed_trade)
+
         return closed_trade
 
     def _update_equity_tracking(self):

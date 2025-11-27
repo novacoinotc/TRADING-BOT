@@ -340,6 +340,17 @@ class TradingSystem:
         else:
             logger.debug("Sync not needed in PAPER mode")
 
+    def set_telegram_notifier(self, notifier):
+        """
+        Configura el notificador de Telegram para notificaciones de trades
+
+        Args:
+            notifier: Instancia de TelegramNotifier
+        """
+        if self.is_live() and hasattr(self._trader, 'set_telegram_notifier'):
+            self._trader.set_telegram_notifier(notifier)
+            logger.info("Telegram notifier set for live trading")
+
     def emergency_close_all(self) -> int:
         """
         Cierre de emergencia de todas las posiciones
