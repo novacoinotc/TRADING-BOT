@@ -117,10 +117,49 @@ class NewsCollector:
         if currencies:
             params['currencies'] = ','.join(currencies)
 
-        try:
-            response = requests.get(self.cryptopanic_url, params=params, timeout=10)
-            response.raise_for_status()
+        # Retry logic for transient errors (502, 503, 504)
+        max_retries = 3
+        retry_delay = 2  # seconds
 
+        for attempt in range(max_retries):
+            try:
+                response = requests.get(self.cryptopanic_url, params=params, timeout=10)
+
+                # Handle transient server errors with retry
+                if response.status_code in [502, 503, 504]:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"CryptoPanic {response.status_code} error, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                        continue
+                    else:
+                        logger.warning(f"CryptoPanic {response.status_code} error after {max_retries} attempts - using cached data")
+                        return self.cached_news if self.cached_news else []
+
+                response.raise_for_status()
+                break  # Success, exit retry loop
+
+            except requests.exceptions.Timeout:
+                if attempt < max_retries - 1:
+                    logger.warning(f"CryptoPanic timeout, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
+                else:
+                    logger.warning(f"CryptoPanic timeout after {max_retries} attempts - using cached data")
+                    return self.cached_news if self.cached_news else []
+
+            except requests.exceptions.RequestException as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"CryptoPanic request error: {e}, retrying in {retry_delay}s")
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                    continue
+                else:
+                    logger.error(f"CryptoPanic failed after {max_retries} attempts: {e}")
+                    return self.cached_news if self.cached_news else []
+
+        try:
             data = response.json()
 
             if 'results' not in data:

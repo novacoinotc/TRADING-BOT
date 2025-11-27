@@ -513,16 +513,39 @@ class LivePositionManager:
             # Cancel any existing stop orders first
             self._cancel_stop_orders(pair, symbol)
 
+            # Verify position still exists on Binance before attempting close
+            binance_positions = self.client.get_positions(symbol)
+            actual_position = None
+            for pos in binance_positions:
+                if pos.position_amt != 0:
+                    actual_position = pos
+                    break
+
+            if actual_position is None:
+                # Position was already closed (by SL/TP or externally)
+                logger.warning(f"Position {pair} already closed on Binance - cleaning up local state")
+                # Still register the close in portfolio to clean up state
+                closed_trade = self.portfolio.register_closed_position(
+                    pair=pair,
+                    exit_price=current_price,
+                    reason=f"{reason}_ALREADY_CLOSED",
+                    order_result=None
+                )
+                return closed_trade
+
+            # Use actual quantity from Binance (may differ due to partial TP fills)
+            actual_quantity = abs(actual_position.position_amt)
+
             # Determine close side (opposite of position)
             close_side = OrderSide.SELL if side == 'BUY' else OrderSide.BUY
 
             # Place market order to close position
-            logger.info(f"Closing REAL position: {pair} {close_side.value} qty={quantity:.6f} reason={reason}")
+            logger.info(f"Closing REAL position: {pair} {close_side.value} qty={actual_quantity:.6f} reason={reason}")
 
             order_result = self.client.place_market_order(
                 symbol=symbol,
                 side=close_side,
-                quantity=quantity,
+                quantity=actual_quantity,
                 position_side=position_side,
                 reduce_only=True
             )
@@ -547,6 +570,16 @@ class LivePositionManager:
             return closed_trade
 
         except BinanceAPIError as e:
+            # Handle -2022: Position already closed
+            if e.code == -2022:
+                logger.warning(f"Position {pair} not found on Binance (error -2022) - cleaning up local state")
+                closed_trade = self.portfolio.register_closed_position(
+                    pair=pair,
+                    exit_price=current_price,
+                    reason=f"{reason}_BINANCE_NOT_FOUND",
+                    order_result=None
+                )
+                return closed_trade
             logger.error(f"Binance API error closing position: [{e.code}] {e.message}")
             return None
         except Exception as e:
