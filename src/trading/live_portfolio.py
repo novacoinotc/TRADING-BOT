@@ -47,6 +47,9 @@ class LivePortfolio:
         self.local_positions: Dict[str, Dict] = {}  # {symbol: position_data}
         self.closed_trades: List[Dict] = []  # Historial de trades cerrados
 
+        # Deduplication: track recently notified closes to avoid double notifications
+        self._notified_closes: Dict[str, float] = {}  # {pair: timestamp}
+
         # Performance tracking (calculado desde historial local)
         self.total_trades = 0
         self.winning_trades = 0
@@ -251,6 +254,31 @@ class LivePortfolio:
 
         try:
             import asyncio
+            import time
+
+            pair = closed_trade.get('pair', '')
+
+            # Deduplication: Check if we already notified about this position recently (within 60 seconds)
+            current_time = time.time()
+            if pair in self._notified_closes:
+                last_notified = self._notified_closes[pair]
+                if current_time - last_notified < 60:  # 60 second window
+                    logger.debug(f"Skipping duplicate close notification for {pair} (already notified {current_time - last_notified:.1f}s ago)")
+                    return
+
+            # Mark this position as notified
+            self._notified_closes[pair] = current_time
+
+            # Clean up old entries (older than 5 minutes)
+            self._notified_closes = {
+                p: t for p, t in self._notified_closes.items()
+                if current_time - t < 300
+            }
+
+            # Clean up reason - remove internal suffixes for user display
+            reason = closed_trade.get('reason', 'UNKNOWN')
+            clean_reason = reason.replace('_ALREADY_CLOSED', '').replace('_BINANCE_NOT_FOUND', '')
+            closed_trade_clean = {**closed_trade, 'reason': clean_reason}
 
             # Get or create event loop
             try:
@@ -262,10 +290,10 @@ class LivePortfolio:
             # Send notification asynchronously
             if loop.is_running():
                 # If we're already in an async context, create a task
-                asyncio.create_task(self.telegram_notifier.send_trade_closed(closed_trade))
+                asyncio.create_task(self.telegram_notifier.send_trade_closed(closed_trade_clean))
             else:
                 # Otherwise, run synchronously
-                loop.run_until_complete(self.telegram_notifier.send_trade_closed(closed_trade))
+                loop.run_until_complete(self.telegram_notifier.send_trade_closed(closed_trade_clean))
 
         except Exception as e:
             logger.error(f"Error sending close notification: {e}")
