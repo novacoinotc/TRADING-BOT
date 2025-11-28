@@ -200,11 +200,16 @@ class PositionManager:
         if take_profit:
             tp_levels = []
 
-            if 'tp1' in take_profit:
+            # Support new scalping format (single 'tp')
+            if 'tp' in take_profit and take_profit['tp']:
+                tp_levels.append(('TP', take_profit['tp']))
+
+            # Support legacy format (tp1, tp2, tp3)
+            if 'tp1' in take_profit and take_profit['tp1']:
                 tp_levels.append(('TP1', take_profit['tp1']))
-            if 'tp2' in take_profit:
+            if 'tp2' in take_profit and take_profit['tp2']:
                 tp_levels.append(('TP2', take_profit['tp2']))
-            if 'tp3' in take_profit:
+            if 'tp3' in take_profit and take_profit['tp3']:
                 tp_levels.append(('TP3', take_profit['tp3']))
 
             for tp_name, tp_price in tp_levels:

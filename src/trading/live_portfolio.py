@@ -176,8 +176,17 @@ class LivePortfolio:
                 reason = 'STOP_LOSS'
 
         if take_profit:
+            # Support new scalping format (single 'tp')
+            tp = take_profit.get('tp')
+            if tp:
+                if position['side'] == 'BUY' and exit_price >= tp:
+                    reason = 'TP'
+                elif position['side'] == 'SELL' and exit_price <= tp:
+                    reason = 'TP'
+
+            # Support legacy format (tp1)
             tp1 = take_profit.get('tp1')
-            if tp1:
+            if tp1 and reason == 'EXTERNAL_CLOSE':  # Only check if not already identified
                 if position['side'] == 'BUY' and exit_price >= tp1:
                     reason = 'TP1'
                 elif position['side'] == 'SELL' and exit_price <= tp1:

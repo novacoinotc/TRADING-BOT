@@ -446,8 +446,10 @@ class Backtester:
         if not stop_loss or not take_profit:
             return None
 
-        # Tomar TP2 como target (balance entre TP1 y TP3)
-        tp_target = take_profit.get('tp2', take_profit.get('tp1'))
+        # Support new scalping format (single 'tp') or legacy format (tp1/tp2/tp3)
+        tp_target = take_profit.get('tp')  # New scalping format
+        if not tp_target:
+            tp_target = take_profit.get('tp2', take_profit.get('tp1'))  # Legacy format
 
         if not tp_target:
             return None
