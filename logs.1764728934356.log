@@ -1,0 +1,1001 @@
+2025-12-03T02:22:10.056181400Z [inf]  2025-12-03 02:22:10,053 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:22:10.056189434Z [inf]  2025-12-03 02:22:10,053 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:22:10.056195901Z [inf]  2025-12-03 02:22:10,053 - src.market_monitor - INFO -     💰 Funding Rate: 0.0038% (sentiment=neutral)
+2025-12-03T02:22:10.056202866Z [inf]  2025-12-03 02:22:10,053 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:22:10.056212383Z [inf]  2025-12-03 02:22:10,053 - src.market_monitor - INFO -     🎯 Pattern: DOUBLE_TOP detected!
+2025-12-03T02:22:10.056217581Z [inf]  2025-12-03 02:22:10,053 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:22:10.056222562Z [inf]  2025-12-03 02:22:10,053 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:22:10.056227780Z [inf]  2025-12-03 02:22:10,053 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:22:10.056233440Z [inf]  2025-12-03 02:22:10,053 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:22:11.045393527Z [inf]  2025-12-03 02:22:11,041 - src.market_monitor - INFO - SEI/USDT FLASH: HOLD (Score: 0.0/10) @ $0.14
+2025-12-03T02:22:11.085777685Z [inf]  2025-12-03 02:22:11,082 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:11.085786448Z [inf]  2025-12-03 02:22:11,083 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:11.085792413Z [inf]  2025-12-03 02:22:11,083 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:11.085797958Z [inf]  2025-12-03 02:22:11,083 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:11.105109871Z [inf]  2025-12-03 02:22:11,102 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (SEI/USDT):
+2025-12-03T02:22:11.105124044Z [inf]  2025-12-03 02:22:11,102 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:22:13.123802246Z [inf]  2025-12-03 02:22:13,105 - src.market_monitor - INFO - Analyzing ALGO/USDT...
+2025-12-03T02:22:14.086004205Z [inf]  2025-12-03 02:22:13,838 - src.market_regime.regime_detector - INFO - Market Regime ALGO/USDT: BEAR (confidence=100%, strength=MODERATE)
+2025-12-03T02:22:16.109054211Z [inf]  2025-12-03 02:22:16,104 - src.market_monitor - INFO - ALGO/USDT: HOLD (Score: 1.3/10.0) @ $0.14
+2025-12-03T02:22:16.109079143Z [inf]  2025-12-03 02:22:16,104 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:22:16.109095092Z [inf]  2025-12-03 02:22:16,104 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.13)
+2025-12-03T02:22:17.093715386Z [inf]  2025-12-03 02:22:16,617 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:17.093726733Z [inf]  2025-12-03 02:22:16,618 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:17.093740137Z [inf]  2025-12-03 02:22:16,619 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:17.093747659Z [inf]  2025-12-03 02:22:16,619 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:17.093754491Z [inf]  2025-12-03 02:22:16,644 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (ALGO/USDT):
+2025-12-03T02:22:17.093763616Z [inf]  2025-12-03 02:22:16,645 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:22:17.093936782Z [inf]  2025-12-03 02:22:16,645 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:22:17.093943182Z [inf]  2025-12-03 02:22:16,645 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:22:17.093950476Z [inf]  2025-12-03 02:22:16,645 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:22:17.093957293Z [inf]  2025-12-03 02:22:16,645 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:22:17.093964570Z [inf]  2025-12-03 02:22:16,645 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:22:17.093971560Z [inf]  2025-12-03 02:22:16,645 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:22:17.093978445Z [inf]  2025-12-03 02:22:16,645 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:22:17.093984851Z [inf]  2025-12-03 02:22:16,645 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:22:17.095394107Z [inf]  2025-12-03 02:22:16,880 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:22:18.017720144Z [inf]  2025-12-03 02:22:17,633 - src.market_monitor - INFO - ALGO/USDT FLASH: HOLD (Score: 0.5/10) @ $0.14
+2025-12-03T02:22:18.017729944Z [inf]  2025-12-03 02:22:17,673 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:18.017737866Z [inf]  2025-12-03 02:22:17,674 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:18.017745620Z [inf]  2025-12-03 02:22:17,674 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:18.017754666Z [inf]  2025-12-03 02:22:17,674 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:22:18.017760813Z [inf]  2025-12-03 02:22:17,698 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (ALGO/USDT):
+2025-12-03T02:22:18.017766551Z [inf]  2025-12-03 02:22:17,699 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:22:20.081809233Z [inf]  2025-12-03 02:22:19,947 - src.trading.live_portfolio - WARNING - Position BNB/USDT closed on Binance (SL/TP hit or manual close)
+2025-12-03T02:22:20.421878911Z [inf]  2025-12-03 02:22:20,417 - src.trading.live_portfolio - INFO - External close registered: BNB/USDT | P&L: $-2.47 (-5.90%) | Reason: STOP_LOSS
+2025-12-03T02:22:21.130541902Z [inf]  2025-12-03 02:22:20,905 - src.trading.live_portfolio - INFO - Synced 3 open positions with Binance
+2025-12-03T02:22:21.130549927Z [inf]  2025-12-03 02:22:20,905 - src.market_monitor - INFO - 🔍 Checking 3 open positions...
+2025-12-03T02:22:21.130556877Z [err]  /app/src/signal_tracker.py:162: RuntimeWarning: invalid value encountered in scalar divide
+2025-12-03T02:22:21.130564347Z [err]    profit_percent = ((signal_price - current_price) / signal_price) * 100
+2025-12-03T02:22:21.130569758Z [inf]  2025-12-03 02:22:20,905 - src.market_monitor - INFO - Waiting 60 seconds until next check...
+2025-12-03T02:22:21.491359391Z [inf]  2025-12-03 02:22:21,486 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/sendMessage "HTTP/1.1 200 OK"
+2025-12-03T02:22:27.058129786Z [inf]  2025-12-03 02:22:27,030 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:22:46.616490844Z [inf]  2025-12-03 02:22:37,178 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:22:47.335006462Z [inf]  2025-12-03 02:22:47,326 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:23:07.329262732Z [inf]  2025-12-03 02:22:57,474 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:23:07.628450674Z [inf]  2025-12-03 02:23:07,625 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:23:27.628006878Z [inf]  2025-12-03 02:23:24,659 - src.market_monitor - INFO -     💰 Funding Rate: 0.0028% (sentiment=neutral)
+2025-12-03T02:23:27.628031356Z [inf]  2025-12-03 02:23:17,773 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:23:27.628037807Z [inf]  2025-12-03 02:23:20,909 - src.market_monitor - INFO - === Iteration 1408 - 2025-12-03 02:23:20.909621 ===
+2025-12-03T02:23:27.628043738Z [inf]  2025-12-03 02:23:23,923 - src.market_monitor - INFO -   Order Book: SELL (imbalance=-0.15)
+2025-12-03T02:23:27.628043915Z [inf]  2025-12-03 02:23:20,909 - src.market_monitor - INFO - Analyzing BTC/USDT...
+2025-12-03T02:23:27.628050880Z [inf]  2025-12-03 02:23:21,654 - src.market_regime.regime_detector - INFO - Market Regime BTC/USDT: BEAR (confidence=67%, strength=MODERATE)
+2025-12-03T02:23:27.628057825Z [inf]  2025-12-03 02:23:23,923 - src.market_monitor - INFO - BTC/USDT: HOLD (Score: 2.7/10.0) @ $92786.03
+2025-12-03T02:23:27.628058266Z [inf]  2025-12-03 02:23:24,636 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:27.628064923Z [inf]  2025-12-03 02:23:23,923 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:23:27.628068645Z [inf]  2025-12-03 02:23:24,637 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:27.628076630Z [inf]  2025-12-03 02:23:24,637 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:27.628083293Z [inf]  2025-12-03 02:23:24,659 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (BTC/USDT):
+2025-12-03T02:23:27.628091334Z [inf]  2025-12-03 02:23:24,659 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:23:27.628099214Z [inf]  2025-12-03 02:23:24,659 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:23:27.629448009Z [inf]  2025-12-03 02:23:24,659 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:23:27.629461066Z [inf]  2025-12-03 02:23:24,659 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:23:27.629471356Z [inf]  2025-12-03 02:23:24,659 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:23:27.629477802Z [inf]  2025-12-03 02:23:24,660 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:23:27.629484921Z [inf]  2025-12-03 02:23:24,660 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:23:27.629491727Z [inf]  2025-12-03 02:23:25,676 - src.market_monitor - INFO - BTC/USDT FLASH: HOLD (Score: 0.5/10) @ $92797.95
+2025-12-03T02:23:27.629498468Z [inf]  2025-12-03 02:23:25,720 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:27.629504869Z [inf]  2025-12-03 02:23:25,721 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:27.629510786Z [inf]  2025-12-03 02:23:25,721 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:27.629519401Z [inf]  2025-12-03 02:23:25,741 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (BTC/USDT):
+2025-12-03T02:23:27.629526401Z [inf]  2025-12-03 02:23:25,741 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:23:28.159985086Z [inf]  2025-12-03 02:23:27,744 - src.market_monitor - INFO - Analyzing ETH/USDT...
+2025-12-03T02:23:28.493662283Z [inf]  2025-12-03 02:23:28,487 - src.market_regime.regime_detector - INFO - Market Regime ETH/USDT: BEAR (confidence=67%, strength=MODERATE)
+2025-12-03T02:23:29.349654323Z [inf]  2025-12-03 02:23:28,736 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:23:31.191399565Z [inf]  2025-12-03 02:23:30,755 - src.market_monitor - INFO - ETH/USDT: HOLD (Score: 1.7/10.0) @ $3038.99
+2025-12-03T02:23:31.191407836Z [inf]  2025-12-03 02:23:30,755 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:23:31.191414417Z [inf]  2025-12-03 02:23:30,755 - src.market_monitor - INFO -   Order Book: SELL (imbalance=-0.25)
+2025-12-03T02:23:31.191420363Z [inf]  2025-12-03 02:23:31,040 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:31.191431640Z [inf]  2025-12-03 02:23:31,041 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:31.191441013Z [inf]  2025-12-03 02:23:31,042 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:31.191467832Z [inf]  2025-12-03 02:23:31,063 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (ETH/USDT):
+2025-12-03T02:23:31.191482263Z [inf]  2025-12-03 02:23:31,064 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:23:31.191490639Z [inf]  2025-12-03 02:23:31,064 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:23:31.191498847Z [inf]  2025-12-03 02:23:31,064 - src.market_monitor - INFO -     💰 Funding Rate: 0.0036% (sentiment=neutral)
+2025-12-03T02:23:31.191506444Z [inf]  2025-12-03 02:23:31,064 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:23:31.191514012Z [inf]  2025-12-03 02:23:31,064 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:23:31.191528869Z [inf]  2025-12-03 02:23:31,064 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:23:31.191542315Z [inf]  2025-12-03 02:23:31,064 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:23:31.191755278Z [inf]  2025-12-03 02:23:31,064 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:23:32.098384634Z [inf]  2025-12-03 02:23:32,051 - src.market_monitor - INFO - ETH/USDT FLASH: HOLD (Score: 0.5/10) @ $3038.89
+2025-12-03T02:23:32.101863435Z [inf]  2025-12-03 02:23:32,095 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:32.101871742Z [inf]  2025-12-03 02:23:32,096 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:32.101880710Z [inf]  2025-12-03 02:23:32,097 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:32.121036040Z [inf]  2025-12-03 02:23:32,117 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (ETH/USDT):
+2025-12-03T02:23:32.121047320Z [inf]  2025-12-03 02:23:32,118 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:23:34.264801306Z [inf]  2025-12-03 02:23:34,120 - src.market_monitor - INFO - Analyzing SOL/USDT...
+2025-12-03T02:23:35.105555576Z [inf]  2025-12-03 02:23:34,863 - src.market_regime.regime_detector - INFO - Market Regime SOL/USDT: BEAR (confidence=67%, strength=MODERATE)
+2025-12-03T02:23:37.138216721Z [inf]  2025-12-03 02:23:37,134 - src.market_monitor - INFO - SOL/USDT: HOLD (Score: 1.8/10.0) @ $139.80
+2025-12-03T02:23:37.138228003Z [inf]  2025-12-03 02:23:37,135 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:23:37.138235201Z [inf]  2025-12-03 02:23:37,135 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.11)
+2025-12-03T02:23:37.648829686Z [inf]  2025-12-03 02:23:37,643 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:37.648836546Z [inf]  2025-12-03 02:23:37,644 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:37.648842199Z [inf]  2025-12-03 02:23:37,645 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:37.669857258Z [inf]  2025-12-03 02:23:37,666 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (SOL/USDT):
+2025-12-03T02:23:37.669865537Z [inf]  2025-12-03 02:23:37,667 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:23:37.669871059Z [inf]  2025-12-03 02:23:37,667 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:23:37.669875518Z [inf]  2025-12-03 02:23:37,667 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:23:37.669880574Z [inf]  2025-12-03 02:23:37,667 - src.market_monitor - INFO -     📈 Volume Profile: POC=1.0, ValueArea=1.0
+2025-12-03T02:23:37.669885303Z [inf]  2025-12-03 02:23:37,667 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:23:37.669889867Z [inf]  2025-12-03 02:23:37,667 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:23:37.669894425Z [inf]  2025-12-03 02:23:37,667 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:23:37.669899422Z [inf]  2025-12-03 02:23:37,667 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:23:37.669904060Z [inf]  2025-12-03 02:23:37,667 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:23:38.663022688Z [inf]  2025-12-03 02:23:38,657 - src.market_monitor - INFO - SOL/USDT FLASH: HOLD (Score: 2.5/10) @ $139.79
+2025-12-03T02:23:38.699555312Z [inf]  2025-12-03 02:23:38,696 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:38.699564504Z [inf]  2025-12-03 02:23:38,697 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:38.701332568Z [inf]  2025-12-03 02:23:38,697 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:39.113737340Z [inf]  2025-12-03 02:23:38,720 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (SOL/USDT):
+2025-12-03T02:23:39.113744993Z [inf]  2025-12-03 02:23:38,720 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:23:39.113751884Z [inf]  2025-12-03 02:23:38,884 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:23:41.179321995Z [inf]  2025-12-03 02:23:40,722 - src.market_monitor - INFO - Analyzing BNB/USDT...
+2025-12-03T02:23:41.468727718Z [inf]  2025-12-03 02:23:41,465 - src.market_regime.regime_detector - INFO - Market Regime BNB/USDT: BEAR (confidence=33%, strength=MODERATE)
+2025-12-03T02:23:44.288398555Z [inf]  2025-12-03 02:23:43,739 - src.market_monitor - INFO - BNB/USDT: HOLD (Score: 0.2/10.0) @ $888.26
+2025-12-03T02:23:44.288404602Z [inf]  2025-12-03 02:23:43,740 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:23:44.288410863Z [inf]  2025-12-03 02:23:43,740 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=-0.01)
+2025-12-03T02:23:44.288417568Z [inf]  2025-12-03 02:23:44,020 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:44.288422940Z [inf]  2025-12-03 02:23:44,021 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:44.288428746Z [inf]  2025-12-03 02:23:44,022 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:44.288434731Z [inf]  2025-12-03 02:23:44,046 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (BNB/USDT):
+2025-12-03T02:23:44.288441176Z [inf]  2025-12-03 02:23:44,047 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:23:44.288446901Z [inf]  2025-12-03 02:23:44,047 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:23:44.288452329Z [inf]  2025-12-03 02:23:44,047 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:23:44.288458056Z [inf]  2025-12-03 02:23:44,047 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:23:44.288463531Z [inf]  2025-12-03 02:23:44,047 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:23:44.288473324Z [inf]  2025-12-03 02:23:44,047 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:23:44.288478638Z [inf]  2025-12-03 02:23:44,047 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:23:45.290187508Z [inf]  2025-12-03 02:23:45,036 - src.market_monitor - INFO - BNB/USDT FLASH: HOLD (Score: 0.5/10) @ $888.25
+2025-12-03T02:23:45.290193807Z [inf]  2025-12-03 02:23:45,081 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:45.290200536Z [inf]  2025-12-03 02:23:45,082 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:45.290205856Z [inf]  2025-12-03 02:23:45,083 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:45.290212371Z [inf]  2025-12-03 02:23:45,108 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (BNB/USDT):
+2025-12-03T02:23:45.290217498Z [inf]  2025-12-03 02:23:45,108 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:23:47.163947024Z [inf]  2025-12-03 02:23:47,109 - src.market_monitor - INFO - Analyzing TON/USDT...
+2025-12-03T02:23:48.088121627Z [inf]  2025-12-03 02:23:47,843 - src.market_regime.regime_detector - INFO - Market Regime TON/USDT: BEAR (confidence=100%, strength=STRONG)
+2025-12-03T02:23:49.207443136Z [inf]  2025-12-03 02:23:49,033 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:23:50.247072643Z [inf]  2025-12-03 02:23:50,103 - src.market_monitor - INFO - TON/USDT: HOLD (Score: 1.7/10.0) @ $1.59
+2025-12-03T02:23:50.247077333Z [inf]  2025-12-03 02:23:50,103 - src.market_monitor - INFO -   Regime: BEAR (STRONG)
+2025-12-03T02:23:50.247081861Z [inf]  2025-12-03 02:23:50,103 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.29)
+2025-12-03T02:23:50.612658751Z [inf]  2025-12-03 02:23:50,608 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:50.612671180Z [inf]  2025-12-03 02:23:50,609 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:50.612684274Z [inf]  2025-12-03 02:23:50,609 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:50.630463989Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (TON/USDT):
+2025-12-03T02:23:50.630473457Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:23:50.630482303Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:23:50.630489276Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -     💰 Funding Rate: 0.0050% (sentiment=neutral)
+2025-12-03T02:23:50.630496259Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -     📈 Volume Profile: POC=1.0, ValueArea=0.0
+2025-12-03T02:23:50.630503591Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:23:50.630510220Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:23:50.630516835Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:23:50.630523586Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:23:50.630530691Z [inf]  2025-12-03 02:23:50,627 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:23:51.616981289Z [inf]  2025-12-03 02:23:51,612 - src.market_monitor - INFO - TON/USDT FLASH: HOLD (Score: 4.0/10) @ $1.59
+2025-12-03T02:23:51.663351002Z [inf]  2025-12-03 02:23:51,656 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:51.663362991Z [inf]  2025-12-03 02:23:51,657 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:51.663370477Z [inf]  2025-12-03 02:23:51,657 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:51.681156021Z [inf]  2025-12-03 02:23:51,677 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (TON/USDT):
+2025-12-03T02:23:51.681166143Z [inf]  2025-12-03 02:23:51,678 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:23:53.683088644Z [inf]  2025-12-03 02:23:53,680 - src.market_monitor - INFO - Analyzing SUI/USDT...
+2025-12-03T02:23:54.417571065Z [inf]  2025-12-03 02:23:54,415 - src.market_regime.regime_detector - INFO - Market Regime SUI/USDT: BEAR (confidence=67%, strength=STRONG)
+2025-12-03T02:23:56.681378501Z [inf]  2025-12-03 02:23:56,677 - src.market_monitor - INFO - SUI/USDT: HOLD (Score: 1.2/10.0) @ $1.64
+2025-12-03T02:23:56.681414885Z [inf]  2025-12-03 02:23:56,677 - src.market_monitor - INFO -   Regime: BEAR (STRONG)
+2025-12-03T02:23:56.681424674Z [inf]  2025-12-03 02:23:56,677 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=0.04)
+2025-12-03T02:23:57.148568844Z [inf]  2025-12-03 02:23:56,953 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:57.148576503Z [inf]  2025-12-03 02:23:56,954 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:57.148582573Z [inf]  2025-12-03 02:23:56,954 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:57.148589309Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (SUI/USDT):
+2025-12-03T02:23:57.148595528Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:23:57.148601416Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:23:57.148607799Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:23:57.148613489Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:23:57.148619154Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:23:57.148625055Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:23:57.148631062Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:23:57.148637051Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:23:57.148644352Z [inf]  2025-12-03 02:23:56,976 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:23:58.165631550Z [inf]  2025-12-03 02:23:57,729 - src.market_monitor - INFO - SUI/USDT FLASH: HOLD (Score: 3.0/10) @ $1.64
+2025-12-03T02:23:58.165658117Z [inf]  2025-12-03 02:23:57,769 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:58.165672198Z [inf]  2025-12-03 02:23:57,770 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:58.165701580Z [inf]  2025-12-03 02:23:57,770 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:23:58.165718293Z [inf]  2025-12-03 02:23:57,795 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (SUI/USDT):
+2025-12-03T02:23:58.165731169Z [inf]  2025-12-03 02:23:57,796 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:23:58.565066106Z [inf]  2025-12-03 02:23:58,560 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:23:58.565079136Z [inf]  2025-12-03 02:23:58,562 - src.telegram_commands - INFO - 📤 Comando /export_intelligence recibido
+2025-12-03T02:23:59.313757133Z [inf]  2025-12-03 02:23:59,141 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/sendMessage "HTTP/1.1 200 OK"
+2025-12-03T02:23:59.313764893Z [inf]  2025-12-03 02:23:59,142 - src.autonomous.autonomy_controller - INFO - 📤 Export manual solicitado...
+2025-12-03T02:23:59.313774629Z [inf]  2025-12-03 02:23:59,142 - src.autonomous.autonomy_controller - INFO - 💾 Guardando inteligencia aprendida...
+2025-12-03T02:23:59.628105666Z [inf]  2025-12-03 02:23:59,623 - src.autonomous.autonomy_controller - ERROR - 🚨 DESINCRONIZACIÓN DETECTADA:
+2025-12-03T02:23:59.628116752Z [inf]     Paper Trading: 191 trades, 63.9% win rate
+2025-12-03T02:23:59.628121875Z [inf]     RL Agent: 70 trades, 68.6% win rate
+2025-12-03T02:23:59.628126848Z [inf]     Trades Procesados: 70
+2025-12-03T02:23:59.628132823Z [inf]     Total All Time: 70
+2025-12-03T02:23:59.628137607Z [inf]     Usa /force_sync para sincronizar todos
+2025-12-03T02:23:59.628141886Z [inf]  2025-12-03 02:23:59,623 - src.autonomous.autonomy_controller - WARNING - ⚠️ ADVERTENCIA: Exportando con desincronización
+2025-12-03T02:23:59.628147808Z [inf]     Paper Trading: 191 trades
+2025-12-03T02:23:59.628153171Z [inf]     RL Agent: 70 trades
+2025-12-03T02:23:59.628157898Z [inf]     El export contendrá esta desincronización
+2025-12-03T02:24:00.477124281Z [inf]  2025-12-03 02:24:00,472 - src.autonomous.learning_persistence - INFO - ✅ Inteligencia guardada exitosamente (153.1 KB comprimido)
+2025-12-03T02:24:00.477134052Z [inf]  2025-12-03 02:24:00,472 - src.autonomous.learning_persistence - INFO - 📊 Resumen guardado:
+2025-12-03T02:24:00.477141473Z [inf]    • RL Agent: 70 trades, 68.6% win rate
+2025-12-03T02:24:00.477148260Z [inf]    • Parameter Optimizer: 61 trials, mejor score: 0.461
+2025-12-03T02:24:00.477154688Z [inf]    • Q-Table: 58 estados aprendidos
+2025-12-03T02:24:00.477161300Z [inf]    • Histórico de cambios: 61 modificaciones registradas
+2025-12-03T02:24:00.477167913Z [inf]    • Timestamp: 2025-12-03T02:24:00.099556
+2025-12-03T02:24:00.477174454Z [inf]  2025-12-03 02:24:00,472 - src.autonomous.autonomy_controller - INFO - ✅ Inteligencia guardada exitosamente
+2025-12-03T02:24:00.600006109Z [inf]  2025-12-03 02:24:00,596 - src.autonomous.learning_persistence - INFO - 📤 Inteligencia exportada a: data/autonomous/intelligence_export_20251203_022400.json
+2025-12-03T02:24:00.600015617Z [inf]     Tamaño: 1764.7 KB
+2025-12-03T02:24:00.600022906Z [inf]     Usar este archivo para importar después de redeploy
+2025-12-03T02:24:00.602201588Z [inf]  2025-12-03 02:24:00,597 - src.autonomous.autonomy_controller - INFO - 📤 Archivo de exportación: data/autonomous/intelligence_export_20251203_022400.json
+2025-12-03T02:24:00.604587541Z [inf]  2025-12-03 02:24:00,600 - src.market_monitor - INFO - Analyzing AVAX/USDT...
+2025-12-03T02:24:01.336256643Z [inf]  2025-12-03 02:24:01,333 - src.market_regime.regime_detector - INFO - Market Regime AVAX/USDT: BEAR (confidence=100%, strength=STRONG)
+2025-12-03T02:24:03.526290253Z [inf]  2025-12-03 02:24:03,522 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/sendDocument "HTTP/1.1 200 OK"
+2025-12-03T02:24:03.526301991Z [inf]  2025-12-03 02:24:03,523 - src.telegram_commands - INFO - ✅ Archivo enviado: data/autonomous/intelligence_export_20251203_022400.json
+2025-12-03T02:24:03.607298178Z [inf]  2025-12-03 02:24:03,603 - src.market_monitor - INFO - AVAX/USDT: HOLD (Score: 2.2/10.0) @ $13.82
+2025-12-03T02:24:03.607307853Z [inf]  2025-12-03 02:24:03,603 - src.market_monitor - INFO -   Regime: BEAR (STRONG)
+2025-12-03T02:24:03.607313681Z [inf]  2025-12-03 02:24:03,603 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=0.03)
+2025-12-03T02:24:04.245550887Z [inf]  2025-12-03 02:24:04,113 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:04.245558437Z [inf]  2025-12-03 02:24:04,115 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:04.245565615Z [inf]  2025-12-03 02:24:04,115 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:04.245573810Z [inf]  2025-12-03 02:24:04,136 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (AVAX/USDT):
+2025-12-03T02:24:04.245580516Z [inf]  2025-12-03 02:24:04,136 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:24:04.245586997Z [inf]  2025-12-03 02:24:04,136 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:24:04.245593893Z [inf]  2025-12-03 02:24:04,136 - src.market_monitor - INFO -     💰 Funding Rate: -0.0046% (sentiment=neutral)
+2025-12-03T02:24:04.245599826Z [inf]  2025-12-03 02:24:04,136 - src.market_monitor - INFO -     🎯 Pattern: DOUBLE_TOP detected!
+2025-12-03T02:24:04.245606084Z [inf]  2025-12-03 02:24:04,136 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:24:04.245611361Z [inf]  2025-12-03 02:24:04,136 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:24:04.245617687Z [inf]  2025-12-03 02:24:04,136 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:24:04.245623499Z [inf]  2025-12-03 02:24:04,137 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:24:04.382267911Z [inf]  2025-12-03 02:24:04,374 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/sendMessage "HTTP/1.1 200 OK"
+2025-12-03T02:24:05.273813197Z [inf]  2025-12-03 02:24:05,125 - src.market_monitor - INFO - AVAX/USDT FLASH: HOLD (Score: 0.5/10) @ $13.81
+2025-12-03T02:24:05.273818195Z [inf]  2025-12-03 02:24:05,168 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:05.273823445Z [inf]  2025-12-03 02:24:05,169 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:05.273827841Z [inf]  2025-12-03 02:24:05,169 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:05.273831897Z [inf]  2025-12-03 02:24:05,194 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (AVAX/USDT):
+2025-12-03T02:24:05.273836754Z [inf]  2025-12-03 02:24:05,194 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:24:07.198943244Z [inf]  2025-12-03 02:24:07,195 - src.market_monitor - INFO - Analyzing APT/USDT...
+2025-12-03T02:24:08.097158562Z [inf]  2025-12-03 02:24:07,932 - src.market_regime.regime_detector - INFO - Market Regime APT/USDT: BEAR (confidence=100%, strength=STRONG)
+2025-12-03T02:24:09.154321287Z [inf]  2025-12-03 02:24:08,931 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:24:10.220017505Z [inf]  2025-12-03 02:24:10,215 - src.market_monitor - INFO - APT/USDT: HOLD (Score: 3.0/10.0) @ $1.99
+2025-12-03T02:24:10.220027972Z [inf]  2025-12-03 02:24:10,215 - src.market_monitor - INFO -   Regime: BEAR (STRONG)
+2025-12-03T02:24:10.220034203Z [inf]  2025-12-03 02:24:10,215 - src.market_monitor - INFO -   Order Book: STRONG_BUY (imbalance=0.33)
+2025-12-03T02:24:10.504471020Z [inf]  2025-12-03 02:24:10,498 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:10.504476742Z [inf]  2025-12-03 02:24:10,499 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:10.504482395Z [inf]  2025-12-03 02:24:10,500 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:10.527430065Z [inf]  2025-12-03 02:24:10,524 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:24:10.527450321Z [inf]  2025-12-03 02:24:10,523 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (APT/USDT):
+2025-12-03T02:24:10.527462985Z [inf]  2025-12-03 02:24:10,524 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:24:10.527474691Z [inf]  2025-12-03 02:24:10,524 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:24:10.527483566Z [inf]  2025-12-03 02:24:10,524 - src.market_monitor - INFO -     💰 Funding Rate: -0.0307% (sentiment=neutral)
+2025-12-03T02:24:10.527490977Z [inf]  2025-12-03 02:24:10,524 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:24:10.527498372Z [inf]  2025-12-03 02:24:10,524 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:24:10.527506311Z [inf]  2025-12-03 02:24:10,524 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:24:10.527512301Z [inf]  2025-12-03 02:24:10,524 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:24:10.527517977Z [inf]  2025-12-03 02:24:10,524 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:24:11.519397184Z [inf]  2025-12-03 02:24:11,517 - src.market_monitor - INFO - APT/USDT FLASH: HOLD (Score: 1.0/10) @ $1.99
+2025-12-03T02:24:11.561884177Z [inf]  2025-12-03 02:24:11,557 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:11.561893665Z [inf]  2025-12-03 02:24:11,558 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:11.561900054Z [inf]  2025-12-03 02:24:11,558 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:11.580223648Z [inf]  2025-12-03 02:24:11,577 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (APT/USDT):
+2025-12-03T02:24:11.580232877Z [inf]  2025-12-03 02:24:11,577 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:24:13.583774931Z [inf]  2025-12-03 02:24:13,579 - src.market_monitor - INFO - Analyzing DOT/USDT...
+2025-12-03T02:24:14.336577344Z [inf]  2025-12-03 02:24:14,323 - src.market_regime.regime_detector - INFO - Market Regime DOT/USDT: BEAR (confidence=100%, strength=MODERATE)
+2025-12-03T02:24:16.597851191Z [inf]  2025-12-03 02:24:16,590 - src.market_monitor - INFO - DOT/USDT: HOLD (Score: 2.2/10.0) @ $2.30
+2025-12-03T02:24:16.597864120Z [inf]  2025-12-03 02:24:16,590 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:24:16.597870523Z [inf]  2025-12-03 02:24:16,591 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.22)
+2025-12-03T02:24:17.235731582Z [inf]  2025-12-03 02:24:17,114 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:17.235739009Z [inf]  2025-12-03 02:24:17,115 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:17.235745577Z [inf]  2025-12-03 02:24:17,115 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:17.235752723Z [inf]  2025-12-03 02:24:17,139 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (DOT/USDT):
+2025-12-03T02:24:17.235759419Z [inf]  2025-12-03 02:24:17,140 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:24:17.235765508Z [inf]  2025-12-03 02:24:17,140 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:24:17.235772035Z [inf]  2025-12-03 02:24:17,140 - src.market_monitor - INFO -     💰 Funding Rate: -0.0100% (sentiment=neutral)
+2025-12-03T02:24:17.235784030Z [inf]  2025-12-03 02:24:17,140 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:24:17.235790205Z [inf]  2025-12-03 02:24:17,140 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:24:17.235796808Z [inf]  2025-12-03 02:24:17,140 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:24:17.235803248Z [inf]  2025-12-03 02:24:17,140 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:24:17.235809677Z [inf]  2025-12-03 02:24:17,140 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:24:18.136539348Z [inf]  2025-12-03 02:24:18,131 - src.market_monitor - INFO - DOT/USDT FLASH: HOLD (Score: 0.5/10) @ $2.30
+2025-12-03T02:24:18.174950878Z [inf]  2025-12-03 02:24:18,172 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:18.177346749Z [inf]  2025-12-03 02:24:18,172 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:18.177359281Z [inf]  2025-12-03 02:24:18,173 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:18.200953656Z [inf]  2025-12-03 02:24:18,195 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (DOT/USDT):
+2025-12-03T02:24:18.200964960Z [inf]  2025-12-03 02:24:18,195 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:24:19.157706124Z [inf]  2025-12-03 02:24:19,079 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:24:20.253932449Z [inf]  2025-12-03 02:24:20,197 - src.market_monitor - INFO - Analyzing MATIC/USDT...
+2025-12-03T02:24:20.668079714Z [inf]  2025-12-03 02:24:20,664 - src.orderbook.orderbook_analyzer - WARNING - Order book vacío para MATIC/USDT
+2025-12-03T02:24:21.268547885Z [inf]  2025-12-03 02:24:20,932 - src.market_regime.regime_detector - INFO - Market Regime MATIC/USDT: BEAR (confidence=100%, strength=MODERATE)
+2025-12-03T02:24:23.214565070Z [inf]  2025-12-03 02:24:23,210 - src.market_monitor - INFO - MATIC/USDT: HOLD (Score: 0.5/10.0) @ $0.38
+2025-12-03T02:24:23.214578103Z [inf]  2025-12-03 02:24:23,210 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:24:23.214587405Z [inf]  2025-12-03 02:24:23,210 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=0.00)
+2025-12-03T02:24:23.494599524Z [inf]  2025-12-03 02:24:23,490 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:23.494606207Z [inf]  2025-12-03 02:24:23,491 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:23.494610889Z [inf]  2025-12-03 02:24:23,491 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:23.519158139Z [inf]  2025-12-03 02:24:23,512 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (MATIC/USDT):
+2025-12-03T02:24:23.519172900Z [inf]  2025-12-03 02:24:23,513 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:24:23.519181848Z [inf]  2025-12-03 02:24:23,513 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:24:23.519192873Z [inf]  2025-12-03 02:24:23,513 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:24:23.519201008Z [inf]  2025-12-03 02:24:23,513 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:24:23.519222281Z [inf]  2025-12-03 02:24:23,513 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:24:23.519230607Z [inf]  2025-12-03 02:24:23,513 - src.market_monitor - INFO -     🧠 ML Features: 37 total (Sentiment=26 + Arsenal=11)
+2025-12-03T02:24:23.519237120Z [inf]  2025-12-03 02:24:23,513 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:24:24.520668303Z [inf]  2025-12-03 02:24:24,515 - src.market_monitor - INFO - MATIC/USDT FLASH: HOLD (Score: 2.0/10) @ $0.38
+2025-12-03T02:24:24.562769154Z [inf]  2025-12-03 02:24:24,558 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:24.562782054Z [inf]  2025-12-03 02:24:24,559 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:24.562788429Z [inf]  2025-12-03 02:24:24,559 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:24.584978164Z [inf]  2025-12-03 02:24:24,580 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (MATIC/USDT):
+2025-12-03T02:24:24.584990313Z [inf]  2025-12-03 02:24:24,581 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:24:26.587847197Z [inf]  2025-12-03 02:24:26,583 - src.market_monitor - INFO - Analyzing ATOM/USDT...
+2025-12-03T02:24:27.324837855Z [inf]  2025-12-03 02:24:27,322 - src.market_regime.regime_detector - INFO - Market Regime ATOM/USDT: BEAR (confidence=100%, strength=MODERATE)
+2025-12-03T02:24:29.245062290Z [inf]  2025-12-03 02:24:29,227 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:24:29.594704263Z [inf]  2025-12-03 02:24:29,590 - src.market_monitor - INFO - ATOM/USDT: HOLD (Score: 0.0/10.0) @ $2.40
+2025-12-03T02:24:29.594714906Z [inf]  2025-12-03 02:24:29,590 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:24:29.594723782Z [inf]  2025-12-03 02:24:29,590 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.13)
+2025-12-03T02:24:30.333253715Z [inf]  2025-12-03 02:24:30,106 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:30.333258945Z [inf]  2025-12-03 02:24:30,107 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:30.333263016Z [inf]  2025-12-03 02:24:30,108 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:30.333267092Z [inf]  2025-12-03 02:24:30,129 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (ATOM/USDT):
+2025-12-03T02:24:30.333271486Z [inf]  2025-12-03 02:24:30,130 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:24:30.333275540Z [inf]  2025-12-03 02:24:30,130 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:24:30.333280066Z [inf]  2025-12-03 02:24:30,130 - src.market_monitor - INFO -     💰 Funding Rate: -0.0050% (sentiment=neutral)
+2025-12-03T02:24:30.333283824Z [inf]  2025-12-03 02:24:30,130 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:24:30.333287749Z [inf]  2025-12-03 02:24:30,130 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:24:30.333291354Z [inf]  2025-12-03 02:24:30,130 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:24:30.333295784Z [inf]  2025-12-03 02:24:30,131 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:24:30.333302293Z [inf]  2025-12-03 02:24:30,131 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:24:30.333307969Z [inf]  2025-12-03 02:24:30,131 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:24:31.274238235Z [inf]  2025-12-03 02:24:31,126 - src.market_monitor - INFO - ATOM/USDT FLASH: HOLD (Score: 1.0/10) @ $2.40
+2025-12-03T02:24:31.274253608Z [inf]  2025-12-03 02:24:31,171 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:31.274263576Z [inf]  2025-12-03 02:24:31,173 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:31.274271721Z [inf]  2025-12-03 02:24:31,173 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:31.274278512Z [inf]  2025-12-03 02:24:31,193 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (ATOM/USDT):
+2025-12-03T02:24:31.274285539Z [inf]  2025-12-03 02:24:31,194 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:24:33.200046762Z [inf]  2025-12-03 02:24:33,196 - src.market_monitor - INFO - Analyzing NEAR/USDT...
+2025-12-03T02:24:34.216794799Z [inf]  2025-12-03 02:24:33,934 - src.market_regime.regime_detector - INFO - Market Regime NEAR/USDT: BEAR (confidence=100%, strength=MODERATE)
+2025-12-03T02:24:36.234599027Z [inf]  2025-12-03 02:24:36,199 - src.market_monitor - INFO - NEAR/USDT: HOLD (Score: 1.3/10.0) @ $1.81
+2025-12-03T02:24:36.234608912Z [inf]  2025-12-03 02:24:36,199 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:24:36.234615934Z [inf]  2025-12-03 02:24:36,199 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.14)
+2025-12-03T02:24:36.482686978Z [inf]  2025-12-03 02:24:36,479 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:36.482695485Z [inf]  2025-12-03 02:24:36,480 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:36.482700795Z [inf]  2025-12-03 02:24:36,480 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:36.500443107Z [inf]  2025-12-03 02:24:36,498 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (NEAR/USDT):
+2025-12-03T02:24:36.500456096Z [inf]  2025-12-03 02:24:36,498 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:24:36.502419124Z [inf]  2025-12-03 02:24:36,498 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:24:36.502429220Z [inf]  2025-12-03 02:24:36,498 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:24:36.502436522Z [inf]  2025-12-03 02:24:36,499 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:24:36.502443149Z [inf]  2025-12-03 02:24:36,499 - src.market_monitor - INFO -     🎯 Pattern: DOUBLE_TOP detected!
+2025-12-03T02:24:36.502449623Z [inf]  2025-12-03 02:24:36,499 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:24:36.502458575Z [inf]  2025-12-03 02:24:36,499 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:24:36.502465918Z [inf]  2025-12-03 02:24:36,499 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:24:36.502473050Z [inf]  2025-12-03 02:24:36,499 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:24:37.488723602Z [inf]  2025-12-03 02:24:37,485 - src.market_monitor - INFO - NEAR/USDT FLASH: HOLD (Score: 2.0/10) @ $1.81
+2025-12-03T02:24:37.529583131Z [inf]  2025-12-03 02:24:37,526 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:37.529593748Z [inf]  2025-12-03 02:24:37,527 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:37.529602340Z [inf]  2025-12-03 02:24:37,527 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:37.551944009Z [inf]  2025-12-03 02:24:37,546 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (NEAR/USDT):
+2025-12-03T02:24:37.551953012Z [inf]  2025-12-03 02:24:37,547 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:24:39.380004450Z [inf]  2025-12-03 02:24:39,376 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:24:39.552293720Z [inf]  2025-12-03 02:24:39,548 - src.market_monitor - INFO - Analyzing ADA/USDT...
+2025-12-03T02:24:40.293557809Z [inf]  2025-12-03 02:24:40,289 - src.market_regime.regime_detector - INFO - Market Regime ADA/USDT: BEAR (confidence=100%, strength=STRONG)
+2025-12-03T02:24:42.566115945Z [inf]  2025-12-03 02:24:42,563 - src.market_monitor - INFO - ADA/USDT: HOLD (Score: 1.2/10.0) @ $0.44
+2025-12-03T02:24:42.566126454Z [inf]  2025-12-03 02:24:42,563 - src.market_monitor - INFO -   Regime: BEAR (STRONG)
+2025-12-03T02:24:42.566134284Z [inf]  2025-12-03 02:24:42,563 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.14)
+2025-12-03T02:24:43.288746357Z [inf]  2025-12-03 02:24:43,082 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:43.288757566Z [inf]  2025-12-03 02:24:43,084 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:43.288764815Z [inf]  2025-12-03 02:24:43,084 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:43.288771985Z [inf]  2025-12-03 02:24:43,106 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (ADA/USDT):
+2025-12-03T02:24:43.288780236Z [inf]  2025-12-03 02:24:43,107 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:24:43.288786997Z [inf]  2025-12-03 02:24:43,107 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:24:43.288793542Z [inf]  2025-12-03 02:24:43,107 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:24:43.288799955Z [inf]  2025-12-03 02:24:43,107 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:24:43.288807355Z [inf]  2025-12-03 02:24:43,107 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:24:43.288816287Z [inf]  2025-12-03 02:24:43,107 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:24:43.288821617Z [inf]  2025-12-03 02:24:43,107 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:24:43.288827226Z [inf]  2025-12-03 02:24:43,107 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:24:44.348952086Z [inf]  2025-12-03 02:24:44,095 - src.flash_signal_analyzer - INFO - 📊 Dynamic TP: 0.38% (conf:55% +0.04%, score:5.5 +0.04%, vol:0.8x +0.00%)
+2025-12-03T02:24:44.348961108Z [inf]  2025-12-03 02:24:44,095 - src.market_monitor - INFO - ADA/USDT FLASH: SELL (Score: 5.5/10) @ $0.44
+2025-12-03T02:24:44.348969713Z [inf]  2025-12-03 02:24:44,139 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:44.348979262Z [inf]  2025-12-03 02:24:44,140 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:44.348987729Z [inf]  2025-12-03 02:24:44,140 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:44.349006666Z [inf]  2025-12-03 02:24:44,161 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (ADA/USDT):
+2025-12-03T02:24:44.349019199Z [inf]  2025-12-03 02:24:44,162 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:24:44.402851604Z [inf]  2025-12-03 02:24:44,399 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:44.402862583Z [inf]  2025-12-03 02:24:44,399 - src.advanced.correlation_matrix - WARNING - ⚠️ Correlation matrix vacía, permitiendo trade
+2025-12-03T02:24:44.450406954Z [inf]  2025-12-03 02:24:44,447 - src.advanced.pattern_recognition - INFO - 📈 Pattern boost: DOUBLE_BOTTOM (conf=1.00) → 55.0% → 76.9%
+2025-12-03T02:24:44.450416289Z [inf]  2025-12-03 02:24:44,447 - src.advanced.feature_aggregator - INFO - 🚀 Señal BOOSTED para ADA/USDT: 55.0% → 76.9% (+39.8%)
+2025-12-03T02:24:44.450423800Z [inf]  2025-12-03 02:24:44,447 - src.market_monitor - INFO - ⚡ Arsenal aplicado a FLASH ADA/USDT: confidence=76.9% (boost=1.40x)
+2025-12-03T02:24:44.450434449Z [inf]  2025-12-03 02:24:44,447 - src.sentiment.sentiment_integration - INFO - 📊 Confidence ajustada: 76.88009343368802% → 71.88009343368802% (-5%) [fear_greed: -5]
+2025-12-03T02:24:45.278022465Z [inf]  2025-12-03 02:24:44,929 - src.autonomous.rl_agent - INFO - 🎯 COMPOSITE SCORE: 0.00 (integración de 16 servicios)
+2025-12-03T02:24:45.278037276Z [inf]  2025-12-03 02:24:44,930 - src.autonomous.rl_agent - INFO - ⚠️ Señal DÉBIL (score 0.00): favoreciendo SKIP
+2025-12-03T02:24:45.278049226Z [inf]  2025-12-03 02:24:44,930 - src.autonomous.rl_agent - INFO - 🤖 RL Decision: FUTURES_LOW | Trade: True | Type: FUTURES | Size: 0.5x | Leverage: 2x | Confidence: 0.30
+2025-12-03T02:24:45.278065340Z [inf]  2025-12-03 02:24:44,930 - src.autonomous.autonomy_controller - INFO - 🤖 RL Evaluation para ADA/USDT: FUTURES_LOW | Trade: ✅ | Size: 0.5x
+2025-12-03T02:24:47.423021681Z [inf]  2025-12-03 02:24:47,419 - src.trading.binance_futures_client - INFO - Leverage set for ADAUSDT: 10x
+2025-12-03T02:24:47.729147146Z [inf]  2025-12-03 02:24:47,725 - src.trading.binance_futures_client - INFO - Margin type for ADAUSDT already set to ISOLATED
+2025-12-03T02:24:47.729156776Z [inf]  2025-12-03 02:24:47,725 - src.trading.live_position_manager - INFO - Opening REAL position: ADA/USDT SELL qty=491.343187 leverage=10x
+2025-12-03T02:24:48.352529609Z [inf]  2025-12-03 02:24:48,349 - src.trading.binance_futures_client - INFO - Order placed: ADAUSDT SELL MARKET qty=491.0 price=0.0 status=NEW
+2025-12-03T02:24:48.352543210Z [inf]  2025-12-03 02:24:48,349 - src.trading.live_portfolio - INFO - Position registered: ADA/USDT SELL @ $0.44 x 10x
+2025-12-03T02:24:49.383915493Z [inf]  2025-12-03 02:24:49,379 - src.trading.binance_futures_client - INFO - Order placed: ADAUSDT BUY STOP_MARKET qty=0.0 price=0.0 status=NEW
+2025-12-03T02:24:49.383929670Z [inf]  2025-12-03 02:24:49,380 - src.trading.live_position_manager - INFO - Stop Loss placed for ADA/USDT @ $0.4407 (GTE_GTC, MARK_PRICE)
+2025-12-03T02:24:49.383936634Z [inf]  2025-12-03 02:24:49,380 - src.trading.live_position_manager - WARNING - TP $0.4383 >= current $0.4382 for SHORT ADA/USDT, skipping
+2025-12-03T02:24:49.383943347Z [inf]  2025-12-03 02:24:49,380 - src.trading.live_position_manager - INFO - REAL position opened: ADA/USDT SELL @ $0.44 qty=491.343187 leverage=10x
+2025-12-03T02:24:49.383956753Z [inf]  2025-12-03 02:24:49,380 - src.trading.live_trader - INFO - LIVE Trade opened: ADA/USDT SELL | Size: 4.5% | Leverage: 10x | Score: 5.5/10 | Confidence: 71.88009343368802%
+2025-12-03T02:24:49.528412394Z [inf]  2025-12-03 02:24:49,525 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:24:50.203580969Z [inf]  2025-12-03 02:24:49,975 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/sendMessage "HTTP/1.1 200 OK"
+2025-12-03T02:24:51.385888558Z [inf]  2025-12-03 02:24:51,383 - src.market_monitor - INFO - Analyzing ARB/USDT...
+2025-12-03T02:24:52.181693606Z [inf]  2025-12-03 02:24:52,122 - src.market_regime.regime_detector - INFO - Market Regime ARB/USDT: BEAR (confidence=100%, strength=STRONG)
+2025-12-03T02:24:54.380202072Z [inf]  2025-12-03 02:24:54,378 - src.market_monitor - INFO - ARB/USDT: HOLD (Score: 1.7/10.0) @ $0.22
+2025-12-03T02:24:54.380216897Z [inf]  2025-12-03 02:24:54,378 - src.market_monitor - INFO -   Regime: BEAR (STRONG)
+2025-12-03T02:24:54.380223915Z [inf]  2025-12-03 02:24:54,378 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=0.04)
+2025-12-03T02:24:55.200184790Z [inf]  2025-12-03 02:24:54,885 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:55.200196442Z [inf]  2025-12-03 02:24:54,886 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:55.200208191Z [inf]  2025-12-03 02:24:54,886 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:55.200216641Z [inf]  2025-12-03 02:24:54,887 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:55.200228760Z [inf]  2025-12-03 02:24:54,905 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (ARB/USDT):
+2025-12-03T02:24:55.200240235Z [inf]  2025-12-03 02:24:54,905 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:24:55.200248069Z [inf]  2025-12-03 02:24:54,905 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:24:55.200255967Z [inf]  2025-12-03 02:24:54,906 - src.market_monitor - INFO -     💰 Funding Rate: -0.0009% (sentiment=neutral)
+2025-12-03T02:24:55.200265973Z [inf]  2025-12-03 02:24:54,906 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:24:55.200274148Z [inf]  2025-12-03 02:24:54,906 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:24:55.200282540Z [inf]  2025-12-03 02:24:54,906 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:24:55.200293420Z [inf]  2025-12-03 02:24:54,906 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:24:55.200301835Z [inf]  2025-12-03 02:24:54,906 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:24:56.213156687Z [inf]  2025-12-03 02:24:55,892 - src.market_monitor - INFO - ARB/USDT FLASH: HOLD (Score: 3.0/10) @ $0.22
+2025-12-03T02:24:56.213165893Z [inf]  2025-12-03 02:24:55,930 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:56.213174627Z [inf]  2025-12-03 02:24:55,931 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:56.213186380Z [inf]  2025-12-03 02:24:55,931 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:56.213195041Z [inf]  2025-12-03 02:24:55,932 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:24:56.213202589Z [inf]  2025-12-03 02:24:55,952 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (ARB/USDT):
+2025-12-03T02:24:56.213210179Z [inf]  2025-12-03 02:24:55,952 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:24:58.490015088Z [inf]  2025-12-03 02:24:57,953 - src.market_monitor - INFO - Analyzing OP/USDT...
+2025-12-03T02:24:58.703125681Z [inf]  2025-12-03 02:24:58,700 - src.market_regime.regime_detector - INFO - Market Regime OP/USDT: BEAR (confidence=100%, strength=MODERATE)
+2025-12-03T02:24:59.695577477Z [inf]  2025-12-03 02:24:59,692 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:25:01.320152832Z [inf]  2025-12-03 02:25:00,959 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=-0.04)
+2025-12-03T02:25:01.320165939Z [inf]  2025-12-03 02:25:01,238 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:01.320175260Z [inf]  2025-12-03 02:25:01,240 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:01.320183801Z [inf]  2025-12-03 02:25:01,240 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:01.320200036Z [inf]  2025-12-03 02:25:00,959 - src.market_monitor - INFO - OP/USDT: HOLD (Score: 1.7/10.0) @ $0.32
+2025-12-03T02:25:01.320212906Z [inf]  2025-12-03 02:25:00,959 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:25:01.320233776Z [inf]  2025-12-03 02:25:01,240 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:01.320254780Z [inf]  2025-12-03 02:25:01,262 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (OP/USDT):
+2025-12-03T02:25:01.320266849Z [inf]  2025-12-03 02:25:01,263 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:01.320276725Z [inf]  2025-12-03 02:25:01,263 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:01.320287167Z [inf]  2025-12-03 02:25:01,263 - src.market_monitor - INFO -     💰 Funding Rate: -0.0146% (sentiment=neutral)
+2025-12-03T02:25:01.320297370Z [inf]  2025-12-03 02:25:01,263 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:25:01.320305534Z [inf]  2025-12-03 02:25:01,263 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:01.320314923Z [inf]  2025-12-03 02:25:01,263 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:01.325889335Z [inf]  2025-12-03 02:25:01,264 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:25:01.325894819Z [inf]  2025-12-03 02:25:01,264 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:02.335625567Z [inf]  2025-12-03 02:25:02,226 - src.market_monitor - INFO - OP/USDT FLASH: HOLD (Score: 4.0/10) @ $0.32
+2025-12-03T02:25:02.335633693Z [inf]  2025-12-03 02:25:02,272 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:02.335640220Z [inf]  2025-12-03 02:25:02,274 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:02.335648098Z [inf]  2025-12-03 02:25:02,274 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:02.335655052Z [inf]  2025-12-03 02:25:02,274 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:02.335662624Z [inf]  2025-12-03 02:25:02,294 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (OP/USDT):
+2025-12-03T02:25:02.335670728Z [inf]  2025-12-03 02:25:02,295 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:25:04.306537570Z [inf]  2025-12-03 02:25:04,297 - src.market_monitor - INFO - Analyzing DOGE/USDT...
+2025-12-03T02:25:05.317649080Z [inf]  2025-12-03 02:25:05,042 - src.market_regime.regime_detector - INFO - Market Regime DOGE/USDT: BEAR (confidence=100%, strength=MODERATE)
+2025-12-03T02:25:07.312289134Z [inf]  2025-12-03 02:25:07,309 - src.market_monitor - INFO - DOGE/USDT: HOLD (Score: 0.2/10.0) @ $0.15
+2025-12-03T02:25:07.312300611Z [inf]  2025-12-03 02:25:07,309 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:25:07.312310841Z [inf]  2025-12-03 02:25:07,309 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=0.01)
+2025-12-03T02:25:08.242042928Z [inf]  2025-12-03 02:25:07,825 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:08.242050288Z [inf]  2025-12-03 02:25:07,826 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:08.242068180Z [inf]  2025-12-03 02:25:07,826 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:08.242076066Z [inf]  2025-12-03 02:25:07,826 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:08.242085457Z [inf]  2025-12-03 02:25:07,847 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (DOGE/USDT):
+2025-12-03T02:25:08.242098822Z [inf]  2025-12-03 02:25:07,847 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:08.242107006Z [inf]  2025-12-03 02:25:07,847 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:08.242113506Z [inf]  2025-12-03 02:25:07,847 - src.market_monitor - INFO -     💰 Funding Rate: 0.0087% (sentiment=neutral)
+2025-12-03T02:25:08.242119775Z [inf]  2025-12-03 02:25:07,848 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:25:08.242126393Z [inf]  2025-12-03 02:25:07,848 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:08.242133388Z [inf]  2025-12-03 02:25:07,848 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:08.242140020Z [inf]  2025-12-03 02:25:07,848 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:25:08.242182985Z [inf]  2025-12-03 02:25:07,848 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:09.312428653Z [inf]  2025-12-03 02:25:08,833 - src.market_monitor - INFO - DOGE/USDT FLASH: HOLD (Score: 1.5/10) @ $0.15
+2025-12-03T02:25:09.312435702Z [inf]  2025-12-03 02:25:08,876 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:09.312442712Z [inf]  2025-12-03 02:25:08,877 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:09.312449536Z [inf]  2025-12-03 02:25:08,877 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:09.312455741Z [inf]  2025-12-03 02:25:08,877 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:09.312462773Z [inf]  2025-12-03 02:25:08,896 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (DOGE/USDT):
+2025-12-03T02:25:09.312469250Z [inf]  2025-12-03 02:25:08,896 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:25:10.292428405Z [inf]  2025-12-03 02:25:09,864 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:25:11.284707036Z [inf]  2025-12-03 02:25:10,899 - src.market_monitor - INFO - Analyzing SHIB/USDT...
+2025-12-03T02:25:11.646926987Z [inf]  2025-12-03 02:25:11,641 - src.market_regime.regime_detector - INFO - Market Regime SHIB/USDT: BEAR (confidence=67%, strength=WEAK)
+2025-12-03T02:25:14.528532751Z [inf]  2025-12-03 02:25:13,911 - src.market_monitor - INFO - SHIB/USDT: HOLD (Score: 1.3/10.0) @ $0.00
+2025-12-03T02:25:14.528547353Z [inf]  2025-12-03 02:25:13,911 - src.market_monitor - INFO -   Regime: BEAR (WEAK)
+2025-12-03T02:25:14.528565697Z [inf]  2025-12-03 02:25:13,912 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.20)
+2025-12-03T02:25:14.528574451Z [inf]  2025-12-03 02:25:14,485 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:14.528583070Z [inf]  2025-12-03 02:25:14,486 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:14.528591392Z [inf]  2025-12-03 02:25:14,486 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:14.528600930Z [inf]  2025-12-03 02:25:14,487 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:14.528610637Z [inf]  2025-12-03 02:25:14,507 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (SHIB/USDT):
+2025-12-03T02:25:14.528626625Z [inf]  2025-12-03 02:25:14,507 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:14.528636803Z [inf]  2025-12-03 02:25:14,508 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:14.528645028Z [inf]  2025-12-03 02:25:14,508 - src.market_monitor - INFO -     🎯 Pattern: DOUBLE_TOP detected!
+2025-12-03T02:25:14.528654016Z [inf]  2025-12-03 02:25:14,508 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:14.528662320Z [inf]  2025-12-03 02:25:14,508 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:14.528674059Z [inf]  2025-12-03 02:25:14,508 - src.market_monitor - INFO -     🧠 ML Features: 37 total (Sentiment=26 + Arsenal=11)
+2025-12-03T02:25:14.534016541Z [inf]  2025-12-03 02:25:14,508 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:15.545695413Z [inf]  2025-12-03 02:25:15,502 - src.market_monitor - INFO - SHIB/USDT FLASH: HOLD (Score: 1.5/10) @ $0.00
+2025-12-03T02:25:15.585021386Z [inf]  2025-12-03 02:25:15,569 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:15.585032414Z [inf]  2025-12-03 02:25:15,573 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:15.585039721Z [inf]  2025-12-03 02:25:15,574 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:15.585051248Z [inf]  2025-12-03 02:25:15,575 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:15.623393105Z [inf]  2025-12-03 02:25:15,615 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (SHIB/USDT):
+2025-12-03T02:25:15.623409372Z [inf]  2025-12-03 02:25:15,617 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:25:17.622134315Z [inf]  2025-12-03 02:25:17,618 - src.market_monitor - INFO - Analyzing PEPE/USDT...
+2025-12-03T02:25:20.468378291Z [inf]  2025-12-03 02:25:20,359 - src.market_monitor - INFO - PEPE/USDT: HOLD (Score: 1.7/10.0) @ $0.00
+2025-12-03T02:25:20.468394145Z [inf]  2025-12-03 02:25:20,359 - src.market_monitor - INFO -   Regime: BEAR (STRONG)
+2025-12-03T02:25:20.468404037Z [inf]  2025-12-03 02:25:20,359 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=-0.05)
+2025-12-03T02:25:20.468463153Z [inf]  2025-12-03 02:25:20,011 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:25:21.330357767Z [inf]  2025-12-03 02:25:20,882 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:21.330366810Z [inf]  2025-12-03 02:25:20,884 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:21.330373472Z [inf]  2025-12-03 02:25:20,884 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:21.330378811Z [inf]  2025-12-03 02:25:20,884 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:21.330385351Z [inf]  2025-12-03 02:25:20,908 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (PEPE/USDT):
+2025-12-03T02:25:21.330390984Z [inf]  2025-12-03 02:25:20,909 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:21.330396419Z [inf]  2025-12-03 02:25:20,909 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:21.330403470Z [inf]  2025-12-03 02:25:20,909 - src.market_monitor - INFO -     🎯 Pattern: DOUBLE_TOP detected!
+2025-12-03T02:25:21.330409986Z [inf]  2025-12-03 02:25:20,909 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:21.330415900Z [inf]  2025-12-03 02:25:20,909 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:21.330422337Z [inf]  2025-12-03 02:25:20,909 - src.market_monitor - INFO -     🧠 ML Features: 37 total (Sentiment=26 + Arsenal=11)
+2025-12-03T02:25:21.330427969Z [inf]  2025-12-03 02:25:20,909 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:22.310095726Z [inf]  2025-12-03 02:25:21,898 - src.market_monitor - INFO - PEPE/USDT FLASH: HOLD (Score: 1.5/10) @ $0.00
+2025-12-03T02:25:22.310100471Z [inf]  2025-12-03 02:25:21,942 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:22.310105121Z [inf]  2025-12-03 02:25:21,943 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:22.310109720Z [inf]  2025-12-03 02:25:21,943 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:22.310115536Z [inf]  2025-12-03 02:25:21,943 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:22.310121021Z [inf]  2025-12-03 02:25:21,968 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (PEPE/USDT):
+2025-12-03T02:25:22.310127506Z [inf]  2025-12-03 02:25:21,969 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:25:24.337480328Z [inf]  2025-12-03 02:25:23,971 - src.market_monitor - INFO - Analyzing NOT/USDT...
+2025-12-03T02:25:26.715904865Z [inf]  2025-12-03 02:25:26,711 - src.market_monitor - INFO - NOT/USDT: HOLD (Score: 1.3/10.0) @ $0.00
+2025-12-03T02:25:26.715916226Z [inf]  2025-12-03 02:25:26,711 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:25:26.715925426Z [inf]  2025-12-03 02:25:26,711 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.28)
+2025-12-03T02:25:27.301625224Z [inf]  2025-12-03 02:25:27,287 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:27.301629727Z [inf]  2025-12-03 02:25:27,287 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:27.301638063Z [inf]  2025-12-03 02:25:27,288 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:27.301642166Z [inf]  2025-12-03 02:25:27,288 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:27.311657447Z [inf]  2025-12-03 02:25:27,307 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (NOT/USDT):
+2025-12-03T02:25:27.311666306Z [inf]  2025-12-03 02:25:27,308 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:27.311671749Z [inf]  2025-12-03 02:25:27,308 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:27.311678061Z [inf]  2025-12-03 02:25:27,308 - src.market_monitor - INFO -     💰 Funding Rate: 0.0050% (sentiment=neutral)
+2025-12-03T02:25:27.311682892Z [inf]  2025-12-03 02:25:27,308 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:25:27.311688092Z [inf]  2025-12-03 02:25:27,308 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:27.311692957Z [inf]  2025-12-03 02:25:27,308 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:27.311697970Z [inf]  2025-12-03 02:25:27,308 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:25:27.311703292Z [inf]  2025-12-03 02:25:27,308 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:28.472368074Z [inf]  2025-12-03 02:25:28,322 - src.market_monitor - INFO - NOT/USDT FLASH: HOLD (Score: 1.5/10) @ $0.00
+2025-12-03T02:25:28.472378250Z [inf]  2025-12-03 02:25:28,364 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:28.472385343Z [inf]  2025-12-03 02:25:28,365 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:28.472391567Z [inf]  2025-12-03 02:25:28,365 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:28.472398336Z [inf]  2025-12-03 02:25:28,365 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:28.472405518Z [inf]  2025-12-03 02:25:28,385 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (NOT/USDT):
+2025-12-03T02:25:28.472412635Z [inf]  2025-12-03 02:25:28,385 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:25:30.485510013Z [inf]  2025-12-03 02:25:30,160 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:25:30.485517509Z [inf]  2025-12-03 02:25:30,386 - src.market_monitor - INFO - Analyzing WIF/USDT...
+2025-12-03T02:25:33.395502907Z [inf]  2025-12-03 02:25:33,142 - src.market_monitor - INFO - WIF/USDT: HOLD (Score: 2.7/10.0) @ $0.40
+2025-12-03T02:25:33.395509751Z [inf]  2025-12-03 02:25:33,142 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:25:33.395521433Z [inf]  2025-12-03 02:25:33,142 - src.market_monitor - INFO -   Order Book: STRONG_BUY (imbalance=0.30)
+2025-12-03T02:25:33.665251702Z [inf]  2025-12-03 02:25:33,661 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:33.665261671Z [inf]  2025-12-03 02:25:33,662 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:33.668217061Z [inf]  2025-12-03 02:25:33,663 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:33.668229001Z [inf]  2025-12-03 02:25:33,663 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:33.686187927Z [inf]  2025-12-03 02:25:33,682 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (WIF/USDT):
+2025-12-03T02:25:33.686202991Z [inf]  2025-12-03 02:25:33,683 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:33.686211202Z [inf]  2025-12-03 02:25:33,683 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:33.686218539Z [inf]  2025-12-03 02:25:33,683 - src.market_monitor - INFO -     💰 Funding Rate: 0.0050% (sentiment=neutral)
+2025-12-03T02:25:33.686226965Z [inf]  2025-12-03 02:25:33,683 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:25:33.686233836Z [inf]  2025-12-03 02:25:33,683 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:25:33.686240827Z [inf]  2025-12-03 02:25:33,683 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:33.686249135Z [inf]  2025-12-03 02:25:33,683 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:33.686255164Z [inf]  2025-12-03 02:25:33,683 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:25:33.686262300Z [inf]  2025-12-03 02:25:33,683 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:34.672579536Z [inf]  2025-12-03 02:25:34,669 - src.market_monitor - INFO - WIF/USDT FLASH: HOLD (Score: 1.0/10) @ $0.40
+2025-12-03T02:25:34.713449803Z [inf]  2025-12-03 02:25:34,710 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:34.713459548Z [inf]  2025-12-03 02:25:34,711 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:34.714861411Z [inf]  2025-12-03 02:25:34,711 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:34.714868700Z [inf]  2025-12-03 02:25:34,711 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:34.735001527Z [inf]  2025-12-03 02:25:34,731 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (WIF/USDT):
+2025-12-03T02:25:34.735016958Z [inf]  2025-12-03 02:25:34,732 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:25:36.739284456Z [inf]  2025-12-03 02:25:36,735 - src.market_monitor - INFO - Analyzing BONK/USDT...
+2025-12-03T02:25:39.472148295Z [inf]  2025-12-03 02:25:39,468 - src.market_monitor - INFO - BONK/USDT: HOLD (Score: 3.3/10.0) @ $0.00
+2025-12-03T02:25:39.472161705Z [inf]  2025-12-03 02:25:39,469 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:25:39.472170749Z [inf]  2025-12-03 02:25:39,469 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.20)
+2025-12-03T02:25:39.750814556Z [inf]  2025-12-03 02:25:39,745 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:39.750826976Z [inf]  2025-12-03 02:25:39,746 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:39.750835316Z [inf]  2025-12-03 02:25:39,746 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:39.750843402Z [inf]  2025-12-03 02:25:39,746 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:39.774361550Z [inf]  2025-12-03 02:25:39,770 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (BONK/USDT):
+2025-12-03T02:25:39.774372753Z [inf]  2025-12-03 02:25:39,771 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:39.774378671Z [inf]  2025-12-03 02:25:39,771 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:39.774383639Z [inf]  2025-12-03 02:25:39,771 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:25:39.774388312Z [inf]  2025-12-03 02:25:39,771 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:39.774393332Z [inf]  2025-12-03 02:25:39,771 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:39.774397944Z [inf]  2025-12-03 02:25:39,771 - src.market_monitor - INFO -     🧠 ML Features: 39 total (Sentiment=26 + Arsenal=13)
+2025-12-03T02:25:39.774402453Z [inf]  2025-12-03 02:25:39,771 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:40.342500066Z [inf]  2025-12-03 02:25:40,308 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:25:40.764568712Z [inf]  2025-12-03 02:25:40,761 - src.market_monitor - INFO - BONK/USDT FLASH: HOLD (Score: 0.0/10) @ $0.00
+2025-12-03T02:25:40.807975585Z [inf]  2025-12-03 02:25:40,803 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:40.807982640Z [inf]  2025-12-03 02:25:40,805 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:40.807988190Z [inf]  2025-12-03 02:25:40,805 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:40.807993804Z [inf]  2025-12-03 02:25:40,805 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:40.830694702Z [inf]  2025-12-03 02:25:40,826 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (BONK/USDT):
+2025-12-03T02:25:40.830704825Z [inf]  2025-12-03 02:25:40,827 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:25:42.833125662Z [inf]  2025-12-03 02:25:42,829 - src.market_monitor - INFO - Analyzing UNI/USDT...
+2025-12-03T02:25:45.569294268Z [inf]  2025-12-03 02:25:45,563 - src.market_monitor - INFO - UNI/USDT: HOLD (Score: 1.7/10.0) @ $6.00
+2025-12-03T02:25:45.569306423Z [inf]  2025-12-03 02:25:45,563 - src.market_monitor - INFO -   Regime: SIDEWAYS (MODERATE)
+2025-12-03T02:25:45.569314801Z [inf]  2025-12-03 02:25:45,563 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=0.02)
+2025-12-03T02:25:46.383094304Z [inf]  2025-12-03 02:25:46,378 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:46.383124238Z [inf]  2025-12-03 02:25:46,379 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:46.383135553Z [inf]  2025-12-03 02:25:46,379 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:46.383144586Z [inf]  2025-12-03 02:25:46,380 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:46.402925584Z [inf]  2025-12-03 02:25:46,399 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (UNI/USDT):
+2025-12-03T02:25:46.402938438Z [inf]  2025-12-03 02:25:46,400 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:46.402949715Z [inf]  2025-12-03 02:25:46,400 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:46.402960050Z [inf]  2025-12-03 02:25:46,400 - src.market_monitor - INFO -     💰 Funding Rate: 0.0018% (sentiment=neutral)
+2025-12-03T02:25:46.402967736Z [inf]  2025-12-03 02:25:46,400 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:25:46.402975635Z [inf]  2025-12-03 02:25:46,400 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:46.402982372Z [inf]  2025-12-03 02:25:46,400 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:46.402989763Z [inf]  2025-12-03 02:25:46,400 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:25:46.402997258Z [inf]  2025-12-03 02:25:46,400 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:47.388455621Z [inf]  2025-12-03 02:25:47,385 - src.market_monitor - INFO - UNI/USDT FLASH: HOLD (Score: 1.0/10) @ $6.00
+2025-12-03T02:25:47.432446409Z [inf]  2025-12-03 02:25:47,428 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:47.432455008Z [inf]  2025-12-03 02:25:47,429 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:47.432461741Z [inf]  2025-12-03 02:25:47,429 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:47.432466949Z [inf]  2025-12-03 02:25:47,430 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:47.451172373Z [inf]  2025-12-03 02:25:47,448 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (UNI/USDT):
+2025-12-03T02:25:47.451182617Z [inf]  2025-12-03 02:25:47,448 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:25:49.473454439Z [inf]  2025-12-03 02:25:49,449 - src.market_monitor - INFO - Analyzing LINK/USDT...
+2025-12-03T02:25:50.465180821Z [inf]  2025-12-03 02:25:50,460 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:25:52.362106938Z [inf]  2025-12-03 02:25:52,189 - src.market_monitor - INFO - LINK/USDT: HOLD (Score: 1.8/10.0) @ $13.90
+2025-12-03T02:25:52.362121808Z [inf]  2025-12-03 02:25:52,189 - src.market_monitor - INFO -   Regime: BEAR (WEAK)
+2025-12-03T02:25:52.362130620Z [inf]  2025-12-03 02:25:52,189 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.20)
+2025-12-03T02:25:52.478274982Z [inf]  2025-12-03 02:25:52,474 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:52.481519657Z [inf]  2025-12-03 02:25:52,475 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:52.481533789Z [inf]  2025-12-03 02:25:52,476 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:52.481542432Z [inf]  2025-12-03 02:25:52,476 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:52.502055333Z [inf]  2025-12-03 02:25:52,497 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (LINK/USDT):
+2025-12-03T02:25:52.502064003Z [inf]  2025-12-03 02:25:52,497 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:52.502069065Z [inf]  2025-12-03 02:25:52,497 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:52.502074816Z [inf]  2025-12-03 02:25:52,497 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:25:52.502087340Z [inf]  2025-12-03 02:25:52,497 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:25:52.502093037Z [inf]  2025-12-03 02:25:52,497 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:52.502097761Z [inf]  2025-12-03 02:25:52,497 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:52.502102321Z [inf]  2025-12-03 02:25:52,497 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:25:52.502107372Z [inf]  2025-12-03 02:25:52,497 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:53.485919280Z [inf]  2025-12-03 02:25:53,483 - src.market_monitor - INFO - LINK/USDT FLASH: HOLD (Score: 3.0/10) @ $13.90
+2025-12-03T02:25:53.524295595Z [inf]  2025-12-03 02:25:53,521 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:53.526598823Z [inf]  2025-12-03 02:25:53,522 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:53.526609507Z [inf]  2025-12-03 02:25:53,522 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:53.526616190Z [inf]  2025-12-03 02:25:53,522 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:53.546089954Z [inf]  2025-12-03 02:25:53,541 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (LINK/USDT):
+2025-12-03T02:25:53.546105512Z [inf]  2025-12-03 02:25:53,542 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:25:55.546479523Z [inf]  2025-12-03 02:25:55,543 - src.market_monitor - INFO - Analyzing AAVE/USDT...
+2025-12-03T02:25:58.623150993Z [inf]  2025-12-03 02:25:58,294 - src.market_monitor - INFO - AAVE/USDT: HOLD (Score: 2.3/10.0) @ $191.43
+2025-12-03T02:25:58.623156963Z [inf]  2025-12-03 02:25:58,294 - src.market_monitor - INFO -   Regime: BEAR (WEAK)
+2025-12-03T02:25:58.623164579Z [inf]  2025-12-03 02:25:58,294 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=-0.02)
+2025-12-03T02:25:58.818210847Z [inf]  2025-12-03 02:25:58,812 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:58.818225766Z [inf]  2025-12-03 02:25:58,813 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:58.818233674Z [inf]  2025-12-03 02:25:58,813 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:58.818240618Z [inf]  2025-12-03 02:25:58,813 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:58.858063821Z [inf]  2025-12-03 02:25:58,833 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (AAVE/USDT):
+2025-12-03T02:25:58.858076351Z [inf]  2025-12-03 02:25:58,853 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:25:58.858083767Z [inf]  2025-12-03 02:25:58,853 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:25:58.858093758Z [inf]  2025-12-03 02:25:58,853 - src.market_monitor - INFO -     💰 Funding Rate: 0.0019% (sentiment=neutral)
+2025-12-03T02:25:58.858101270Z [inf]  2025-12-03 02:25:58,853 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:25:58.858107280Z [inf]  2025-12-03 02:25:58,854 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:25:58.858112745Z [inf]  2025-12-03 02:25:58,854 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:25:58.858118218Z [inf]  2025-12-03 02:25:58,854 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:25:58.858123707Z [inf]  2025-12-03 02:25:58,854 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:25:58.858128823Z [inf]  2025-12-03 02:25:58,854 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:25:59.612647740Z [inf]  2025-12-03 02:25:59,607 - src.flash_signal_analyzer - INFO - 📊 Dynamic TP: 1.04% (conf:75% +0.20%, score:7.5 +0.20%, vol:1.9x +0.34%)
+2025-12-03T02:25:59.612661772Z [inf]  2025-12-03 02:25:59,607 - src.market_monitor - INFO - AAVE/USDT FLASH: SELL (Score: 7.5/10) @ $191.42
+2025-12-03T02:25:59.667051858Z [inf]  2025-12-03 02:25:59,658 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:59.667067883Z [inf]  2025-12-03 02:25:59,660 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:59.667078086Z [inf]  2025-12-03 02:25:59,660 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:59.667088445Z [inf]  2025-12-03 02:25:59,660 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:25:59.697718966Z [inf]  2025-12-03 02:25:59,686 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (AAVE/USDT):
+2025-12-03T02:25:59.697734379Z [inf]  2025-12-03 02:25:59,687 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:26:00.570619899Z [inf]  2025-12-03 02:25:59,924 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:00.570626810Z [inf]  2025-12-03 02:25:59,925 - src.advanced.correlation_matrix - WARNING - ⚠️ Correlation matrix vacía, permitiendo trade
+2025-12-03T02:26:00.570632579Z [inf]  2025-12-03 02:25:59,968 - src.advanced.volume_profile - INFO - 📦 Value Area boost para AAVE/USDT: 75.0% → 86.2%
+2025-12-03T02:26:00.570638949Z [inf]  2025-12-03 02:25:59,968 - src.advanced.pattern_recognition - INFO - 📈 Pattern boost: DOUBLE_BOTTOM (conf=1.00) → 86.2% → 120.2%
+2025-12-03T02:26:00.570645128Z [inf]  2025-12-03 02:25:59,969 - src.advanced.feature_aggregator - INFO - 🚀 Señal BOOSTED para AAVE/USDT: 75.0% → 100.0% (+33.3%)
+2025-12-03T02:26:00.570650806Z [inf]  2025-12-03 02:25:59,969 - src.market_monitor - INFO - ⚡ Arsenal aplicado a FLASH AAVE/USDT: confidence=100.0% (boost=1.33x)
+2025-12-03T02:26:00.570656140Z [inf]  2025-12-03 02:25:59,969 - src.sentiment.sentiment_integration - INFO - 📊 Confidence ajustada: 100.0% → 95.0% (-5%) [fear_greed: -5]
+2025-12-03T02:26:00.570661549Z [inf]  2025-12-03 02:26:00,445 - src.autonomous.rl_agent - INFO - 🎯 COMPOSITE SCORE: 0.00 (integración de 16 servicios)
+2025-12-03T02:26:00.570666298Z [inf]  2025-12-03 02:26:00,446 - src.autonomous.rl_agent - INFO - ⚠️ Señal DÉBIL (score 0.00): favoreciendo SKIP
+2025-12-03T02:26:00.570671703Z [inf]  2025-12-03 02:26:00,446 - src.autonomous.rl_agent - INFO - 🤖 RL Decision: FUTURES_LOW | Trade: True | Type: FUTURES | Size: 0.5x | Leverage: 2x | Confidence: 0.30
+2025-12-03T02:26:00.570677966Z [inf]  2025-12-03 02:26:00,446 - src.autonomous.autonomy_controller - INFO - 🤖 RL Evaluation para AAVE/USDT: FUTURES_LOW | Trade: ✅ | Size: 0.5x
+2025-12-03T02:26:01.563101081Z [inf]  2025-12-03 02:26:01,212 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:26:03.409768152Z [inf]  2025-12-03 02:26:03,213 - src.market_monitor - INFO - Analyzing INJ/USDT...
+2025-12-03T02:26:06.421507728Z [inf]  2025-12-03 02:26:05,948 - src.market_monitor - INFO - INJ/USDT: HOLD (Score: 1.7/10.0) @ $5.90
+2025-12-03T02:26:06.421513373Z [inf]  2025-12-03 02:26:05,948 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:26:06.421517537Z [inf]  2025-12-03 02:26:05,949 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=-0.02)
+2025-12-03T02:26:06.421522702Z [inf]  2025-12-03 02:26:06,240 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:06.421526937Z [inf]  2025-12-03 02:26:06,242 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:06.421531176Z [inf]  2025-12-03 02:26:06,242 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:06.421535633Z [inf]  2025-12-03 02:26:06,242 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:06.421539932Z [inf]  2025-12-03 02:26:06,263 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (INJ/USDT):
+2025-12-03T02:26:06.421543500Z [inf]  2025-12-03 02:26:06,264 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:26:06.421547901Z [inf]  2025-12-03 02:26:06,264 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:26:06.421552132Z [inf]  2025-12-03 02:26:06,264 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:26:06.421555825Z [inf]  2025-12-03 02:26:06,264 - src.market_monitor - INFO -     📈 Volume Profile: POC=1.0, ValueArea=0.0
+2025-12-03T02:26:06.421559605Z [inf]  2025-12-03 02:26:06,264 - src.market_monitor - INFO -     🎯 Pattern: DOUBLE_TOP detected!
+2025-12-03T02:26:06.421563625Z [inf]  2025-12-03 02:26:06,264 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:26:06.424467734Z [inf]  2025-12-03 02:26:06,264 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:26:06.424479052Z [inf]  2025-12-03 02:26:06,264 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:26:06.424557569Z [inf]  2025-12-03 02:26:06,264 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:26:07.446190749Z [inf]  2025-12-03 02:26:07,251 - src.flash_signal_analyzer - INFO - 📊 Dynamic TP: 1.10% (conf:75% +0.20%, score:7.5 +0.20%, vol:2.4x +0.40%)
+2025-12-03T02:26:07.446197948Z [inf]  2025-12-03 02:26:07,251 - src.market_monitor - INFO - INJ/USDT FLASH: SELL (Score: 7.5/10) @ $5.90
+2025-12-03T02:26:07.446200380Z [inf]  2025-12-03 02:26:07,298 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:07.446213499Z [inf]  2025-12-03 02:26:07,300 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:07.446222188Z [inf]  2025-12-03 02:26:07,300 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:07.446230973Z [inf]  2025-12-03 02:26:07,300 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:07.446239009Z [inf]  2025-12-03 02:26:07,322 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (INJ/USDT):
+2025-12-03T02:26:07.446247056Z [inf]  2025-12-03 02:26:07,323 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:26:07.564074037Z [inf]  2025-12-03 02:26:07,560 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:07.567347833Z [inf]  2025-12-03 02:26:07,561 - src.advanced.correlation_matrix - WARNING - ⚠️ Correlation matrix vacía, permitiendo trade
+2025-12-03T02:26:07.602509020Z [inf]  2025-12-03 02:26:07,598 - src.advanced.pattern_recognition - INFO - 📈 Pattern boost: DOUBLE_BOTTOM (conf=0.99) → 75.0% → 104.2%
+2025-12-03T02:26:07.602520109Z [inf]  2025-12-03 02:26:07,598 - src.advanced.feature_aggregator - INFO - 🚀 Señal BOOSTED para INJ/USDT: 75.0% → 100.0% (+33.3%)
+2025-12-03T02:26:07.602526727Z [inf]  2025-12-03 02:26:07,598 - src.market_monitor - INFO - ⚡ Arsenal aplicado a FLASH INJ/USDT: confidence=100.0% (boost=1.33x)
+2025-12-03T02:26:07.602533834Z [inf]  2025-12-03 02:26:07,598 - src.sentiment.sentiment_integration - INFO - 📊 Confidence ajustada: 100.0% → 95.0% (-5%) [fear_greed: -5]
+2025-12-03T02:26:08.375855877Z [inf]  2025-12-03 02:26:08,088 - src.autonomous.rl_agent - INFO - 🎯 COMPOSITE SCORE: 0.00 (integración de 16 servicios)
+2025-12-03T02:26:08.375865806Z [inf]  2025-12-03 02:26:08,088 - src.autonomous.rl_agent - INFO - ⚠️ Señal DÉBIL (score 0.00): favoreciendo SKIP
+2025-12-03T02:26:08.375872566Z [inf]  2025-12-03 02:26:08,089 - src.autonomous.rl_agent - INFO - 🤖 RL Decision: FUTURES_LOW | Trade: True | Type: FUTURES | Size: 0.5x | Leverage: 2x | Confidence: 0.30
+2025-12-03T02:26:08.375881477Z [inf]  2025-12-03 02:26:08,089 - src.autonomous.autonomy_controller - INFO - 🤖 RL Evaluation para INJ/USDT: FUTURES_LOW | Trade: ✅ | Size: 0.5x
+2025-12-03T02:26:10.852250416Z [inf]  2025-12-03 02:26:10,846 - src.trading.binance_futures_client - INFO - Leverage set for INJUSDT: 10x
+2025-12-03T02:26:11.484105353Z [inf]  2025-12-03 02:26:11,172 - src.trading.binance_futures_client - INFO - Margin type for INJUSDT already set to ISOLATED
+2025-12-03T02:26:11.484119688Z [inf]  2025-12-03 02:26:11,172 - src.trading.live_position_manager - INFO - Opening REAL position: INJ/USDT SELL qty=66.037303 leverage=10x
+2025-12-03T02:26:11.487347582Z [inf]  2025-12-03 02:26:11,481 - src.trading.binance_futures_client - INFO - Order placed: INJUSDT SELL MARKET qty=66.0 price=0.0 status=NEW
+2025-12-03T02:26:11.487357959Z [inf]  2025-12-03 02:26:11,482 - src.trading.live_portfolio - INFO - Position registered: INJ/USDT SELL @ $5.90 x 10x
+2025-12-03T02:26:12.511131528Z [inf]  2025-12-03 02:26:12,507 - src.trading.binance_futures_client - INFO - Order placed: INJUSDT BUY STOP_MARKET qty=0.0 price=0.0 status=NEW
+2025-12-03T02:26:12.511146547Z [inf]  2025-12-03 02:26:12,507 - src.trading.live_position_manager - INFO - Stop Loss placed for INJ/USDT @ $5.9600 (GTE_GTC, MARK_PRICE)
+2025-12-03T02:26:12.820618889Z [inf]  2025-12-03 02:26:12,815 - src.trading.binance_futures_client - INFO - Order placed: INJUSDT BUY TAKE_PROFIT_MARKET qty=0.0 price=0.0 status=NEW
+2025-12-03T02:26:12.820628775Z [inf]  2025-12-03 02:26:12,815 - src.trading.live_position_manager - INFO - ✅ SCALPING TP placed for INJ/USDT @ $5.8351 (+1.10%) [closes 100%]
+2025-12-03T02:26:12.820634821Z [inf]  2025-12-03 02:26:12,816 - src.trading.live_position_manager - INFO - REAL position opened: INJ/USDT SELL @ $5.90 qty=66.037303 leverage=10x
+2025-12-03T02:26:12.820639986Z [inf]  2025-12-03 02:26:12,816 - src.trading.live_trader - INFO - LIVE Trade opened: INJ/USDT SELL | Size: 8.2% | Leverage: 10x | Score: 7.5/10 | Confidence: 95.0%
+2025-12-03T02:26:12.822909149Z [inf]  2025-12-03 02:26:12,818 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:26:13.617315994Z [inf]  2025-12-03 02:26:13,402 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/sendMessage "HTTP/1.1 200 OK"
+2025-12-03T02:26:14.826790868Z [inf]  2025-12-03 02:26:14,818 - src.market_monitor - INFO - Analyzing CRV/USDT...
+2025-12-03T02:26:17.681213334Z [inf]  2025-12-03 02:26:17,565 - src.market_monitor - INFO - CRV/USDT: HOLD (Score: 2.5/10.0) @ $0.38
+2025-12-03T02:26:17.681224298Z [inf]  2025-12-03 02:26:17,565 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:26:17.681232813Z [inf]  2025-12-03 02:26:17,565 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.16)
+2025-12-03T02:26:17.857350831Z [inf]  2025-12-03 02:26:17,851 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:17.860346362Z [inf]  2025-12-03 02:26:17,854 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:17.860358998Z [inf]  2025-12-03 02:26:17,854 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:17.860367793Z [inf]  2025-12-03 02:26:17,854 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:17.860376382Z [inf]  2025-12-03 02:26:17,854 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:17.881898932Z [inf]  2025-12-03 02:26:17,876 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (CRV/USDT):
+2025-12-03T02:26:17.881912587Z [inf]  2025-12-03 02:26:17,877 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:26:17.881922827Z [inf]  2025-12-03 02:26:17,877 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:26:17.881932061Z [inf]  2025-12-03 02:26:17,877 - src.market_monitor - INFO -     💰 Funding Rate: -0.0124% (sentiment=neutral)
+2025-12-03T02:26:17.881940164Z [inf]  2025-12-03 02:26:17,877 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:26:17.881948888Z [inf]  2025-12-03 02:26:17,877 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:26:17.881956626Z [inf]  2025-12-03 02:26:17,877 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:26:17.881963947Z [inf]  2025-12-03 02:26:17,877 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:26:17.881971793Z [inf]  2025-12-03 02:26:17,877 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:26:18.874605304Z [inf]  2025-12-03 02:26:18,868 - src.market_monitor - INFO - CRV/USDT FLASH: HOLD (Score: 1.0/10) @ $0.38
+2025-12-03T02:26:19.518061488Z [inf]  2025-12-03 02:26:19,147 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:19.518070591Z [inf]  2025-12-03 02:26:19,148 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:19.518078059Z [inf]  2025-12-03 02:26:19,148 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:19.518087059Z [inf]  2025-12-03 02:26:19,148 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:19.518097228Z [inf]  2025-12-03 02:26:19,148 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:19.518104922Z [inf]  2025-12-03 02:26:19,173 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (CRV/USDT):
+2025-12-03T02:26:19.518111134Z [inf]  2025-12-03 02:26:19,174 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:26:21.447341240Z [inf]  2025-12-03 02:26:21,176 - src.market_monitor - INFO - Analyzing XRP/USDT...
+2025-12-03T02:26:23.481001412Z [inf]  2025-12-03 02:26:22,966 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:26:23.918822407Z [inf]  2025-12-03 02:26:23,914 - src.market_monitor - INFO - XRP/USDT: HOLD (Score: 1.7/10.0) @ $2.18
+2025-12-03T02:26:23.918837314Z [inf]  2025-12-03 02:26:23,914 - src.market_monitor - INFO -   Regime: BEAR (WEAK)
+2025-12-03T02:26:23.918898264Z [inf]  2025-12-03 02:26:23,914 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=0.05)
+2025-12-03T02:26:24.447074024Z [inf]  2025-12-03 02:26:24,200 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:24.447086270Z [inf]  2025-12-03 02:26:24,202 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:24.447096093Z [inf]  2025-12-03 02:26:24,202 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:24.447105122Z [inf]  2025-12-03 02:26:24,202 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:24.447114436Z [inf]  2025-12-03 02:26:24,202 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:24.447122453Z [inf]  2025-12-03 02:26:24,227 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (XRP/USDT):
+2025-12-03T02:26:24.447131168Z [inf]  2025-12-03 02:26:24,232 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:26:24.447140161Z [inf]  2025-12-03 02:26:24,232 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:26:24.447147722Z [inf]  2025-12-03 02:26:24,232 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:26:24.447156322Z [inf]  2025-12-03 02:26:24,232 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:26:24.447167127Z [inf]  2025-12-03 02:26:24,232 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:26:24.447176320Z [inf]  2025-12-03 02:26:24,232 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:26:24.447184902Z [inf]  2025-12-03 02:26:24,232 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:26:24.447192091Z [inf]  2025-12-03 02:26:24,232 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:26:25.434072481Z [inf]  2025-12-03 02:26:25,219 - src.market_monitor - INFO - XRP/USDT FLASH: HOLD (Score: 1.5/10) @ $2.18
+2025-12-03T02:26:25.434081288Z [inf]  2025-12-03 02:26:25,279 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:25.434091228Z [inf]  2025-12-03 02:26:25,281 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:25.434097269Z [inf]  2025-12-03 02:26:25,281 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:25.434103648Z [inf]  2025-12-03 02:26:25,281 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:25.434109464Z [inf]  2025-12-03 02:26:25,282 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:25.434115695Z [inf]  2025-12-03 02:26:25,303 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (XRP/USDT):
+2025-12-03T02:26:25.434121753Z [inf]  2025-12-03 02:26:25,304 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:26:27.543849308Z [inf]  2025-12-03 02:26:27,306 - src.market_monitor - INFO - Analyzing LTC/USDT...
+2025-12-03T02:26:30.701301757Z [inf]  2025-12-03 02:26:30,075 - src.market_monitor - INFO - LTC/USDT: HOLD (Score: 2.8/10.0) @ $83.97
+2025-12-03T02:26:30.701308546Z [inf]  2025-12-03 02:26:30,075 - src.market_monitor - INFO -   Regime: BEAR (WEAK)
+2025-12-03T02:26:30.701315344Z [inf]  2025-12-03 02:26:30,075 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=0.06)
+2025-12-03T02:26:30.701322379Z [inf]  2025-12-03 02:26:30,588 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:30.701333420Z [inf]  2025-12-03 02:26:30,589 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:30.701341363Z [inf]  2025-12-03 02:26:30,589 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:30.701348623Z [inf]  2025-12-03 02:26:30,590 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:30.701355622Z [inf]  2025-12-03 02:26:30,590 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:30.701362733Z [inf]  2025-12-03 02:26:30,616 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (LTC/USDT):
+2025-12-03T02:26:30.701369841Z [inf]  2025-12-03 02:26:30,616 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:26:30.701376583Z [inf]  2025-12-03 02:26:30,616 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:26:30.701408007Z [inf]  2025-12-03 02:26:30,616 - src.market_monitor - INFO -     💰 Funding Rate: -0.0072% (sentiment=neutral)
+2025-12-03T02:26:30.701414839Z [inf]  2025-12-03 02:26:30,616 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:26:30.701420196Z [inf]  2025-12-03 02:26:30,616 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:26:30.706889192Z [inf]  2025-12-03 02:26:30,617 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:26:30.706897237Z [inf]  2025-12-03 02:26:30,617 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:26:30.706905143Z [inf]  2025-12-03 02:26:30,617 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:26:31.652414438Z [inf]  2025-12-03 02:26:31,604 - src.market_monitor - INFO - LTC/USDT FLASH: HOLD (Score: 0.5/10) @ $83.98
+2025-12-03T02:26:31.675830941Z [inf]  2025-12-03 02:26:31,667 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:31.675847542Z [inf]  2025-12-03 02:26:31,668 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:31.675857120Z [inf]  2025-12-03 02:26:31,668 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:31.675865511Z [inf]  2025-12-03 02:26:31,668 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:31.675873921Z [inf]  2025-12-03 02:26:31,669 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:31.704386543Z [inf]  2025-12-03 02:26:31,696 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (LTC/USDT):
+2025-12-03T02:26:31.704400787Z [inf]  2025-12-03 02:26:31,697 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:26:33.694248826Z [inf]  2025-12-03 02:26:33,115 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:26:33.701941381Z [inf]  2025-12-03 02:26:33,698 - src.market_monitor - INFO - Analyzing TRX/USDT...
+2025-12-03T02:26:36.547876913Z [inf]  2025-12-03 02:26:36,430 - src.market_monitor - INFO - TRX/USDT: HOLD (Score: 3.5/10.0) @ $0.28
+2025-12-03T02:26:36.547881597Z [inf]  2025-12-03 02:26:36,430 - src.market_monitor - INFO -   Regime: BEAR (WEAK)
+2025-12-03T02:26:36.547885992Z [inf]  2025-12-03 02:26:36,430 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.15)
+2025-12-03T02:26:36.954535995Z [inf]  2025-12-03 02:26:36,708 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:36.954541490Z [inf]  2025-12-03 02:26:36,716 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:36.954547002Z [inf]  2025-12-03 02:26:36,716 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:36.954551937Z [inf]  2025-12-03 02:26:36,717 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:36.954556666Z [inf]  2025-12-03 02:26:36,717 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:36.959556535Z [inf]  2025-12-03 02:26:36,739 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (TRX/USDT):
+2025-12-03T02:26:36.959566023Z [inf]  2025-12-03 02:26:36,739 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:26:36.959574943Z [inf]  2025-12-03 02:26:36,739 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:26:36.959582650Z [inf]  2025-12-03 02:26:36,739 - src.market_monitor - INFO -     💰 Funding Rate: -0.0010% (sentiment=neutral)
+2025-12-03T02:26:36.959590281Z [inf]  2025-12-03 02:26:36,740 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:26:36.959597843Z [inf]  2025-12-03 02:26:36,740 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:26:36.959605270Z [inf]  2025-12-03 02:26:36,740 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:26:36.959611429Z [inf]  2025-12-03 02:26:36,740 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:26:36.959617947Z [inf]  2025-12-03 02:26:36,740 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:26:36.959626843Z [inf]  2025-12-03 02:26:36,740 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:26:37.730933114Z [inf]  2025-12-03 02:26:37,726 - src.market_monitor - INFO - TRX/USDT FLASH: HOLD (Score: 0.0/10) @ $0.28
+2025-12-03T02:26:37.774791844Z [inf]  2025-12-03 02:26:37,770 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:37.774816111Z [inf]  2025-12-03 02:26:37,771 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:37.774823559Z [inf]  2025-12-03 02:26:37,771 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:37.774830158Z [inf]  2025-12-03 02:26:37,771 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:37.776489527Z [inf]  2025-12-03 02:26:37,772 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:37.798572654Z [inf]  2025-12-03 02:26:37,793 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (TRX/USDT):
+2025-12-03T02:26:37.798582390Z [inf]  2025-12-03 02:26:37,794 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:26:39.800099730Z [inf]  2025-12-03 02:26:39,796 - src.market_monitor - INFO - Analyzing XLM/USDT...
+2025-12-03T02:26:42.659312391Z [inf]  2025-12-03 02:26:42,538 - src.market_monitor - INFO - XLM/USDT: HOLD (Score: 0.2/10.0) @ $0.26
+2025-12-03T02:26:42.659316857Z [inf]  2025-12-03 02:26:42,538 - src.market_monitor - INFO -   Regime: BEAR (WEAK)
+2025-12-03T02:26:42.659321378Z [inf]  2025-12-03 02:26:42,538 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=-0.09)
+2025-12-03T02:26:43.779068845Z [inf]  2025-12-03 02:26:43,062 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:43.779075545Z [inf]  2025-12-03 02:26:43,064 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:43.779084869Z [inf]  2025-12-03 02:26:43,065 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:43.779091310Z [inf]  2025-12-03 02:26:43,065 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:43.779097486Z [inf]  2025-12-03 02:26:43,065 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:43.779221206Z [inf]  2025-12-03 02:26:43,092 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (XLM/USDT):
+2025-12-03T02:26:43.779227937Z [inf]  2025-12-03 02:26:43,093 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:26:43.779232760Z [inf]  2025-12-03 02:26:43,093 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:26:43.779238183Z [inf]  2025-12-03 02:26:43,093 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:26:43.779245794Z [inf]  2025-12-03 02:26:43,093 - src.market_monitor - INFO -     📈 Volume Profile: POC=1.0, ValueArea=0.0
+2025-12-03T02:26:43.779251652Z [inf]  2025-12-03 02:26:43,093 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:26:43.779256594Z [inf]  2025-12-03 02:26:43,093 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:26:43.779261608Z [inf]  2025-12-03 02:26:43,094 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:26:43.779266514Z [inf]  2025-12-03 02:26:43,094 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:26:43.784274616Z [inf]  2025-12-03 02:26:43,094 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:26:43.784282448Z [inf]  2025-12-03 02:26:43,329 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:26:45.010089322Z [inf]  2025-12-03 02:26:44,083 - src.market_monitor - INFO - XLM/USDT FLASH: HOLD (Score: 4.0/10) @ $0.26
+2025-12-03T02:26:45.010097891Z [inf]  2025-12-03 02:26:44,139 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:45.010113749Z [inf]  2025-12-03 02:26:44,140 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:45.010123211Z [inf]  2025-12-03 02:26:44,140 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:45.010132739Z [inf]  2025-12-03 02:26:44,140 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:45.010141167Z [inf]  2025-12-03 02:26:44,140 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:45.010165852Z [inf]  2025-12-03 02:26:44,162 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (XLM/USDT):
+2025-12-03T02:26:45.010175020Z [inf]  2025-12-03 02:26:44,163 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:26:46.432858774Z [inf]  2025-12-03 02:26:46,164 - src.market_monitor - INFO - Analyzing SAND/USDT...
+2025-12-03T02:26:48.908950670Z [inf]  2025-12-03 02:26:48,902 - src.market_monitor - INFO - SAND/USDT: HOLD (Score: 0.2/10.0) @ $0.15
+2025-12-03T02:26:48.908968265Z [inf]  2025-12-03 02:26:48,902 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:26:48.908981530Z [inf]  2025-12-03 02:26:48,902 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.22)
+2025-12-03T02:26:49.645995471Z [inf]  2025-12-03 02:26:49,180 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:49.646008710Z [inf]  2025-12-03 02:26:49,180 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:49.646018146Z [inf]  2025-12-03 02:26:49,180 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:49.646028438Z [inf]  2025-12-03 02:26:49,202 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (SAND/USDT):
+2025-12-03T02:26:49.646036571Z [inf]  2025-12-03 02:26:49,203 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:26:49.646042184Z [inf]  2025-12-03 02:26:49,179 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:49.646054533Z [inf]  2025-12-03 02:26:49,203 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:26:49.646055186Z [inf]  2025-12-03 02:26:49,180 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:49.646066432Z [inf]  2025-12-03 02:26:49,203 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:26:49.646074911Z [inf]  2025-12-03 02:26:49,203 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:26:49.646081710Z [inf]  2025-12-03 02:26:49,203 - src.market_monitor - INFO -     🎯 Pattern: DOUBLE_TOP detected!
+2025-12-03T02:26:49.646090153Z [inf]  2025-12-03 02:26:49,203 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:26:49.646097681Z [inf]  2025-12-03 02:26:49,203 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:26:49.646105512Z [inf]  2025-12-03 02:26:49,203 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:26:49.649652471Z [inf]  2025-12-03 02:26:49,203 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:26:50.547032960Z [inf]  2025-12-03 02:26:50,214 - src.market_monitor - INFO - SAND/USDT FLASH: HOLD (Score: 0.5/10) @ $0.15
+2025-12-03T02:26:50.547041673Z [inf]  2025-12-03 02:26:50,255 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:50.547052516Z [inf]  2025-12-03 02:26:50,256 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:50.547062075Z [inf]  2025-12-03 02:26:50,256 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:50.547070320Z [inf]  2025-12-03 02:26:50,257 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:50.547077941Z [inf]  2025-12-03 02:26:50,257 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:50.547085854Z [inf]  2025-12-03 02:26:50,278 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (SAND/USDT):
+2025-12-03T02:26:50.547094669Z [inf]  2025-12-03 02:26:50,279 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:26:52.481991247Z [inf]  2025-12-03 02:26:52,281 - src.market_monitor - INFO - Analyzing MANA/USDT...
+2025-12-03T02:26:53.526074887Z [inf]  2025-12-03 02:26:53,477 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:26:55.024295461Z [inf]  2025-12-03 02:26:55,018 - src.market_monitor - INFO - MANA/USDT: HOLD (Score: 1.8/10.0) @ $0.16
+2025-12-03T02:26:55.024304080Z [inf]  2025-12-03 02:26:55,018 - src.market_monitor - INFO -   Regime: BEAR (STRONG)
+2025-12-03T02:26:55.024310075Z [inf]  2025-12-03 02:26:55,018 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.14)
+2025-12-03T02:26:55.680103541Z [inf]  2025-12-03 02:26:55,674 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:55.680114401Z [inf]  2025-12-03 02:26:55,675 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:55.680123158Z [inf]  2025-12-03 02:26:55,675 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:55.680890376Z [inf]  2025-12-03 02:26:55,675 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:55.680901323Z [inf]  2025-12-03 02:26:55,675 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:55.705895367Z [inf]  2025-12-03 02:26:55,700 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (MANA/USDT):
+2025-12-03T02:26:55.705916587Z [inf]  2025-12-03 02:26:55,701 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:26:55.705931347Z [inf]  2025-12-03 02:26:55,701 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:26:55.705941241Z [inf]  2025-12-03 02:26:55,701 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:26:55.705950988Z [inf]  2025-12-03 02:26:55,701 - src.market_monitor - INFO -     📈 Volume Profile: POC=0.0, ValueArea=1.0
+2025-12-03T02:26:55.705959171Z [inf]  2025-12-03 02:26:55,701 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:26:55.705966939Z [inf]  2025-12-03 02:26:55,701 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:26:55.705975501Z [inf]  2025-12-03 02:26:55,701 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:26:55.705983417Z [inf]  2025-12-03 02:26:55,701 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:26:55.705992699Z [inf]  2025-12-03 02:26:55,701 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:26:56.690590658Z [inf]  2025-12-03 02:26:56,687 - src.market_monitor - INFO - MANA/USDT FLASH: HOLD (Score: 2.5/10) @ $0.16
+2025-12-03T02:26:56.736370520Z [inf]  2025-12-03 02:26:56,732 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:56.740270049Z [inf]  2025-12-03 02:26:56,733 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:56.740284668Z [inf]  2025-12-03 02:26:56,733 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:56.740293046Z [inf]  2025-12-03 02:26:56,734 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:56.740301328Z [inf]  2025-12-03 02:26:56,734 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:26:56.766915923Z [inf]  2025-12-03 02:26:56,762 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (MANA/USDT):
+2025-12-03T02:26:56.766925900Z [inf]  2025-12-03 02:26:56,764 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:26:58.939777229Z [inf]  2025-12-03 02:26:58,766 - src.market_monitor - INFO - Analyzing AXS/USDT...
+2025-12-03T02:27:01.820069053Z [inf]  2025-12-03 02:27:01,511 - src.market_monitor - INFO - AXS/USDT: HOLD (Score: 3.0/10.0) @ $1.11
+2025-12-03T02:27:01.820076065Z [inf]  2025-12-03 02:27:01,512 - src.market_monitor - INFO -   Regime: BEAR (MODERATE)
+2025-12-03T02:27:01.820082686Z [inf]  2025-12-03 02:27:01,512 - src.market_monitor - INFO -   Order Book: BUY (imbalance=0.17)
+2025-12-03T02:27:01.834955954Z [inf]  2025-12-03 02:27:01,802 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:01.834961955Z [inf]  2025-12-03 02:27:01,803 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:01.834967956Z [inf]  2025-12-03 02:27:01,803 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:01.834974856Z [inf]  2025-12-03 02:27:01,804 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:01.834981691Z [inf]  2025-12-03 02:27:01,804 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:01.836801950Z [inf]  2025-12-03 02:27:01,830 - src.market_monitor - INFO -     🧠 ML Features: 41 total (Sentiment=26 + Arsenal=15)
+2025-12-03T02:27:01.836809271Z [inf]  2025-12-03 02:27:01,829 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (AXS/USDT):
+2025-12-03T02:27:01.836818097Z [inf]  2025-12-03 02:27:01,830 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:27:01.836828439Z [inf]  2025-12-03 02:27:01,830 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:27:01.836835313Z [inf]  2025-12-03 02:27:01,830 - src.market_monitor - INFO -     💰 Funding Rate: 0.0100% (sentiment=neutral)
+2025-12-03T02:27:01.836842248Z [inf]  2025-12-03 02:27:01,830 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:27:01.836849294Z [inf]  2025-12-03 02:27:01,830 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:27:01.836856157Z [inf]  2025-12-03 02:27:01,830 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:27:01.837537992Z [inf]  2025-12-03 02:27:01,830 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:27:02.864332454Z [inf]  2025-12-03 02:27:02,817 - src.market_monitor - INFO - AXS/USDT FLASH: HOLD (Score: 2.0/10) @ $1.11
+2025-12-03T02:27:02.871841300Z [inf]  2025-12-03 02:27:02,863 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:02.871849258Z [inf]  2025-12-03 02:27:02,865 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:02.871855605Z [inf]  2025-12-03 02:27:02,865 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:02.871861685Z [inf]  2025-12-03 02:27:02,865 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:02.871868620Z [inf]  2025-12-03 02:27:02,866 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:02.892197512Z [inf]  2025-12-03 02:27:02,887 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (AXS/USDT):
+2025-12-03T02:27:02.892205797Z [inf]  2025-12-03 02:27:02,888 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:27:03.631520708Z [inf]  2025-12-03 02:27:03,626 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8499904153:AAHdRcxNX3NvEXOH6GVCwWXrgUP5kM6C81U/getUpdates "HTTP/1.1 200 OK"
+2025-12-03T02:27:04.897938707Z [inf]  2025-12-03 02:27:04,890 - src.market_monitor - INFO - Analyzing FTM/USDT...
+2025-12-03T02:27:05.628536509Z [inf]  2025-12-03 02:27:05,364 - src.orderbook.orderbook_analyzer - WARNING - Order book vacío para FTM/USDT
+2025-12-03T02:27:07.641148742Z [inf]  2025-12-03 02:27:07,635 - src.market_monitor - INFO - FTM/USDT: HOLD (Score: 4.5/10.0) @ $0.70
+2025-12-03T02:27:07.641164768Z [inf]  2025-12-03 02:27:07,635 - src.market_monitor - INFO -   Regime: BEAR (STRONG)
+2025-12-03T02:27:07.641171465Z [inf]  2025-12-03 02:27:07,635 - src.market_monitor - INFO -   Order Book: NEUTRAL (imbalance=0.00)
+2025-12-03T02:27:08.561886144Z [inf]  2025-12-03 02:27:08,140 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:08.561898579Z [inf]  2025-12-03 02:27:08,141 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:08.561908102Z [inf]  2025-12-03 02:27:08,141 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:08.561919686Z [inf]  2025-12-03 02:27:08,141 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:08.561928243Z [inf]  2025-12-03 02:27:08,142 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:08.561936596Z [inf]  2025-12-03 02:27:08,159 - src.market_monitor - INFO -   📊 ARSENAL AVANZADO (FTM/USDT):
+2025-12-03T02:27:08.561946503Z [inf]  2025-12-03 02:27:08,160 - src.market_monitor - INFO -     ⏰ Session: ASIAN (multiplier=0.90x)
+2025-12-03T02:27:08.561956448Z [inf]  2025-12-03 02:27:08,160 - src.market_monitor - INFO -     💧 Order Flow: neutral (ratio=1.00)
+2025-12-03T02:27:08.561966314Z [inf]  2025-12-03 02:27:08,160 - src.market_monitor - INFO -     🎯 Pattern: HEAD_AND_SHOULDERS detected!
+2025-12-03T02:27:08.561976055Z [inf]  2025-12-03 02:27:08,160 - src.market_monitor - INFO -     🔗 Correlation: 0 correlated positions (risk=0.50)
+2025-12-03T02:27:08.561984902Z [inf]  2025-12-03 02:27:08,160 - src.market_monitor - INFO -     📰 Sentiment: F&G=28, News=0.57, SocialBuzz=0
+2025-12-03T02:27:08.561995654Z [inf]  2025-12-03 02:27:08,160 - src.market_monitor - INFO -     🧠 ML Features: 39 total (Sentiment=26 + Arsenal=13)
+2025-12-03T02:27:08.562003487Z [inf]  2025-12-03 02:27:08,160 - src.market_monitor - INFO -     🤖 RL State: 19 dimensions (12 base + 7 arsenal)
+2025-12-03T02:27:09.487428185Z [inf]  2025-12-03 02:27:09,143 - src.market_monitor - INFO - FTM/USDT FLASH: HOLD (Score: 2.0/10) @ $0.70
+2025-12-03T02:27:09.487434610Z [inf]  2025-12-03 02:27:09,180 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:09.487441178Z [inf]  2025-12-03 02:27:09,181 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:09.487447790Z [inf]  2025-12-03 02:27:09,181 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:09.487730166Z [inf]  2025-12-03 02:27:09,182 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:09.487737310Z [inf]  2025-12-03 02:27:09,182 - src.advanced.correlation_matrix - WARNING - ⚠️ Insuficientes pares para calcular correlación
+2025-12-03T02:27:09.487743554Z [inf]  2025-12-03 02:27:09,204 - src.market_monitor - INFO -   ⚡ ARSENAL FLASH (FTM/USDT):
+2025-12-03T02:27:09.487749981Z [inf]  2025-12-03 02:27:09,204 - src.market_monitor - INFO -     ⏰ Session: ASIAN (0.90x) | 💧 Flow: neutral (1.00)
+2025-12-03T02:27:13.000000000Z [inf]  Stopping Container
