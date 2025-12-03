@@ -224,12 +224,14 @@ class FlashSignalAnalyzer:
                                 volume_ratio: float = 1.0) -> dict:
         """
         Calculate tighter stop-loss and take-profit for flash signals (15m)
-        SCALPING PURO: TP dinámico basado en condiciones del mercado
+        SCALPING RENTABLE: TP dinámico con ratio ~1:1 vs SL
 
-        TP Range: 0.3% - 1.5% depending on:
-        - Confidence: Higher confidence = larger TP
-        - Score: Stronger signal = larger TP
-        - Volume: Higher volume = larger TP (momentum)
+        TP Range: 0.8% - 2.5% depending on:
+        - Confidence: Higher confidence = larger TP (+0-0.6%)
+        - Score: Stronger signal = larger TP (+0-0.6%)
+        - Volume: Higher volume = larger TP (+0-0.5%)
+
+        Con 10x leverage: 8%-25% profit vs 15%-25% loss = ratio favorable
         """
         # Tighter stops for flash trading
         atr_multiplier_sl = 1.5  # 1.5x ATR for stop
@@ -237,19 +239,20 @@ class FlashSignalAnalyzer:
         # MÍNIMO porcentual para SL (protección contra SL = entry_price)
         min_sl_pct = 0.0015  # 0.15% mínimo de diferencia
 
-        # SCALPING DINÁMICO: TP variable entre 0.3% y 1.5%
-        # Base TP starts at 0.3%
-        base_tp = 0.003  # 0.3% minimum
-        max_tp = 0.015   # 1.5% maximum
+        # SCALPING DINÁMICO: TP variable entre 0.8% y 2.5%
+        # Ratio ~1:1 con SL para ser rentable con 64% win rate
+        # Antes: 0.3%-1.5% = muy pequeño, 1 pérdida borraba 3-4 ganancias
+        base_tp = 0.008  # 0.8% minimum (antes 0.3%)
+        max_tp = 0.025   # 2.5% maximum (antes 1.5%)
 
-        # Factor 1: Confidence (50-100% → adds 0-0.4%)
-        confidence_factor = ((confidence - 50) / 50) * 0.004 if confidence > 50 else 0
+        # Factor 1: Confidence (50-100% → adds 0-0.6%)
+        confidence_factor = ((confidence - 50) / 50) * 0.006 if confidence > 50 else 0
 
-        # Factor 2: Score strength (5-10 → adds 0-0.4%)
-        score_factor = ((score - 5) / 5) * 0.004 if score > 5 else 0
+        # Factor 2: Score strength (5-10 → adds 0-0.6%)
+        score_factor = ((score - 5) / 5) * 0.006 if score > 5 else 0
 
-        # Factor 3: Volume ratio (1.0-2.0+ → adds 0-0.4%)
-        volume_factor = min((volume_ratio - 1.0) * 0.004, 0.004) if volume_ratio > 1.0 else 0
+        # Factor 3: Volume ratio (1.0-2.0+ → adds 0-0.5%)
+        volume_factor = min((volume_ratio - 1.0) * 0.005, 0.005) if volume_ratio > 1.0 else 0
 
         # Calculate dynamic TP
         tp_pct = base_tp + confidence_factor + score_factor + volume_factor
