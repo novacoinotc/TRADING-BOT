@@ -1,0 +1,1539 @@
+NovaTrading:
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: ETH/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $3,292.4649
+💰 Precio Entrada: $3,020.6100
+📦 Cantidad: 0.099747
+💵 Valor Posición: $301.30
+
+🎯 Take Profit: $3,009.1300 (+0.38%)
+
+🛡️ Stop Loss: $3,050.6100 (-0.98%)
+
+⚡ SEÑAL FLASH - RIESGOSA ⚡
+⚠️ Operación de alto riesgo (15m)
+
+Par: ARB/USDT
+Señal: VENDER
+
+💡 Por qué: 🔥 RSI muy sobrecompra (78.2), MACD cruce bajista
+
+💎 Calidad: 6.5/10 Fuerza: ⭐⭐⭐
+
+💰 Precio actual: $0.22
+📍 Entrada sugerida: $0.22 - $0.22
+
+🎯 Take Profit: $0.22 (+0.5%)
+
+🛡️ Stop Loss: $0.22 (-0.1%)
+📊 Ratio R/R: 1:3.61
+
+📊 Indicadores (6.5 pts):
+• RSI: 78.2 (sobrecompra fuerte)
+• MACD: Bajista ❌
+• Volumen: -66%
+
+🎯 Market Regime:
+• Régimen: Bajista 🐻 (STRONG)
+• Confianza: 100%
+
+📚 Order Book:
+• Presión: NEUTRAL ⚪
+• Imbalance: +0.04
+• Pared Compra: $0.21 (0.5% away) 🛡️
+
+📰 Sentiment Analysis:
+• Fear & Greed: 23/100 😱 (Extreme Fear)
+• Noticias: 0.63 📈 (Positivo)
+
+📈 Razones:
+• 🔥 RSI muy sobrecompra (78.2)
+• MACD cruce bajista
+• Tendencia alcista corto plazo
+• Precio en zona de sobrecompra (BB)
+• 🔥 Strong bearish momentum (RSI + MACD)
+
+⚠️ Riesgo: MEDIUM
+💡 Confianza: 90.90256959314775%
+
+⏰ Análisis flash 15m - Operación opcional
+
+📊 PAPER TRADING STATS
+
+💰 Balance: $4,763.43 USDT
+💎 Equity: $4,763.43 USDT
+📈 P&L: $25.01 (-1.81%)
+
+📊 Trading:
+• Total Trades: 165
+• Win Rate: 62.4%
+• Profit Factor: 1.14
+• Sharpe Ratio: 0.07
+• Max Drawdown: 2.33%
+
+🔄 Posiciones Abiertas: 5
+
+🧠 ML Model:
+• Accuracy: 60.71%
+• Precision: 60.71%
+• Samples: 140
+
+⚙️ Parámetros:
+• Flash Threshold: 4.5
+• Min Confidence: 55%
+• Position Size: 5.0%
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: ETH/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $3,019.3100
+💰 Salida: $3,016.5400
+📈 P&L: $0.28 (+0.89%)
+🏁 Razón: EXTERNAL_CLOSE
+
+👍 Buen trade
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: ETH/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $3,294.9719
+💰 Precio Entrada: $3,022.9100
+📦 Cantidad: 0.094704
+💵 Valor Posición: $286.28
+
+🎯 Take Profit: $3,011.4200 (+0.38%)
+
+🛡️ Stop Loss: $3,051.0600 (-0.92%)
+
+⚡ SEÑAL FLASH - RIESGOSA ⚡
+⚠️ Operación de alto riesgo (15m)
+
+Par: XLM/USDT
+Señal: VENDER
+
+💡 Por qué: 🔥 RSI muy sobrecompra (77.7), MACD cruce bajista
+
+💎 Calidad: 6.5/10 Fuerza: ⭐⭐⭐
+
+💰 Precio actual: $0.26
+📍 Entrada sugerida: $0.26 - $0.26
+
+🎯 Take Profit: $0.26 (+0.5%)
+
+🛡️ Stop Loss: $0.26 (-0.1%)
+📊 Ratio R/R: 1:3.59
+
+📊 Indicadores (6.5 pts):
+• RSI: 77.7 (sobrecompra fuerte)
+• MACD: Bajista ❌
+• Volumen: -48%
+
+🎯 Market Regime:
+• Régimen: Bajista 🐻 (WEAK)
+• Confianza: 67%
+
+📚 Order Book:
+• Presión: NEUTRAL ⚪
+• Imbalance: +0.01
+• Pared Compra: $0.25 (1.6% away) 🛡️
+• Pared Venta: $0.26 (0.6% away) 🚧
+
+📰 Sentiment Analysis:
+• Fear & Greed: 23/100 😱 (Extreme Fear)
+• Noticias: 0.60 📈 (Positivo)
+
+📈 Razones:
+• 🔥 RSI muy sobrecompra (77.7)
+• MACD cruce bajista
+• Precio en zona de sobrecompra (BB)
+• 🔥 Strong bearish momentum (RSI + MACD)
+
+⚠️ Riesgo: MEDIUM
+💡 Confianza: 90.79955947136563%
+
+⏰ Análisis flash 15m - Operación opcional
+
+⚡ SEÑAL FLASH - RIESGOSA ⚡
+⚠️ Operación de alto riesgo (15m)
+
+Par: ADA/USDT
+Señal: VENDER
+
+💡 Por qué: 🔥 RSI muy sobrecompra (75.1), MACD cruce bajista
+
+💎 Calidad: 5.5/10 Fuerza: ⭐⭐
+
+💰 Precio actual: $0.43
+📍 Entrada sugerida: $0.43 - $0.43
+
+🎯 Take Profit: $0.43 (+0.4%)
+
+🛡️ Stop Loss: $0.43 (-0.1%)
+📊 Ratio R/R: 1:2.55
+
+📊 Indicadores (5.5 pts):
+• RSI: 75.1 (sobrecompra fuerte)
+• MACD: Bajista ❌
+• Volumen: -94%
+
+🎯 Market Regime:
+• Régimen: Bajista 🐻 (STRONG)
+• Confianza: 100%
+
+📚 Order Book:
+• Presión: BUY 🟢
+• Imbalance: +0.17
+• Pared Compra: $0.43 (0.4% away) 🛡️
+• Pared Venta: $0.43 (0.4% away) 🚧
+
+📰 Sentiment Analysis:
+• Fear & Greed: 23/100 😱 (Extreme Fear)
+• Noticias: 0.50 ➡️ (Neutral)
+
+📈 Razones:
+• 🔥 RSI muy sobrecompra (75.1)
+• MACD cruce bajista
+• Tendencia alcista corto plazo
+• 🔥 Strong bearish momentum (RSI + MACD)
+
+⚠️ Riesgo: MEDIUM
+💡 Confianza: 100.0%
+
+⏰ Análisis flash 15m - Operación opcional
+
+⚡ SEÑAL FLASH - RIESGOSA ⚡
+⚠️ Operación de alto riesgo (15m)
+
+Par: SEI/USDT
+Señal: VENDER
+
+💡 Por qué: RSI sobrecompra (70.1), MACD cruce bajista
+
+💎 Calidad: 5.5/10 Fuerza: ⭐⭐
+
+💰 Precio actual: $0.14
+📍 Entrada sugerida: $0.14 - $0.14
+
+🎯 Take Profit: $0.14 (+0.4%)
+
+🛡️ Stop Loss: $0.14 (-0.1%)
+📊 Ratio R/R: 1:2.52
+
+📊 Indicadores (5.5 pts):
+• RSI: 70.1 (sobrecompra fuerte)
+• MACD: Bajista ❌
+• Volumen: -93%
+
+🎯 Market Regime:
+• Régimen: Bajista 🐻 (STRONG)
+• Confianza: 100%
+
+📚 Order Book:
+• Presión: NEUTRAL ⚪
+• Imbalance: +0.07
+• Pared Compra: $0.14 (0.6% away) 🛡️
+• Pared Venta: $0.14 (3.1% away) 🚧
+
+📰 Sentiment Analysis:
+• Fear & Greed: 23/100 😱 (Extreme Fear)
+• Noticias: 0.38 📉 (Negativo)
+
+📈 Razones:
+• RSI sobrecompra (70.1)
+• MACD cruce bajista
+• Precio en zona de sobrecompra (BB)
+• 🔥 Strong bearish momentum (RSI + MACD)
+
+⚠️ Riesgo: MEDIUM
+💡 Confianza: 87.67181818181817%
+
+⏰ Análisis flash 15m - Operación opcional
+
+⚡ SEÑAL FLASH - RIESGOSA ⚡
+⚠️ Operación de alto riesgo (15m)
+
+Par: LTC/USDT
+Señal: VENDER
+
+💡 Por qué: RSI sobrecompra (72.4), MACD cruce bajista
+
+💎 Calidad: 5.5/10 Fuerza: ⭐⭐
+
+💰 Precio actual: $83.09
+📍 Entrada sugerida: $82.67 - $83.51
+
+🎯 Take Profit: $82.77 (+0.4%)
+
+🛡️ Stop Loss: $83.78 (-0.8%)
+📊 Ratio R/R: 1:0.46
+
+📊 Indicadores (5.5 pts):
+• RSI: 72.4 (sobrecompra fuerte)
+• MACD: Bajista ❌
+• Volumen: -87%
+
+🎯 Market Regime:
+• Régimen: Bajista 🐻 (MODERATE)
+• Confianza: 100%
+
+📚 Order Book:
+• Presión: SELL 🔴
+• Imbalance: -0.15
+• Pared Venta: $83.31 (0.3% away) 🚧
+
+📰 Sentiment Analysis:
+• Fear & Greed: 23/100 😱 (Extreme Fear)
+• Noticias: 0.38 📉 (Negativo)
+
+📈 Razones:
+• RSI sobrecompra (72.4)
+• MACD cruce bajista
+• Tendencia alcista corto plazo
+• Precio en zona de sobrecompra (BB)
+• 🔥 Strong bearish momentum (RSI + MACD)
+
+⚠️ Riesgo: MEDIUM
+💡 Confianza: 86.73569068076668%
+
+⏰ Análisis flash 15m - Operación opcional
+
+📚 **Trade Perdedor Analizado**
+
+Par: SUI/USDT
+Loss: -24.70%
+Reward: -247.037
+La IA ajustará estrategia para evitar repetir ⚙️
+
+🤖 IA realizó 4 cambios (OPTIMIZATION)
+
+📊 Performance: Win Rate 62.7% | ROI -1.91%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📉 MIN_CONFIDENCE_FOR_FUTURES: 67.24185650886092
+  📈 SUBSAMPLE: 0.8429071914176353
+  📉 RSI_OVERSOLD: 30
+  📈 FLASH_MIN_CONFIDENCE: 63
+
+🧠 Total: 50 cambios | 59 trades
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $1.5872
+💰 Salida: $1.6200
+📈 P&L: $-6.18 (-24.70%)
+🏁 Razón: STOP_LOSS
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $1.5872
+💰 Salida: $1.6200
+📈 P&L: $-6.18 (-24.70%)
+🏁 Razón: STOP_LOSS
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $1.7658
+💰 Precio Entrada: $1.6200
+📦 Cantidad: 131.175567
+💵 Valor Posición: $212.50
+
+🎯 Take Profit: $1.6138 (+0.38%)
+
+🛡️ Stop Loss: $1.6500 (-1.82%)
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $1.6200
+💰 Salida: $1.6104
+📈 P&L: $1.26 (+5.93%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: BNB/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $963.3202
+💰 Precio Entrada: $883.7800
+📦 Cantidad: 0.382370
+💵 Valor Posición: $337.93
+
+🎯 Take Profit: $879.0100 (+0.54%)
+
+🛡️ Stop Loss: $889.9900 (-0.70%)
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: ETH/USDT
+Profit: 4.15%
+Reward: 41.516
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 3 cambios (OPTIMIZATION)
+
+📊 Performance: Win Rate 63.1% | ROI -1.89%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📈 MIN_CONFIDENCE_FOR_FUTURES: 71.4102985508024
+  📉 FLASH_MIN_CONFIDENCE: 60
+  📉 SUBSAMPLE: 0.8081363835433895
+
+🧠 Total: 51 cambios | 60 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: ETH/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $3,021.3900
+💰 Salida: $3,008.5300
+📈 P&L: $1.22 (+4.15%)
+🏁 Razón: TP_ALREADY_CLOSED
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: ETH/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $3,021.3900
+💰 Salida: $3,008.5300
+📈 P&L: $1.22 (+4.15%)
+🏁 Razón: TP_ALREADY_CLOSED
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $1.7440
+💰 Precio Entrada: $1.6000
+📦 Cantidad: 187.856139
+💵 Valor Posición: $300.57
+
+🎯 Take Profit: $1.5939 (+0.38%)
+
+🛡️ Stop Loss: $1.6300 (-1.84%)
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: SOL/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $140.0100
+💰 Salida: $139.5200
+📈 P&L: $0.74 (+3.53%)
+🏁 Razón: EXTERNAL_CLOSE
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: BNB/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $884.0900
+💰 Salida: $878.8700
+📈 P&L: $1.98 (+5.74%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: OP/USDT
+Profit: 23.82%
+Reward: 238.162
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 2 cambios (OPTIMIZATION)
+
+📊 Performance: Win Rate 64.5% | ROI -1.79%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📉 RSI_OVERSOLD: 25
+  📉 SUBSAMPLE: 0.791729934851475
+
+🧠 Total: 52 cambios | 61 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: OP/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.3184
+💰 Salida: $0.3100
+📈 P&L: $5.66 (+23.82%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: OP/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.3184
+💰 Salida: $0.3100
+📈 P&L: $5.66 (+23.82%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: ADA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $0.4796
+💰 Precio Entrada: $0.4400
+📦 Cantidad: 689.315181
+💵 Valor Posición: $303.30
+
+🎯 Take Profit: $0.4376 (+0.54%)
+
+🛡️ Stop Loss: $0.4407 (-0.15%)
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: XLM/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $0.2834
+💰 Precio Entrada: $0.2600
+📦 Cantidad: 828.297782
+💵 Valor Posición: $215.36
+
+🎯 Take Profit: $0.2590 (+0.38%)
+
+🛡️ Stop Loss: $0.2604 (-0.15%)
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: ADA/USDT
+Profit: 14.57%
+Reward: 145.745
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 3 cambios (OPTIMIZATION)
+
+📊 Performance: Win Rate 64.3% | ROI -1.76%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📈 RSI_OVERSOLD: 32
+  📈 SUBSAMPLE: 0.8081363835433895
+  📈 FLASH_MIN_CONFIDENCE: 61
+
+🧠 Total: 53 cambios | 62 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: ADA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.4364
+💰 Salida: $0.4300
+📈 P&L: $4.41 (+14.57%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: ADA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.4364
+💰 Salida: $0.4300
+📈 P&L: $4.41 (+14.57%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: XLM/USDT
+Profit: 21.19%
+Reward: 211.941
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 2 cambios (OPTIMIZATION)
+
+📊 Performance: Win Rate 64.9% | ROI -1.76%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📉 RSI_OVERSOLD: 27
+  📉 FLASH_MIN_CONFIDENCE: 53
+
+🧠 Total: 54 cambios | 63 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: XLM/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.2554
+💰 Salida: $0.2500
+📈 P&L: $4.47 (+21.19%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: XLM/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.2554
+💰 Salida: $0.2500
+📈 P&L: $4.47 (+21.19%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: XLM/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $0.2834
+💰 Precio Entrada: $0.2600
+📦 Cantidad: 828.606053
+💵 Valor Posición: $215.44
+
+🎯 Take Profit: $0.2590 (+0.38%)
+
+🛡️ Stop Loss: $0.2604 (-0.15%)
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: ADA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $0.4796
+💰 Precio Entrada: $0.4400
+📦 Cantidad: 566.821851
+💵 Valor Posición: $249.40
+
+🎯 Take Profit: $0.4383 (+0.38%)
+
+🛡️ Stop Loss: $0.4407 (-0.15%)
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: ADA/USDT
+Profit: 12.04%
+Reward: 120.428
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 67 cambios (EXPLORATION)
+
+📊 Performance: Win Rate 64.7% | ROI -1.75%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📈 AB_TEST_DURATION_DAYS: 10
+  📈 DYNAMIC_TP_MULTIPLIER: 2.4766298536476117
+  📈 N_ESTIMATORS: 263
+  📈 BREAKEVEN_AFTER: 0.7838468240734018
+  📈 LEARNING_RATE: 0.0500267660545042
+  ... +62 parámetros más
+
+🧠 Total: 55 cambios | 64 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: ADA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.4354
+💰 Salida: $0.4300
+📈 P&L: $3.06 (+12.04%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: ADA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.4354
+💰 Salida: $0.4300
+📈 P&L: $3.06 (+12.04%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $1.6041
+💰 Salida: $1.6058
+📈 P&L: $-0.32 (-1.02%)
+🏁 Razón: EXTERNAL_CLOSE
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $1.7549
+💰 Precio Entrada: $1.6100
+📦 Cantidad: 134.503006
+💵 Valor Posición: $216.55
+
+🎯 Take Profit: $1.6039 (+0.38%)
+
+🛡️ Stop Loss: $1.6400 (-1.83%)
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: ADA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $0.4796
+💰 Precio Entrada: $0.4400
+📦 Cantidad: 488.644607
+💵 Valor Posición: $215.00
+
+🎯 Take Profit: $0.4383 (+0.38%)
+
+🛡️ Stop Loss: $0.4407 (-0.15%)
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: SUI/USDT
+Profit: 3.53%
+Reward: 35.285
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 67 cambios (OPTIMIZATION)
+
+📊 Performance: Win Rate 64.6% | ROI -1.70%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📈 GAMMA: 0.11870907734728885
+  📈 PROFIT: 2.5203724826295355
+  📈 SOCIAL_BUZZ_WEIGHT: 10
+  📈 MAX_POSITIONS: 12
+  📈 EMA_SHORT: 15
+  ... +62 parámetros más
+
+🧠 Total: 56 cambios | 65 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $1.6058
+💰 Salida: $1.6000
+📈 P&L: $0.78 (+3.53%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $1.6058
+💰 Salida: $1.6000
+📈 P&L: $0.78 (+3.53%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+📊 PAPER TRADING STATS
+
+💰 Balance: $4,768.47 USDT
+💎 Equity: $4,768.47 USDT
+📈 P&L: $42.37 (-1.70%)
+
+📊 Trading:
+• Total Trades: 175
+• Win Rate: 64.6%
+• Profit Factor: 1.22
+• Sharpe Ratio: 0.11
+• Max Drawdown: 2.33%
+
+🔄 Posiciones Abiertas: 3
+
+🧠 ML Model:
+• Accuracy: 63.64%
+• Precision: 63.64%
+• Samples: 162
+
+⚙️ Parámetros:
+• Flash Threshold: 4.5
+• Min Confidence: 55%
+• Position Size: 5.0%
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: LTC/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $90.6008
+💰 Precio Entrada: $83.1200
+📦 Cantidad: 2.602065
+💵 Valor Posición: $216.28
+
+🎯 Take Profit: $82.8000 (+0.39%)
+
+🛡️ Stop Loss: $83.7000 (-0.69%)
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $1.7549
+💰 Precio Entrada: $1.6100
+📦 Cantidad: 134.509844
+💵 Valor Posición: $216.56
+
+🎯 Take Profit: $1.6039 (+0.38%)
+
+🛡️ Stop Loss: $1.6400 (-1.83%)
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $1.6048
+💰 Salida: $1.6264
+📈 P&L: $-2.91 (-15.89%)
+🏁 Razón: EXTERNAL_CLOSE
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: SUI/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $1.7767
+💰 Precio Entrada: $1.6300
+📦 Cantidad: 287.339468
+💵 Valor Posición: $468.36
+
+🎯 Take Profit: $1.6082 (+1.36%)
+
+🛡️ Stop Loss: $1.6600 (-1.81%)
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: LTC/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $83.0800
+💰 Salida: $82.8100
+📈 P&L: $0.70 (+3.17%)
+🏁 Razón: EXTERNAL_CLOSE
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: LINK/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $14.7804
+💰 Precio Entrada: $13.5600
+📦 Cantidad: 22.544537
+💵 Valor Posición: $305.70
+
+🎯 Take Profit: $13.4900 (+0.52%)
+
+🛡️ Stop Loss: $13.6800 (-0.88%)
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: ADA/USDT
+Profit: 11.59%
+Reward: 115.929
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 3 cambios (OPTIMIZATION)
+
+📊 Performance: Win Rate 64.2% | ROI -1.80%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📈 FLASH_MIN_CONFIDENCE: 62
+  📈 MIN_CONFIDENCE_FOR_FUTURES: 74.0307894260699
+  📈 SUBSAMPLE: 0.8254008963356757
+
+🧠 Total: 57 cambios | 66 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: ADA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.4351
+💰 Salida: $0.4300
+📈 P&L: $2.49 (+11.59%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: ADA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.4351
+💰 Salida: $0.4300
+📈 P&L: $2.49 (+11.59%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: AAVE/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $207.2417
+💰 Precio Entrada: $190.1300
+📦 Cantidad: 1.315193
+💵 Valor Posición: $250.06
+
+🎯 Take Profit: $189.4100 (+0.38%)
+
+🛡️ Stop Loss: $191.9000 (-0.92%)
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: XLM/USDT
+Profit: 19.75%
+Reward: 197.461
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 65 cambios (EXPLORATION)
+
+📊 Performance: Win Rate 64.4% | ROI -1.80%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📈 AB_TEST_DURATION_DAYS: 11
+  📈 LEARNING_RATE: 0.08779816556204514
+  📈 MIN_CHILD_WEIGHT: 5
+  📈 N_ESTIMATORS: 289
+  📈 DYNAMIC_TP_MULTIPLIER: 2.180616199716334
+  ... +60 parámetros más
+
+🧠 Total: 58 cambios | 67 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: XLM/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.2550
+💰 Salida: $0.2500
+📈 P&L: $4.12 (+19.75%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: XLM/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.2550
+💰 Salida: $0.2500
+📈 P&L: $4.12 (+19.75%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: LINK/USDT
+Profit: 5.48%
+Reward: 54.832
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 65 cambios (OPTIMIZATION)
+
+📊 Performance: Win Rate 65.0% | ROI -1.77%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📈 SOCIAL_BUZZ_WEIGHT: 10
+  📈 CONSERVATIVE_LEVERAGE: 5
+  📈 RSI: 19
+  📈 PERFORMANCE_DEGRADATION: 16.578821396895407
+  📉 AB_TEST_DURATION_DAYS: 3
+  ... +60 parámetros más
+
+🧠 Total: 59 cambios | 68 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: LINK/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $13.5670
+💰 Salida: $13.4900
+📈 P&L: $1.74 (+5.48%)
+🏁 Razón: TP_ALREADY_CLOSED
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: LINK/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $13.5670
+💰 Salida: $13.4900
+📈 P&L: $1.74 (+5.48%)
+🏁 Razón: TP_ALREADY_CLOSED
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: LINK/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $14.7368
+💰 Precio Entrada: $13.5200
+📦 Cantidad: 15.994985
+💵 Valor Posición: $216.25
+
+🎯 Take Profit: $13.4700 (+0.37%)
+
+🛡️ Stop Loss: $13.6400 (-0.88%)
+
+📊 PAPER TRADING STATS
+
+💰 Balance: $4,765.44 USDT
+💎 Equity: $4,765.44 USDT
+📈 P&L: $48.52 (-1.77%)
+
+📊 Trading:
+• Total Trades: 181
+• Win Rate: 64.6%
+• Profit Factor: 1.25
+• Sharpe Ratio: 0.12
+• Max Drawdown: 2.33%
+
+🔄 Posiciones Abiertas: 4
+
+🧠 ML Model:
+• Accuracy: 63.64%
+• Precision: 63.64%
+• Samples: 162
+
+⚙️ Parámetros:
+• Flash Threshold: 4.5
+• Min Confidence: 55%
+• Position Size: 5.0%
+
+⚡ SEÑAL FLASH - RIESGOSA ⚡
+⚠️ Operación de alto riesgo (15m)
+
+Par: TIA/USDT
+✅ TRADE ABIERTO: VENDER
+
+💡 Por qué: 📊 Volumen explosivo (+98%), MACD cruce bajista
+
+💎 Calidad: 6.0/10 Fuerza: ⭐⭐⭐
+
+💰 Precio actual: $0.63
+📍 Entrada sugerida: $0.63 - $0.63
+
+🎯 Take Profit: $0.62 (+0.9%)
+
+🛡️ Stop Loss: $0.65 (-2.3%)
+📊 Ratio R/R: 1:0.36
+
+📊 Indicadores (6.0 pts):
+• RSI: 62.7
+• MACD: Bajista ❌
+• Volumen: +98% 🔥
+
+🎯 Market Regime:
+• Régimen: Bajista 🐻 (STRONG)
+• Confianza: 100%
+
+📚 Order Book:
+• Presión: NEUTRAL ⚪
+• Imbalance: -0.00
+• Pared Compra: $0.63 (0.5% away) 🛡️
+• Pared Venta: $0.63 (0.3% away) 🚧
+
+📰 Sentiment Analysis:
+• Fear & Greed: 28/100 😰 (Fear)
+• Noticias: 0.45 ➡️ (Neutral)
+
+📈 Razones:
+• 📊 Volumen explosivo (+98%)
+• MACD cruce bajista
+• Precio en zona de sobrecompra (BB)
+• 🔥 Strong bearish momentum (RSI + MACD)
+
+⚠️ Riesgo: MEDIUM
+💡 Confianza: 95.74056939501777%
+
+⏰ Análisis flash 15m - Operación opcional
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: TIA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $0.6867
+💰 Precio Entrada: $0.6300
+📦 Cantidad: 473.669807
+💵 Valor Posición: $298.41
+
+🎯 Take Profit: $0.6246 (+0.86%)
+
+🛡️ Stop Loss: $0.6450 (-2.33%)
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: AAVE/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $190.0100
+💰 Salida: $190.1900
+📈 P&L: $-0.23 (-0.93%)
+🏁 Razón: EXTERNAL_CLOSE
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: AAVE/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $207.3507
+💰 Precio Entrada: $190.2300
+📦 Cantidad: 1.133570
+💵 Valor Posición: $215.64
+
+🎯 Take Profit: $189.4500 (+0.41%)
+
+🛡️ Stop Loss: $192.0400 (-0.94%)
+
+🎉 **Trade Exitoso Aprendido**
+
+Par: TIA/USDT
+Profit: 12.09%
+Reward: 120.924
+La IA aprenderá de este éxito ✨
+
+🤖 IA realizó 4 cambios (OPTIMIZATION)
+
+📊 Performance: Win Rate 64.5% | ROI -1.73%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📉 RSI_OVERSOLD: 25
+  📉 REG_LAMBDA: 1.6230843774926564
+  📉 FLASH_MIN_CONFIDENCE: 49
+  📉 SUBSAMPLE: 0.8081363835433895
+
+🧠 Total: 60 cambios | 69 trades
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: TIA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.6276
+💰 Salida: $0.6200
+📈 P&L: $3.60 (+12.09%)
+🏁 Razón: TP_ALREADY_CLOSED
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: TIA/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.6276
+💰 Salida: $0.6200
+📈 P&L: $3.60 (+12.09%)
+🏁 Razón: TP_ALREADY_CLOSED
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: LINK/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $13.5240
+💰 Salida: $13.4690
+📈 P&L: $0.88 (+4.01%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: AAVE/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $190.0900
+💰 Salida: $189.6000
+📈 P&L: $0.54 (+2.61%)
+🏁 Razón: EXTERNAL_CLOSE
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: AAVE/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $208.3208
+💰 Precio Entrada: $191.1200
+📦 Cantidad: 1.275786
+💵 Valor Posición: $243.83
+
+🎯 Take Profit: $190.3900 (+0.38%)
+
+🛡️ Stop Loss: $193.0000 (-0.97%)
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: LINK/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $14.8022
+💰 Precio Entrada: $13.5800
+📦 Cantidad: 18.012853
+💵 Valor Posición: $244.61
+
+🎯 Take Profit: $13.5300 (+0.37%)
+
+🛡️ Stop Loss: $13.7200 (-1.02%)
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: AAVE/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $190.8700
+💰 Salida: $190.3000
+📈 P&L: $0.74 (+2.95%)
+🏁 Razón: TP
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: BNB/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $961.7833
+💰 Precio Entrada: $882.3700
+📦 Cantidad: 0.500611
+💵 Valor Posición: $441.72
+
+🎯 Take Profit: $872.6600 (+1.11%)
+
+🛡️ Stop Loss: $887.2900 (-0.55%)
+
+⚡ SEÑAL FLASH - RIESGOSA ⚡
+⚠️ Operación de alto riesgo (15m)
+
+Par: ATOM/USDT
+✅ TRADE ABIERTO: VENDER
+
+💡 Por qué: 📊 Volumen explosivo (+145%), MACD cruce bajista
+
+💎 Calidad: 5.5/10 Fuerza: ⭐⭐
+
+💰 Precio actual: $2.38
+📍 Entrada sugerida: $2.37 - $2.39
+
+🎯 Take Profit: $2.36 (+0.8%)
+
+🛡️ Stop Loss: $2.40 (-0.6%)
+📊 Ratio R/R: 1:1.24
+
+📊 Indicadores (5.5 pts):
+• RSI: 50.5
+• MACD: Bajista ❌
+• Volumen: +145% 🔥
+
+🎯 Market Regime:
+• Régimen: Bajista 🐻 (MODERATE)
+• Confianza: 100%
+
+📚 Order Book:
+• Presión: BUY 🟢
+• Imbalance: +0.16
+• Pared Compra: $2.37 (0.3% away) 🛡️
+• Pared Venta: $2.38 (0.2% away) 🚧
+
+📰 Sentiment Analysis:
+• Fear & Greed: 28/100 😰 (Fear)
+• Noticias: 0.47 ➡️ (Neutral)
+
+📈 Razones:
+• 📊 Volumen explosivo (+145%)
+• MACD cruce bajista
+• Tendencia bajista corto plazo
+
+⚠️ Riesgo: MEDIUM
+💡 Confianza: 88.51069684864622%
+
+⏰ Análisis flash 15m - Operación opcional
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: ATOM/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $2.5942
+💰 Precio Entrada: $2.3800
+📦 Cantidad: 119.639299
+💵 Valor Posición: $284.74
+
+🎯 Take Profit: $2.3614 (+0.79%)
+
+🛡️ Stop Loss: $2.3950 (-0.63%)
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: LINK/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $13.5710
+💰 Salida: $13.6890
+📈 P&L: $-2.13 (-9.46%)
+🏁 Razón: EXTERNAL_CLOSE
+
+⚡ SEÑAL FLASH - RIESGOSA ⚡
+⚠️ Operación de alto riesgo (15m)
+
+Par: DOT/USDT
+✅ TRADE ABIERTO: VENDER
+
+💡 Por qué: RSI sobrecompra (65.2), MACD cruce bajista
+
+💎 Calidad: 5.5/10 Fuerza: ⭐⭐
+
+💰 Precio actual: $2.28
+📍 Entrada sugerida: $2.27 - $2.29
+
+🎯 Take Profit: $2.27 (+0.4%)
+
+🛡️ Stop Loss: $2.29 (-0.7%)
+📊 Ratio R/R: 1:0.58
+
+📊 Indicadores (5.5 pts):
+• RSI: 65.2
+• MACD: Bajista ❌
+• Volumen: -81%
+
+🎯 Market Regime:
+• Régimen: Bajista 🐻 (MODERATE)
+• Confianza: 100%
+
+📚 Order Book:
+• Presión: BUY 🟢
+• Imbalance: +0.22
+• Pared Venta: $2.28 (0.3% away) 🚧
+
+📰 Sentiment Analysis:
+• Fear & Greed: 28/100 😰 (Fear)
+• Noticias: 0.62 📈 (Positivo)
+
+📈 Razones:
+• RSI sobrecompra (65.2)
+• MACD cruce bajista
+• Tendencia alcista corto plazo
+• Precio en zona de sobrecompra (BB)
+• 🔥 Strong bearish momentum (RSI + MACD)
+
+⚠️ Riesgo: MEDIUM
+💡 Confianza: 77.0%
+
+⏰ Análisis flash 15m - Operación opcional
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: DOT/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $2.4852
+💰 Precio Entrada: $2.2800
+📦 Cantidad: 95.189833
+💵 Valor Posición: $217.03
+
+🎯 Take Profit: $2.2713 (+0.38%)
+
+🛡️ Stop Loss: $2.2950 (-0.65%)
+
+✅ TRADE CERRADO - GANANCIA ✅
+
+📌 Par: DOT/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $2.2800
+💰 Salida: $2.2720
+📈 P&L: $0.76 (+3.51%)
+🏁 Razón: EXTERNAL_CLOSE
+
+🎉 Excelente trade!
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: AXS/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $1.1990
+💰 Precio Entrada: $1.1000
+📦 Cantidad: 273.267349
+💵 Valor Posición: $300.59
+
+🎯 Take Profit: $1.0905 (+0.87%)
+
+🛡️ Stop Loss: $1.1017 (-0.15%)
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: ALGO/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $0.1387
+💰 Salida: $0.1401
+📈 P&L: $-3.01 (-10.84%)
+🏁 Razón: EXTERNAL_CLOSE
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: AXS/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $1.1000
+💰 Salida: $1.1030
+📈 P&L: $-0.82 (-2.73%)
+🏁 Razón: STOP_LOSS
+
+🔴 TRADE ABIERTO 🔴
+
+📌 Par: OP/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES
+📈 Apalancamiento: 10x
+⚠️ Precio Liquidación: $0.3488
+💰 Precio Entrada: $0.3200
+📦 Cantidad: 808.872336
+💵 Valor Posición: $258.84
+
+🎯 Take Profit: $0.3172 (+0.87%)
+
+🛡️ Stop Loss: $0.3205 (-0.15%)
+
+📚 **Trade Perdedor Analizado**
+
+Par: ATOM/USDT
+Loss: -13.56%
+Reward: -135.565
+La IA ajustará estrategia para evitar repetir ⚙️
+
+🤖 IA realizó 66 cambios (EXPLORATION)
+
+📊 Performance: Win Rate 64.2% | ROI -1.97%
+💡 === DIAGNÓSTICO ===
+
+🔧 Principales cambios:
+  📈 AB_TEST_DURATION_DAYS: 11
+  📈 MAX_DRAWDOWN_FOR_FUTURES: 14.928355260622347
+  📈 MIN_CHILD_WEIGHT: 4
+  📈 BREAKEVEN_AFTER: 0.6932541851599037
+  📈 EMA_MEDIUM: 29
+  ... +61 parámetros más
+
+🧠 Total: 61 cambios | 70 trades
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: ATOM/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $2.3710
+💰 Salida: $2.4000
+📈 P&L: $-3.47 (-13.56%)
+🏁 Razón: STOP_LOSS
+
+❌ TRADE CERRADO - PÉRDIDA ❌
+
+📌 Par: ATOM/USDT
+📊 Dirección: SELL
+⚡ Tipo: FUTURES (10x)
+💰 Entrada: $2.3710
+💰 Salida: $2.4000
+📈 P&L: $-3.47 (-13.56%)
+🏁 Razón: STOP_LOSS
