@@ -643,7 +643,25 @@ class MarketMonitor:
                     should_execute_trade = True
                     rl_decision = None
 
-                    if self.autonomy_controller:
+                    # ===== FILTRO ANTI-CONTRATENDENCIA (MTF) =====
+                    # Evitar BUY en mercado BEAR fuerte, evitar SELL en mercado BULL fuerte
+                    if regime_data:
+                        regime = regime_data.get('regime', 'SIDEWAYS')
+                        regime_strength = regime_data.get('regime_strength', 'WEAK')
+                        action = signals['action']
+
+                        # BUY en BEAR STRONG/MODERATE = bloqueado
+                        if action == 'BUY' and regime == 'BEAR' and regime_strength in ['STRONG', 'MODERATE']:
+                            logger.warning(f"🚫 MTF BUY bloqueado en {pair}: mercado BEAR {regime_strength}")
+                            should_execute_trade = False
+
+                        # SELL en BULL STRONG/MODERATE = bloqueado
+                        elif action == 'SELL' and regime == 'BULL' and regime_strength in ['STRONG', 'MODERATE']:
+                            logger.warning(f"🚫 MTF SELL bloqueado en {pair}: mercado BULL {regime_strength}")
+                            should_execute_trade = False
+                    # ===== FIN FILTRO ANTI-CONTRATENDENCIA =====
+
+                    if self.autonomy_controller and should_execute_trade:
                         # Derivar orderbook status de orderbook_analysis
                         orderbook_status = 'NEUTRAL'
                         if orderbook_analysis:
@@ -938,7 +956,25 @@ class MarketMonitor:
                             should_execute_flash = True
                             rl_flash_decision = None
 
-                            if self.autonomy_controller:
+                            # ===== FILTRO ANTI-CONTRATENDENCIA =====
+                            # Evitar BUY en mercado BEAR fuerte, evitar SELL en mercado BULL fuerte
+                            if regime_data:
+                                regime = regime_data.get('regime', 'SIDEWAYS')
+                                regime_strength = regime_data.get('regime_strength', 'WEAK')
+                                action = flash_signals['action']
+
+                                # BUY en BEAR STRONG/MODERATE = bloqueado
+                                if action == 'BUY' and regime == 'BEAR' and regime_strength in ['STRONG', 'MODERATE']:
+                                    logger.warning(f"🚫 Flash BUY bloqueado en {pair}: mercado BEAR {regime_strength}")
+                                    should_execute_flash = False
+
+                                # SELL en BULL STRONG/MODERATE = bloqueado
+                                elif action == 'SELL' and regime == 'BULL' and regime_strength in ['STRONG', 'MODERATE']:
+                                    logger.warning(f"🚫 Flash SELL bloqueado en {pair}: mercado BULL {regime_strength}")
+                                    should_execute_flash = False
+                            # ===== FIN FILTRO ANTI-CONTRATENDENCIA =====
+
+                            if self.autonomy_controller and should_execute_flash:
                                 # Derivar orderbook status de orderbook_analysis
                                 orderbook_status_flash = 'NEUTRAL'
                                 if orderbook_analysis:
