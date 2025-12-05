@@ -60,6 +60,7 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("params", self.params_command))
             self.application.add_handler(CommandHandler("train_ml", self.train_ml_command))  # Entrenar ML System
             self.application.add_handler(CommandHandler("force_sync", self.force_sync_command))  # Forzar sincronización RL ↔ Paper
+            self.application.add_handler(CommandHandler("reset_ai", self.reset_ai_command))  # Resetear IA a cero
             self.application.add_handler(CommandHandler("pause", self.pause_command))  # Pausar análisis
             self.application.add_handler(CommandHandler("resume", self.resume_command))  # Resumir análisis
             self.application.add_handler(CommandHandler("help", self.help_command))
@@ -291,6 +292,11 @@ class TelegramCommands:
                 "  ├─ Sincroniza: trades, win rate, procesados, all-time\n"
                 "  ├─ Ajusta RL Agent automáticamente\n"
                 "  └─ Útil si /stats muestra desincronización ⚠️\n\n"
+                "/reset_ai\n"
+                "  ├─ ⚠️ CUIDADO: Borra TODO el aprendizaje\n"
+                "  ├─ Resetea Q-Table, estadísticas, experiencias\n"
+                "  ├─ Guarda backup antes de borrar\n"
+                "  └─ Útil para empezar de 0 con nuevos parámetros\n\n"
                 "/help\n"
                 "  └─ Muestra este mensaje\n\n"
                 "**Auto-Backup**: Cada 24h automático\n"
@@ -753,6 +759,88 @@ class TelegramCommands:
             logger.error(f"Error en comando force_sync: {e}", exc_info=True)
             await update.message.reply_text(
                 f"❌ **Error en Sincronización**\n\n{str(e)}"
+            )
+
+    async def reset_ai_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /reset_ai
+        Resetea la IA a cero, borrando todo el aprendizaje
+        """
+        try:
+            logger.info("🔄 Comando /reset_ai recibido")
+
+            if not self.autonomy_controller:
+                await update.message.reply_text(
+                    "⚠️ **Error**: Sistema autónomo no disponible"
+                )
+                return
+
+            await update.message.reply_text(
+                "⚠️ **RESETEAR IA**\n\n"
+                "Esto borrará TODO el aprendizaje:\n"
+                "• Q-Table (estados aprendidos)\n"
+                "• Estadísticas de trades\n"
+                "• Historial de experiencias\n"
+                "• Parámetros optimizados\n\n"
+                "🔄 Reseteando..."
+            )
+
+            # Resetear el RL Agent
+            rl_agent = self.autonomy_controller.rl_agent
+
+            # Guardar backup antes de resetear
+            backup_path = await self.autonomy_controller.manual_export()
+            logger.info(f"📦 Backup guardado antes de reset: {backup_path}")
+
+            # Resetear todo
+            rl_agent.q_table = {}
+            rl_agent.memory.clear()
+            rl_agent.total_trades = 0
+            rl_agent.successful_trades = 0
+            rl_agent.total_reward = 0.0
+            rl_agent.episode_rewards = []
+            rl_agent.current_state = None
+            rl_agent.current_action = None
+            rl_agent.exploration_rate = 0.3  # Reset exploration rate
+
+            # Resetear contadores del controlador
+            self.autonomy_controller.total_trades_processed = 0
+            self.autonomy_controller.total_trades_all_time = 0
+            self.autonomy_controller.performance_history = []
+            self.autonomy_controller.change_history = []
+
+            # Resetear paper trading si existe
+            if self.ml_system and hasattr(self.ml_system, 'paper_trader'):
+                paper = self.ml_system.paper_trader
+                if hasattr(paper, 'portfolio'):
+                    paper.portfolio.closed_trades = []
+                    paper.portfolio.total_trades = 0
+                    paper.portfolio.winning_trades = 0
+                    paper.portfolio.losing_trades = 0
+                    paper.portfolio.total_profit = 0.0
+                    paper.portfolio.total_loss = 0.0
+
+            # Guardar estado reseteado
+            await self.autonomy_controller.save_intelligence()
+
+            await update.message.reply_text(
+                "✅ **IA RESETEADA**\n\n"
+                "Se ha borrado todo el aprendizaje previo.\n\n"
+                "📊 Estado actual:\n"
+                f"• Q-Table: {len(rl_agent.q_table)} estados\n"
+                f"• Trades procesados: {rl_agent.total_trades}\n"
+                f"• Experiencias: {len(rl_agent.memory)}\n"
+                f"• Exploration Rate: {rl_agent.exploration_rate:.2f}\n\n"
+                f"📦 Backup guardado por si necesitas restaurar\n\n"
+                "🚀 La IA empezará a aprender desde cero con los nuevos parámetros."
+            )
+
+            logger.info("✅ IA reseteada exitosamente")
+
+        except Exception as e:
+            logger.error(f"Error en comando reset_ai: {e}", exc_info=True)
+            await update.message.reply_text(
+                f"❌ **Error en Reset**\n\n{str(e)}"
             )
 
     async def import_intelligence_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
