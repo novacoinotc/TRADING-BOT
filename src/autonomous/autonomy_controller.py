@@ -504,8 +504,23 @@ class AutonomyController:
         profit_pct = trade_data.get('profit_pct', 0)
         done = (profit_pct > 20) or (profit_pct < -10)  # Episodio termina en extremos
 
-        # RL Agent aprende del trade
-        self.rl_agent.learn_from_trade(reward=reward, next_state=state, done=done)
+        # Determinar acción basada en el trade
+        trade_action = trade_data.get('action', 'BUY')
+        if trade_action == 'BUY':
+            action_str = 'OPEN_NORMAL'
+        elif trade_action == 'SELL':
+            action_str = 'OPEN_NORMAL'
+        else:
+            action_str = 'OPEN_NORMAL'
+
+        # RL Agent aprende del trade (ahora con estado y acción explícitos)
+        self.rl_agent.learn_from_trade(
+            reward=reward,
+            next_state=state,
+            done=done,
+            state=state,  # Pasar estado explícitamente
+            action=action_str  # Pasar acción explícitamente
+        )
 
         # Experience Replay periódico
         if self.rl_agent.total_trades % 10 == 0:

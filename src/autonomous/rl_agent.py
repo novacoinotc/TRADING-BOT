@@ -457,7 +457,8 @@ class RLAgent:
 
         return 0.3 + (normalized * 0.7 * experience_factor)
 
-    def learn_from_trade(self, reward: float, next_state: str = None, done: bool = False):
+    def learn_from_trade(self, reward: float, next_state: str = None, done: bool = False,
+                         state: str = None, action: str = None):
         """
         Aprende de un trade completado
 
@@ -465,21 +466,33 @@ class RLAgent:
             reward: Recompensa obtenida (% profit/loss)
             next_state: Siguiente estado (None si trade cerrado)
             done: True si episodio terminó
+            state: Estado del trade (opcional, usa current_state si no se proporciona)
+            action: Acción tomada (opcional, usa current_action si no se proporciona)
         """
-        if self.current_state is None or self.current_action is None:
-            return
+        # Usar parámetros explícitos si se proporcionan, sino usar current_state/action
+        trade_state = state if state is not None else self.current_state
+        trade_action = action if action is not None else self.current_action
+
+        # Si aún no hay estado/acción, crear uno genérico para no perder el aprendizaje
+        if trade_state is None:
+            trade_state = f"UNKNOWN_STATE_{len(self.memory)}"
+            logger.warning(f"⚠️ learn_from_trade sin estado previo, usando: {trade_state}")
+
+        if trade_action is None:
+            trade_action = "OPEN_NORMAL"  # Acción por defecto
+            logger.warning(f"⚠️ learn_from_trade sin acción previa, usando: {trade_action}")
 
         # Guardar experiencia en memoria
         self.memory.append({
-            'state': self.current_state,
-            'action': self.current_action,
+            'state': trade_state,
+            'action': trade_action,
             'reward': reward,
             'next_state': next_state,
             'done': done
         })
 
         # Update Q-value
-        self._update_q_value(self.current_state, self.current_action, reward, next_state, done)
+        self._update_q_value(trade_state, trade_action, reward, next_state, done)
 
         # Estadísticas
         self.total_trades += 1
@@ -488,8 +501,8 @@ class RLAgent:
             self.successful_trades += 1
 
         logger.info(
-            f"📚 Aprendizaje: Estado='{self.current_state[:30]}...' | "
-            f"Acción='{self.current_action}' | Reward={reward:.3f} | "
+            f"📚 Aprendizaje: Estado='{trade_state[:30]}...' | "
+            f"Acción='{trade_action}' | Reward={reward:.3f} | "
             f"Win Rate={self.get_success_rate():.1f}%"
         )
 
