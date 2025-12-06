@@ -25,6 +25,10 @@ if config.ENABLE_AUTONOMOUS_MODE:
     from src.autonomous.autonomy_controller import AutonomyController
     from src.telegram_commands import TelegramCommands
 
+# Import GPT Brain for advanced AI reasoning
+if hasattr(config, 'ENABLE_GPT_BRAIN') and config.ENABLE_GPT_BRAIN:
+    from src.llm.gpt_brain import GPTBrain
+
 
 async def send_bot_status_message(monitor):
     """
@@ -57,6 +61,8 @@ async def send_bot_status_message(monitor):
         paper_trading_status = "✅ Activo" if config.ENABLE_PAPER_TRADING else "❌ Inactivo"
         flash_signals_status = "✅ Activas" if config.ENABLE_FLASH_SIGNALS else "❌ Inactivas"
         autonomous_status = "✅ MODO AUTÓNOMO ACTIVO" if config.ENABLE_AUTONOMOUS_MODE else "❌ Modo manual"
+        gpt_brain_status = "✅ Activo" if hasattr(config, 'ENABLE_GPT_BRAIN') and config.ENABLE_GPT_BRAIN else "❌ Inactivo"
+        gpt_model = getattr(config, 'GPT_MODEL', 'N/A') if hasattr(config, 'ENABLE_GPT_BRAIN') and config.ENABLE_GPT_BRAIN else "N/A"
 
         # Obtener balance de paper trading
         balance = "$50,000 USDT"
@@ -83,6 +89,7 @@ async def send_bot_status_message(monitor):
             f"📚 Order Book: ✅ Activo\n"
             f"🎯 Market Regime: ✅ Activo\n"
             f"🤖 Sistema Autónomo: {autonomous_status}\n"
+            f"🧠 GPT Brain: {gpt_brain_status} ({gpt_model})\n"
             f"📍 Reporte diario: 9 PM CDMX"
         )
 
@@ -314,6 +321,50 @@ async def main():
             monitor.telegram_commands = telegram_commands
             await telegram_commands.start_command_listener()
             logger.info("📱 Telegram Commands activos: /export, /import, /status, /stats, /params, /train_ml")
+
+        # Initialize GPT Brain if enabled
+        gpt_brain = None
+        if hasattr(config, 'ENABLE_GPT_BRAIN') and config.ENABLE_GPT_BRAIN:
+            if config.OPENAI_API_KEY:
+                logger.info("🧠 Inicializando GPT Brain - Razonamiento Avanzado")
+
+                # Callback para actualizar parámetros
+                def update_param_callback(param: str, value) -> bool:
+                    try:
+                        setattr(config, param, value)
+                        logger.info(f"GPT Brain updated {param} = {value}")
+                        return True
+                    except Exception as e:
+                        logger.error(f"Failed to update {param}: {e}")
+                        return False
+
+                # Callback para notificaciones
+                async def notify_callback(message: str):
+                    if monitor.notifier:
+                        await monitor.notifier.send_status_message(message)
+
+                gpt_brain = GPTBrain(
+                    api_key=config.OPENAI_API_KEY,
+                    model=config.GPT_MODEL,
+                    param_update_callback=update_param_callback,
+                    notification_callback=notify_callback,
+                    config=config
+                )
+
+                # Asignar GPT Brain al monitor y autonomy controller
+                monitor.gpt_brain = gpt_brain
+                if autonomy_controller:
+                    autonomy_controller.gpt_brain = gpt_brain
+
+                # Inicializar GPT Brain
+                await gpt_brain.initialize()
+                logger.info(f"✅ GPT Brain activo con modelo: {config.GPT_MODEL}")
+
+                # Agregar comandos GPT a Telegram si disponible
+                if telegram_commands:
+                    telegram_commands.gpt_brain = gpt_brain
+            else:
+                logger.warning("⚠️ GPT Brain habilitado pero OPENAI_API_KEY no configurada")
 
         # Run historical training if enabled (pre-train ML model)
         if config.ENABLE_PAPER_TRADING:

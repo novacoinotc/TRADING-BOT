@@ -17,6 +17,7 @@ class TelegramCommands:
     Manejador de comandos de Telegram
     - /export_intelligence: Export manual de inteligencia aprendida
     - /status: Status del sistema autónomo
+    - /gpt_*: Comandos de GPT Brain
     """
 
     def __init__(self, autonomy_controller=None, telegram_token: str = None, chat_id: str = None, market_monitor=None):
@@ -34,6 +35,7 @@ class TelegramCommands:
         self.application = None
         self.waiting_for_import_file = False  # Flag para saber si esperamos archivo
         self.waiting_for_import_force_file = False  # Flag para import_force (ignora checksum)
+        self.gpt_brain = None  # GPT Brain instance (set by main.py)
 
         if telegram_token:
             logger.info("📱 Telegram Commands Handler inicializado")
@@ -64,6 +66,14 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("pause", self.pause_command))  # Pausar análisis
             self.application.add_handler(CommandHandler("resume", self.resume_command))  # Resumir análisis
             self.application.add_handler(CommandHandler("help", self.help_command))
+
+            # GPT Brain commands
+            self.application.add_handler(CommandHandler("gpt", self.gpt_status_command))  # Status de GPT Brain
+            self.application.add_handler(CommandHandler("gpt_analyze", self.gpt_analyze_command))  # Análisis de performance
+            self.application.add_handler(CommandHandler("gpt_optimize", self.gpt_optimize_command))  # Forzar optimización
+            self.application.add_handler(CommandHandler("gpt_insight", self.gpt_insight_command))  # Insight de mercado
+            self.application.add_handler(CommandHandler("gpt_enable", self.gpt_enable_command))  # Habilitar GPT
+            self.application.add_handler(CommandHandler("gpt_disable", self.gpt_disable_command))  # Deshabilitar GPT
 
             # Handler para recibir archivos (documentos)
             self.application.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
@@ -299,6 +309,13 @@ class TelegramCommands:
                 "  └─ Útil para empezar de 0 con nuevos parámetros\n\n"
                 "/help\n"
                 "  └─ Muestra este mensaje\n\n"
+                "**🧠 GPT Brain Commands:**\n"
+                "/gpt - Estado del GPT Brain\n"
+                "/gpt_analyze - Análisis de performance con GPT\n"
+                "/gpt_optimize - Forzar optimización de parámetros\n"
+                "/gpt_insight - Insight del mercado actual\n"
+                "/gpt_enable - Habilitar GPT Brain\n"
+                "/gpt_disable - Deshabilitar GPT Brain\n\n"
                 "**Auto-Backup**: Cada 24h automático\n"
                 "**Flujo**: /export antes de redeploy → /import después → /train_ml\n"
                 "**Emergencia**: Si /import falla → /import_force"
@@ -1099,3 +1116,314 @@ class TelegramCommands:
             await update.message.reply_text(
                 f"❌ Error reanudando análisis: {str(e)}"
             )
+
+    # =========================================================================
+    # GPT BRAIN COMMANDS
+    # =========================================================================
+
+    async def gpt_status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt
+        Muestra estado actual del GPT Brain
+        """
+        try:
+            logger.info("🧠 Comando /gpt recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text(
+                    "⚠️ **GPT Brain no disponible**\n\n"
+                    "GPT Brain no está inicializado.\n"
+                    "Verifica que ENABLE_GPT_BRAIN=true y OPENAI_API_KEY está configurada."
+                )
+                return
+
+            stats = self.gpt_brain.get_stats()
+
+            message = (
+                "🧠 **GPT Brain Status**\n\n"
+                f"**Estado:** {'✅ Activo' if stats['enabled'] else '❌ Desactivado'}\n"
+                f"**Modelo:** {stats['model']}\n\n"
+                f"**📊 Estadísticas:**\n"
+                f"  • Decisiones tomadas: {stats['decisions_made']}\n"
+                f"  • Trades aprobados: {stats['trades_approved']}\n"
+                f"  • Trades bloqueados: {stats['trades_blocked']}\n"
+                f"  • Tasa de bloqueo: {stats['block_rate']:.1f}%\n"
+                f"  • Optimizaciones: {stats['optimizations_performed']}\n\n"
+                f"**📈 Rachas actuales:**\n"
+                f"  • Pérdidas consecutivas: {stats['consecutive_losses']}\n"
+                f"  • Ganancias consecutivas: {stats['consecutive_wins']}\n\n"
+                f"**💰 Costo GPT:**\n"
+                f"  • Costo total: ${stats['total_gpt_cost']:.4f}\n"
+                f"  • Tokens usados: {stats['gpt_client_stats']['total_tokens']:,}\n\n"
+                f"**⏰ Última actividad:**\n"
+                f"  • Optimización: {stats['last_optimization'] or 'Nunca'}\n"
+                f"  • Análisis: {stats['last_analysis'] or 'Nunca'}\n\n"
+                "📱 **Comandos GPT:**\n"
+                "  /gpt_analyze - Analizar performance\n"
+                "  /gpt_optimize - Forzar optimización\n"
+                "  /gpt_insight - Ver insight de mercado\n"
+                "  /gpt_enable - Habilitar GPT\n"
+                "  /gpt_disable - Deshabilitar GPT"
+            )
+
+            await update.message.reply_text(message)
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_analyze_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_analyze
+        Ejecuta análisis completo de performance con GPT
+        """
+        try:
+            logger.info("🧠 Comando /gpt_analyze recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text("⚠️ GPT Brain no disponible")
+                return
+
+            if not self.gpt_brain.is_enabled:
+                await update.message.reply_text("⚠️ GPT Brain está desactivado. Usa /gpt_enable")
+                return
+
+            await update.message.reply_text(
+                "🧠 **Analizando Performance con GPT...**\n\n"
+                "Esto puede tomar 10-30 segundos ⏳"
+            )
+
+            # Obtener datos necesarios
+            trades = []
+            portfolio = {}
+
+            if self.autonomy_controller and hasattr(self.autonomy_controller, 'paper_trader'):
+                paper_trader = self.autonomy_controller.paper_trader
+                if paper_trader and hasattr(paper_trader, 'portfolio'):
+                    trades = paper_trader.portfolio.closed_trades[-50:]  # Últimos 50 trades
+                    portfolio = paper_trader.get_statistics()
+
+            if not trades:
+                await update.message.reply_text(
+                    "⚠️ No hay trades suficientes para analizar.\n"
+                    "Espera a tener más historial de trading."
+                )
+                return
+
+            # Ejecutar análisis
+            result = await self.gpt_brain.run_performance_analysis(
+                trades=trades,
+                portfolio=portfolio
+            )
+
+            if result.get('success'):
+                analysis = result.get('analysis', {})
+
+                # Formatear respuesta
+                summary = analysis.get('summary', 'No disponible')
+                recommendations = analysis.get('recommendations', [])
+
+                message = (
+                    "🧠 **Análisis GPT Completado**\n\n"
+                    f"**📝 Resumen:**\n{summary}\n\n"
+                )
+
+                if recommendations:
+                    message += "**💡 Recomendaciones:**\n"
+                    for i, rec in enumerate(recommendations[:5], 1):
+                        param = rec.get('parameter', 'N/A')
+                        reason = rec.get('reason', 'N/A')
+                        conf = rec.get('confidence', 0)
+                        message += f"{i}. {param}: {reason} ({conf}% confianza)\n"
+
+                message += f"\n💰 Costo: ${result.get('cost', 0):.4f}"
+
+                await update.message.reply_text(message)
+            else:
+                await update.message.reply_text(
+                    f"❌ Análisis falló: {result.get('error', 'Error desconocido')}"
+                )
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_analyze: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_optimize_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_optimize
+        Fuerza una optimización de parámetros con GPT
+        """
+        try:
+            logger.info("🧠 Comando /gpt_optimize recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text("⚠️ GPT Brain no disponible")
+                return
+
+            if not self.gpt_brain.is_enabled:
+                await update.message.reply_text("⚠️ GPT Brain está desactivado. Usa /gpt_enable")
+                return
+
+            await update.message.reply_text(
+                "🧠 **Ejecutando Optimización GPT...**\n\n"
+                "GPT analizará performance y ajustará parámetros.\n"
+                "Esto puede tomar 20-40 segundos ⏳"
+            )
+
+            # Obtener portfolio stats
+            portfolio = {}
+            if self.autonomy_controller and hasattr(self.autonomy_controller, 'paper_trader'):
+                paper_trader = self.autonomy_controller.paper_trader
+                if paper_trader:
+                    portfolio = paper_trader.get_statistics()
+
+            # Ejecutar optimización
+            result = await self.gpt_brain.run_full_optimization(
+                portfolio=portfolio,
+                trigger_reason="Manual command /gpt_optimize"
+            )
+
+            if result.get('success'):
+                applied = result.get('applied_changes', [])
+                rejected = result.get('rejected_changes', [])
+                direction = result.get('strategy_direction', 'MAINTAIN')
+
+                message = (
+                    "✅ **Optimización GPT Completada**\n\n"
+                    f"**Dirección estratégica:** {direction}\n"
+                    f"**Confianza:** {result.get('confidence', 0)}%\n\n"
+                )
+
+                if applied:
+                    message += "**✅ Cambios aplicados:**\n"
+                    for change in applied[:5]:
+                        param = change.get('parameter', 'N/A')
+                        old = change.get('old_value', 'N/A')
+                        new = change.get('new_value', 'N/A')
+                        message += f"  • {param}: {old} → {new}\n"
+                else:
+                    message += "ℹ️ No se aplicaron cambios (parámetros ya óptimos)\n"
+
+                if rejected:
+                    message += f"\n⚠️ {len(rejected)} cambio(s) rechazado(s) por validación\n"
+
+                message += f"\n💰 Costo: ${result.get('cost', 0):.4f}"
+                message += f"\n⏰ Próxima revisión: {result.get('next_review', 2)}h"
+
+                await update.message.reply_text(message)
+            else:
+                await update.message.reply_text(
+                    f"❌ Optimización falló: {result.get('error', 'Error desconocido')}"
+                )
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_optimize: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_insight_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_insight
+        Obtiene insight rápido del mercado actual
+        """
+        try:
+            logger.info("🧠 Comando /gpt_insight recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text("⚠️ GPT Brain no disponible")
+                return
+
+            if not self.gpt_brain.is_enabled:
+                await update.message.reply_text("⚠️ GPT Brain está desactivado. Usa /gpt_enable")
+                return
+
+            await update.message.reply_text(
+                "🧠 **Obteniendo insight del mercado...**\n\n"
+                "Consultando GPT... ⏳"
+            )
+
+            # Obtener datos del mercado
+            market_data = {}
+            if self.market_monitor:
+                # Intentar obtener datos del último análisis
+                if hasattr(self.market_monitor, 'last_analysis_cache'):
+                    market_data = self.market_monitor.last_analysis_cache or {}
+
+            # Si no hay datos, crear datos básicos
+            if not market_data:
+                market_data = {
+                    "note": "Datos de mercado limitados",
+                    "timestamp": "now"
+                }
+
+            # Obtener insight
+            insight = await self.gpt_brain.get_market_insight(
+                pair="BTC/USDT",
+                market_data=market_data
+            )
+
+            message = (
+                "🧠 **Insight de Mercado (GPT)**\n\n"
+                f"{insight}\n\n"
+                "💡 Este es un análisis de alto nivel basado en datos disponibles."
+            )
+
+            await update.message.reply_text(message)
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_insight: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_enable_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_enable
+        Habilita el GPT Brain
+        """
+        try:
+            logger.info("🧠 Comando /gpt_enable recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text(
+                    "⚠️ GPT Brain no está inicializado.\n"
+                    "Verifica configuración en .env"
+                )
+                return
+
+            self.gpt_brain.enable()
+
+            await update.message.reply_text(
+                "✅ **GPT Brain Habilitado**\n\n"
+                "El bot ahora usará razonamiento GPT para:\n"
+                "  • Evaluar riesgo de trades\n"
+                "  • Optimizar parámetros\n"
+                "  • Explicar decisiones\n\n"
+                "🧠 Razonamiento avanzado activo"
+            )
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_enable: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_disable_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_disable
+        Deshabilita el GPT Brain
+        """
+        try:
+            logger.info("🧠 Comando /gpt_disable recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text("⚠️ GPT Brain no está inicializado")
+                return
+
+            self.gpt_brain.disable()
+
+            await update.message.reply_text(
+                "❌ **GPT Brain Deshabilitado**\n\n"
+                "El bot continuará operando sin razonamiento GPT.\n"
+                "Usará solo ML/RL tradicional.\n\n"
+                "Usa /gpt_enable para reactivar."
+            )
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_disable: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
