@@ -1,8 +1,8 @@
 """
-LLM Integration Module - GPT-Powered Trading Intelligence
+LLM Integration Module - GPT-Powered Trading Intelligence (ABSOLUTE CONTROL)
 
 This module provides advanced AI reasoning capabilities using OpenAI's GPT models
-to enhance trading decisions, analyze performance, and optimize strategies.
+with ABSOLUTE CONTROL over all trading decisions.
 
 Components:
 - GPTClient: Base client for OpenAI API
@@ -11,6 +11,8 @@ Components:
 - GPTRiskAssessor: Evaluates risk before trades
 - GPTStrategyAdvisor: Modifies parameters based on reasoning
 - GPTMarketAnalyst: Analyzes market and generates trading signals
+- GPTExperienceLearner: Persistent learning from trade history
+- GPTTradeController: ABSOLUTE CONTROL over trading decisions
 - GPTBrain: Central orchestrator for all GPT components
 """
 
@@ -20,6 +22,8 @@ from src.llm.gpt_decision_explainer import GPTDecisionExplainer
 from src.llm.gpt_risk_assessor import GPTRiskAssessor
 from src.llm.gpt_strategy_advisor import GPTStrategyAdvisor
 from src.llm.gpt_market_analyst import GPTMarketAnalyst
+from src.llm.gpt_experience_learner import GPTExperienceLearner
+from src.llm.gpt_trade_controller import GPTTradeController
 from src.llm.gpt_brain import GPTBrain
 
 __all__ = [
@@ -29,5 +33,7 @@ __all__ = [
     'GPTRiskAssessor',
     'GPTStrategyAdvisor',
     'GPTMarketAnalyst',
+    'GPTExperienceLearner',
+    'GPTTradeController',
     'GPTBrain'
 ]

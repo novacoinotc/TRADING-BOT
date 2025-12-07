@@ -74,6 +74,9 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("gpt_insight", self.gpt_insight_command))  # Insight de mercado
             self.application.add_handler(CommandHandler("gpt_scan", self.gpt_scan_command))  # Escanear mercado con GPT
             self.application.add_handler(CommandHandler("gpt_signal", self.gpt_signal_command))  # Generar señal GPT
+            self.application.add_handler(CommandHandler("gpt_learn", self.gpt_learn_command))  # Forzar aprendizaje
+            self.application.add_handler(CommandHandler("gpt_wisdom", self.gpt_wisdom_command))  # Ver sabiduría aprendida
+            self.application.add_handler(CommandHandler("gpt_control", self.gpt_control_command))  # Toggle control absoluto
             self.application.add_handler(CommandHandler("gpt_enable", self.gpt_enable_command))  # Habilitar GPT
             self.application.add_handler(CommandHandler("gpt_disable", self.gpt_disable_command))  # Deshabilitar GPT
 
@@ -318,6 +321,9 @@ class TelegramCommands:
                 "/gpt_insight - Insight del mercado actual\n"
                 "/gpt_scan - Escanear mercado para oportunidades\n"
                 "/gpt_signal [par] - Generar señal GPT (ej: /gpt_signal BTC)\n"
+                "/gpt_learn - Sesión de aprendizaje de trades\n"
+                "/gpt_wisdom - Ver sabiduría aprendida\n"
+                "/gpt_control [on/off] - Control absoluto GPT\n"
                 "/gpt_enable - Habilitar GPT Brain\n"
                 "/gpt_disable - Deshabilitar GPT Brain\n\n"
                 "**Auto-Backup**: Cada 24h automático\n"
@@ -1688,4 +1694,185 @@ class TelegramCommands:
 
         except Exception as e:
             logger.error(f"Error en comando /gpt_signal: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_learn_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_learn
+        Fuerza una sesión de aprendizaje de GPT con los trades recientes
+        """
+        try:
+            logger.info("🧠 Comando /gpt_learn recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text("⚠️ GPT Brain no disponible")
+                return
+
+            if not self.gpt_brain.is_enabled:
+                await update.message.reply_text("⚠️ GPT Brain está desactivado. Usa /gpt_enable")
+                return
+
+            await update.message.reply_text(
+                "🧠 **Iniciando Sesión de Aprendizaje...**\n\n"
+                "GPT analizará los trades recientes para extraer lecciones.\n"
+                "Esto puede tomar 30-60 segundos ⏳"
+            )
+
+            # Obtener trades del paper trader
+            trades = []
+            if hasattr(self, 'paper_trader') and self.paper_trader:
+                if hasattr(self.paper_trader, 'closed_trades'):
+                    trades = self.paper_trader.closed_trades[-30:]  # Últimos 30
+
+            if not trades:
+                # Intentar obtener de la memoria del learner
+                if hasattr(self.gpt_brain, 'experience_learner'):
+                    memory = self.gpt_brain.experience_learner.trade_memory
+                    trades = [m.get("trade", {}) for m in memory[-30:]]
+
+            if len(trades) < 5:
+                await update.message.reply_text(
+                    "⚠️ Se necesitan al menos 5 trades para una sesión de aprendizaje.\n"
+                    f"Trades disponibles: {len(trades)}"
+                )
+                return
+
+            # Ejecutar sesión de aprendizaje
+            result = await self.gpt_brain.run_learning_session(
+                trades=trades,
+                force=True
+            )
+
+            if result.get("success"):
+                message = (
+                    "🧠 **Sesión de Aprendizaje Completada**\n\n"
+                    f"📊 Trades analizados: {len(trades)}\n"
+                    f"📝 Nuevas lecciones: {result.get('new_lessons', 0)}\n"
+                    f"🔍 Nuevos patrones: {result.get('new_patterns', 0)}\n\n"
+                )
+
+                golden_rules = result.get("golden_rules", [])
+                if golden_rules:
+                    message += "🏆 **Reglas de Oro Descubiertas:**\n"
+                    for rule in golden_rules[:5]:
+                        message += f"  • {rule}\n"
+
+                mistakes = result.get("mistakes", [])
+                if mistakes:
+                    message += "\n⚠️ **Errores Identificados:**\n"
+                    for mistake in mistakes[:5]:
+                        message += f"  • {mistake}\n"
+
+                summary = result.get("summary", "")
+                if summary:
+                    message += f"\n📌 **Resumen:**\n{summary}\n"
+
+                message += f"\n💰 Costo: ${result.get('cost', 0):.4f}"
+
+                await update.message.reply_text(message)
+            else:
+                await update.message.reply_text(
+                    f"❌ Aprendizaje falló: {result.get('error', 'Error desconocido')}"
+                )
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_learn: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_wisdom_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_wisdom
+        Muestra la sabiduría aprendida por GPT
+        """
+        try:
+            logger.info("🧠 Comando /gpt_wisdom recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text("⚠️ GPT Brain no disponible")
+                return
+
+            # Obtener resumen de sabiduría
+            summary = self.gpt_brain.get_wisdom_summary()
+
+            # Obtener estadísticas adicionales
+            if hasattr(self.gpt_brain, 'experience_learner'):
+                stats = self.gpt_brain.experience_learner.get_stats()
+
+                summary += f"\n📁 **Archivo de Sabiduría:**\n"
+                summary += f"  • Trades en memoria: {stats.get('trades_in_memory', 0)}\n"
+                summary += f"  • Última sesión: {stats.get('last_learning_session', 'Nunca')}\n"
+                summary += f"  • Archivo existe: {'✅' if stats.get('wisdom_file_exists') else '❌'}\n"
+
+            await update.message.reply_text(summary)
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_wisdom: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_control_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_control [on/off]
+        Activa o desactiva el modo de CONTROL ABSOLUTO de GPT
+        """
+        try:
+            logger.info("🧠 Comando /gpt_control recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text("⚠️ GPT Brain no disponible")
+                return
+
+            args = context.args
+            current_mode = getattr(self.gpt_brain, 'absolute_control_mode', False)
+
+            if not args:
+                # Mostrar estado actual
+                mode_text = "CONTROL ABSOLUTO" if current_mode else "MODO CONSEJERO"
+                await update.message.reply_text(
+                    f"🧠 **GPT Control Mode**\n\n"
+                    f"Modo actual: **{mode_text}**\n\n"
+                    f"**CONTROL ABSOLUTO:**\n"
+                    f"  • GPT toma TODAS las decisiones\n"
+                    f"  • ML/RL solo aconsejan\n"
+                    f"  • GPT puede vetar cualquier trade\n\n"
+                    f"**MODO CONSEJERO:**\n"
+                    f"  • Sistemas tradicionales deciden\n"
+                    f"  • GPT solo da opiniones\n\n"
+                    f"Usa: /gpt_control on/off"
+                )
+                return
+
+            action = args[0].lower()
+
+            if action in ["on", "1", "true", "enable"]:
+                self.gpt_brain.set_absolute_control(True)
+                await update.message.reply_text(
+                    "🧠 **CONTROL ABSOLUTO ACTIVADO**\n\n"
+                    "GPT ahora tiene control total sobre:\n"
+                    "  • Aprobación/rechazo de trades\n"
+                    "  • Tamaño de posición\n"
+                    "  • Leverage\n"
+                    "  • Stop Loss / Take Profit\n"
+                    "  • Parámetros del sistema\n\n"
+                    "Los sistemas ML/RL ahora solo aconsejan."
+                )
+
+            elif action in ["off", "0", "false", "disable"]:
+                self.gpt_brain.set_absolute_control(False)
+                await update.message.reply_text(
+                    "📊 **MODO CONSEJERO ACTIVADO**\n\n"
+                    "Los sistemas tradicionales (ML/RL) ahora deciden.\n"
+                    "GPT solo proporciona análisis y recomendaciones.\n\n"
+                    "Para dar control a GPT: /gpt_control on"
+                )
+
+            else:
+                await update.message.reply_text(
+                    "⚠️ Uso: /gpt_control [on/off]\n\n"
+                    "Ejemplos:\n"
+                    "  /gpt_control on - Activar control absoluto\n"
+                    "  /gpt_control off - Modo consejero"
+                )
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_control: {e}", exc_info=True)
             await update.message.reply_text(f"❌ Error: {str(e)}")

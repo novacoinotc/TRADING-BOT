@@ -1,15 +1,16 @@
 """
-GPT Brain - Central Orchestrator
+GPT Brain - Central Orchestrator (ABSOLUTE CONTROL MODE)
 
 The master controller that orchestrates all GPT components.
-This is the BRAIN of the trading bot, coordinating:
-- Meta-reasoning for performance analysis
-- Decision explanation for transparency
-- Risk assessment for protection
-- Strategy optimization for improvement
+This is the BRAIN of the trading bot with ABSOLUTE CONTROL over:
+- Signal generation and validation
+- Trade entry/exit decisions
+- Risk management
+- Parameter optimization
+- Learning from experience
 
-This module integrates with the existing AutonomyController and provides
-a unified interface for GPT-powered trading intelligence.
+GPT has VETO power over all traditional systems (ML, RL).
+Traditional systems provide INPUT, GPT makes DECISIONS.
 """
 
 import asyncio
@@ -23,6 +24,8 @@ from src.llm.gpt_decision_explainer import GPTDecisionExplainer
 from src.llm.gpt_risk_assessor import GPTRiskAssessor
 from src.llm.gpt_strategy_advisor import GPTStrategyAdvisor
 from src.llm.gpt_market_analyst import GPTMarketAnalyst
+from src.llm.gpt_experience_learner import GPTExperienceLearner
+from src.llm.gpt_trade_controller import GPTTradeController
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +33,16 @@ logger = logging.getLogger(__name__)
 class GPTBrain:
     """
     Central orchestrator for all GPT-powered trading intelligence.
-    This is the BRAIN that controls the bot's advanced reasoning.
+    This is the BRAIN with ABSOLUTE CONTROL over trading decisions.
+
+    Architecture:
+    - GPT Trade Controller: Makes final trading decisions
+    - GPT Experience Learner: Learns from trade outcomes
+    - GPT Market Analyst: Generates/validates signals
+    - GPT Risk Assessor: Evaluates risk
+    - GPT Strategy Advisor: Optimizes parameters
+    - GPT Meta Reasoner: Analyzes performance
+    - GPT Decision Explainer: Explains decisions
     """
 
     def __init__(
@@ -73,12 +85,25 @@ class GPTBrain:
         )
         self.market_analyst = GPTMarketAnalyst(self.gpt_client, config=config)
 
+        # NEW: Experience Learner - persistent learning from trades
+        self.experience_learner = GPTExperienceLearner(self.gpt_client, config=config)
+
+        # NEW: Trade Controller - ABSOLUTE CONTROL over trading
+        self.trade_controller = GPTTradeController(
+            gpt_client=self.gpt_client,
+            experience_learner=self.experience_learner,
+            param_update_callback=param_update_callback,
+            notification_callback=notification_callback,
+            config=config
+        )
+
         # Callbacks
         self.param_update_callback = param_update_callback
         self.notification_callback = notification_callback
 
         # State tracking
         self.is_enabled = True
+        self.absolute_control_mode = True  # NEW: GPT has final say
         self.consecutive_losses = 0
         self.consecutive_wins = 0
         self.last_trade_result: Optional[str] = None
@@ -96,7 +121,7 @@ class GPTBrain:
         self.last_optimization_time: Optional[datetime] = None
         self.last_analysis_time: Optional[datetime] = None
 
-        logger.info(f"GPT Brain initialized with model: {model}")
+        logger.info(f"GPT Brain initialized with model: {model} - ABSOLUTE CONTROL MODE")
 
     async def initialize(self):
         """Async initialization tasks"""
@@ -882,3 +907,227 @@ Responde en 2-3 oraciones con:
     def get_analyst_stats(self) -> Dict[str, Any]:
         """Get market analyst statistics"""
         return self.market_analyst.get_stats()
+
+    # =========================================================================
+    # ABSOLUTE CONTROL MODE - GPT HAS FINAL SAY
+    # =========================================================================
+
+    async def make_trading_decision(
+        self,
+        pair: str,
+        signal: Dict,
+        indicators: Dict,
+        sentiment_data: Optional[Dict] = None,
+        orderbook_data: Optional[Dict] = None,
+        regime_data: Optional[Dict] = None,
+        ml_prediction: Optional[Dict] = None,
+        rl_recommendation: Optional[Dict] = None,
+        portfolio: Optional[Dict] = None,
+        open_positions: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        MASTER DECISION POINT - GPT makes the final trading decision
+
+        This is the main entry point for all trading decisions.
+        GPT has ABSOLUTE CONTROL and can override ML/RL recommendations.
+
+        Args:
+            pair: Trading pair
+            signal: Generated signal from traditional system
+            indicators: Technical indicators
+            sentiment_data: Sentiment analysis
+            orderbook_data: Order book analysis
+            regime_data: Market regime
+            ml_prediction: ML system prediction (advisory only)
+            rl_recommendation: RL agent recommendation (advisory only)
+            portfolio: Current portfolio state
+            open_positions: List of open positions
+
+        Returns:
+            Complete trading decision from GPT
+        """
+        if not self.is_enabled or not self.absolute_control_mode:
+            # Fallback to traditional evaluation
+            return await self.evaluate_trade(
+                pair=pair,
+                action=signal.get("action", "HOLD"),
+                signal=signal,
+                market_state={"indicators": indicators},
+                portfolio=portfolio or {},
+                open_positions=open_positions or []
+            )
+
+        # Use Trade Controller for absolute control
+        result = await self.trade_controller.evaluate_signal(
+            pair=pair,
+            signal=signal,
+            indicators=indicators,
+            sentiment_data=sentiment_data,
+            orderbook_data=orderbook_data,
+            regime_data=regime_data,
+            ml_prediction=ml_prediction,
+            rl_recommendation=rl_recommendation,
+            portfolio=portfolio,
+            open_positions=open_positions
+        )
+
+        # Update stats
+        self.total_gpt_cost += result.get("cost", 0)
+        self.decisions_made += 1
+
+        if result.get("approved"):
+            self.trades_approved += 1
+        else:
+            self.trades_blocked += 1
+
+        return result
+
+    async def learn_from_closed_trade(
+        self,
+        trade: Dict,
+        market_context: Dict,
+        signal_data: Dict
+    ) -> Dict[str, Any]:
+        """
+        Process a closed trade for learning
+
+        Args:
+            trade: Closed trade data
+            market_context: Market context when closed
+            signal_data: Original signal data
+
+        Returns:
+            Learning result
+        """
+        if not self.is_enabled:
+            return {"success": False, "reason": "GPT disabled"}
+
+        # Update streaks
+        pnl = trade.get("pnl", 0)
+        if pnl > 0:
+            self.consecutive_wins += 1
+            self.consecutive_losses = 0
+            self.last_trade_result = "WIN"
+        else:
+            self.consecutive_losses += 1
+            self.consecutive_wins = 0
+            self.last_trade_result = "LOSS"
+
+        # Use Trade Controller for processing
+        result = await self.trade_controller.process_trade_close(
+            trade=trade,
+            market_context=market_context,
+            signal_data=signal_data
+        )
+
+        self.trades_since_optimization += 1
+
+        # Check if optimization needed
+        if self.trades_since_optimization >= 20 or self.consecutive_losses >= 3:
+            await self._check_optimization_trigger({})
+            self.trades_since_optimization = 0
+
+        return result
+
+    async def run_learning_session(
+        self,
+        trades: List[Dict],
+        force: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Run a full learning session
+
+        Args:
+            trades: List of trades to analyze
+            force: Force learning even with few trades
+
+        Returns:
+            Learning session results
+        """
+        if not self.is_enabled:
+            return {"success": False, "reason": "GPT disabled"}
+
+        result = await self.experience_learner.run_learning_session(
+            trades=trades,
+            force=force
+        )
+
+        self.total_gpt_cost += result.get("cost", 0)
+
+        # Notify about learning
+        if result.get("success") and self.notification_callback:
+            golden_rules = result.get("golden_rules", [])
+            await self._notify(
+                f"🧠 **Sesión de Aprendizaje Completada**\n\n"
+                f"Nuevas lecciones: {result.get('new_lessons', 0)}\n"
+                f"Nuevos patrones: {result.get('new_patterns', 0)}\n\n"
+                f"{'🏆 Reglas de oro: ' + ', '.join(golden_rules[:3]) if golden_rules else ''}\n\n"
+                f"💰 Costo: ${result.get('cost', 0):.4f}"
+            )
+
+        return result
+
+    def get_wisdom(self) -> Dict[str, Any]:
+        """Get current learned wisdom"""
+        return self.experience_learner.wisdom
+
+    def get_wisdom_summary(self) -> str:
+        """Get formatted wisdom summary"""
+        wisdom = self.experience_learner.wisdom
+        stats = self.experience_learner.get_stats()
+
+        summary = f"""
+🧠 **Sabiduría Aprendida**
+
+📊 **Estadísticas:**
+- Trades analizados: {stats['total_trades_analyzed']}
+- Lecciones aprendidas: {stats['lessons_learned']}
+- Patrones ganadores: {stats['winning_patterns']}
+- Patrones perdedores: {stats['losing_patterns']}
+- Reglas de oro: {stats['golden_rules']}
+- Errores catalogados: {stats['mistakes_cataloged']}
+
+🏆 **Reglas de Oro:**
+"""
+        for rule in wisdom.get("golden_rules", [])[:5]:
+            summary += f"  • {rule}\n"
+
+        summary += "\n⚠️ **Errores a Evitar:**\n"
+        for mistake in wisdom.get("mistakes_to_avoid", [])[:5]:
+            summary += f"  • {mistake}\n"
+
+        return summary
+
+    def get_comprehensive_stats(self) -> Dict[str, Any]:
+        """Get comprehensive statistics from all components"""
+        return {
+            "brain": {
+                "enabled": self.is_enabled,
+                "absolute_control_mode": self.absolute_control_mode,
+                "model": self.model,
+                "total_cost": self.total_gpt_cost,
+                "decisions_made": self.decisions_made,
+                "trades_approved": self.trades_approved,
+                "trades_blocked": self.trades_blocked,
+                "consecutive_wins": self.consecutive_wins,
+                "consecutive_losses": self.consecutive_losses
+            },
+            "trade_controller": self.trade_controller.get_stats(),
+            "experience_learner": self.experience_learner.get_stats(),
+            "market_analyst": self.market_analyst.get_stats(),
+            "gpt_client": self.gpt_client.get_usage_stats()
+        }
+
+    def set_absolute_control(self, enabled: bool):
+        """Enable or disable absolute control mode"""
+        self.absolute_control_mode = enabled
+        self.trade_controller.is_enabled = enabled
+        mode = "ABSOLUTE CONTROL" if enabled else "ADVISORY"
+        logger.info(f"GPT Brain mode changed to: {mode}")
+
+        if self.notification_callback:
+            asyncio.create_task(self._notify(
+                f"🧠 **GPT Brain Modo Cambiado**\n\n"
+                f"Nuevo modo: {mode}\n\n"
+                f"{'GPT tiene control total sobre todas las decisiones' if enabled else 'GPT solo aconseja, sistemas tradicionales deciden'}"
+            ))
