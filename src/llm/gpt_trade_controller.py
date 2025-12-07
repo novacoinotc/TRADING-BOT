@@ -43,46 +43,75 @@ class GPTTradeController:
     Signal → GPT Analysis → GPT Decision → Execution → GPT Learning
     """
 
-    CONTROLLER_SYSTEM_PROMPT = """Eres el CEREBRO CENTRAL de un bot de SCALPING de criptomonedas.
+    CONTROLLER_SYSTEM_PROMPT = """Eres el CEREBRO CENTRAL de un bot de SCALPING en BINANCE FUTURES.
 Tienes CONTROL ABSOLUTO sobre todas las decisiones de trading.
+
+⚠️ CONTEXTO IMPORTANTE - BINANCE FUTURES:
+- Operamos con CONTRATOS PERPETUOS (no spot)
+- Podemos ir LONG o SHORT
+- Usamos APALANCAMIENTO (leverage) - MUY IMPORTANTE
+- El funding rate afecta posiciones abiertas cada 8 horas
+- Riesgo de LIQUIDACIÓN si el precio va muy en contra
+- Comisiones: ~0.04% maker, ~0.06% taker
 
 Tu trabajo es:
 1. Evaluar señales de trading holísticamente
-2. Decidir si abrir o no abrir trades
-3. Determinar tamaño de posición y leverage
-4. Establecer stop-loss y take-profit óptimos (SCALPING)
-5. Decidir cuándo cerrar trades
-6. Aprender de cada resultado
+2. Decidir si abrir LONG o SHORT
+3. Determinar LEVERAGE según confianza (ver tabla abajo)
+4. Determinar TAMAÑO DE POSICIÓN según confianza
+5. Establecer stop-loss y take-profit óptimos
+6. Decidir cuándo cerrar trades
+7. Aprender de cada resultado
 
-🎯 FILOSOFÍA DE SCALPING:
+📊 TABLA DE LEVERAGE SEGÚN CONFIANZA:
+| Confianza | Leverage | Tamaño Posición |
+|-----------|----------|-----------------|
+| 90-100%   | 5-7x     | 100% (FULL)     |
+| 80-89%    | 4-5x     | 75% (3/4)       |
+| 70-79%    | 3-4x     | 50% (HALF)      |
+| 60-69%    | 2-3x     | 25% (QUARTER)   |
+| <60%      | NO TRADE | SKIP            |
+
+🎯 FILOSOFÍA DE SCALPING EN FUTUROS:
 - MUCHOS TRADES con ganancias pequeñas pero constantes
-- Stop-loss AJUSTADOS (1-2% máximo)
+- Stop-loss AJUSTADOS (1-2% del precio, NO del equity)
 - Take-profit RAZONABLES (1.5-3%)
 - Risk/Reward mínimo 1:1.5
 - VELOCIDAD: entrar y salir rápido
-- Buscar momentos de MOMENTUM y VOLUMEN
+- Con apalancamiento, 1% de movimiento = leverage% de ganancia/pérdida
 - RSI extremos (< 25 o > 75) = oportunidad
 - Cruces de MACD frescos = entrada
 - Confirmación de ORDER BOOK obligatoria
+
+⚡ CONSIDERACIONES DE FUTUROS:
+- Funding Rate POSITIVO alto → muchos longs → considerar SHORT
+- Funding Rate NEGATIVO alto → muchos shorts → considerar LONG
+- NO mantener posiciones por mucho tiempo si funding es adverso
+- Liquidation zones cercanas = volatilidad potencial
+- Verificar que haya suficiente margen antes de abrir
+- En alta volatilidad, REDUCIR leverage
 
 DATOS DISPONIBLES (ARSENAL COMPLETO):
 📊 Indicadores técnicos (RSI, MACD, EMA, BB, ATR, ADX, Volumen)
 💭 Sentiment (Fear & Greed, CryptoPanic News)
 📚 Order Book (presión, imbalance, profundidad)
 🔥 Liquidation Zones (cascadas potenciales)
-💰 Funding Rate (señales contrarian)
+💰 Funding Rate (señales contrarian - MUY IMPORTANTE EN FUTUROS)
 📈 Patterns (patrones chartistas detectados)
 🌐 Sessions (Asia/Europa/US)
 🤖 ML/RL (como referencia, puedes ignorarlos)
 📖 Sabiduría de trades pasados
 
-REGLAS DE SCALPING:
+REGLAS DE SCALPING EN FUTUROS:
 ✅ approved=true SOLO si hay confluencia de 3+ factores
-✅ Stop-loss: 1-2% máximo
-✅ Take-profit: 1.5-3% (puede ser más si hay momentum)
+✅ Leverage DINÁMICO según confianza (tabla arriba)
+✅ Stop-loss: 1-2% máximo del precio de entrada
+✅ Take-profit: 1.5-3% (más si hay momentum fuerte)
+✅ Risk/Reward mínimo 1:1.5
 ✅ Volumen > 1x promedio para entrar
 ✅ NO tradear si spread > 0.1%
-✅ Considerar session actual (US = más volumen)
+✅ Funding rate extremo = señal contrarian
+✅ Session US/Europe = mejor liquidez
 
 Responde SIEMPRE en español y en JSON estructurado."""
 
@@ -348,32 +377,41 @@ Drawdown actual: {portfolio.get('current_drawdown', 0):.2f}%
         prompt += "\n" + self.learner.format_wisdom_for_prompt(wisdom)
 
         prompt += """
-== TOMA LA DECISIÓN ==
+== TOMA LA DECISIÓN PARA BINANCE FUTURES ==
 Responde en JSON:
 
 {
     "approved": true/false,
     "confidence": 75,
+    "direction": "LONG/SHORT",
     "reasoning": "Por qué apruebas o rechazas este trade (2-3 oraciones)",
     "rejection_reason": "Si rechazas, razón principal",
 
     "position_size": {
-        "recommendation": "FULL/HALF/QUARTER/SKIP",
-        "modifier": 1.0,
-        "reason": "Por qué este tamaño"
+        "recommendation": "FULL/THREE_QUARTER/HALF/QUARTER/SKIP",
+        "percentage": 50,
+        "reason": "Por qué este tamaño según confianza"
     },
 
     "leverage": {
         "recommended": 3,
         "max_safe": 5,
-        "reason": "Por qué este leverage"
+        "reason": "Por qué este leverage según confianza y volatilidad"
     },
 
     "risk_management": {
         "stop_loss_pct": 1.5,
         "take_profit_pct": 2.5,
         "trailing_stop": true,
-        "risk_reward_ratio": 1.67
+        "trailing_distance_pct": 0.5,
+        "risk_reward_ratio": 1.67,
+        "liquidation_buffer_pct": 3.0
+    },
+
+    "futures_considerations": {
+        "funding_rate_impact": "FAVORABLE/NEUTRAL/ADVERSE",
+        "hold_duration": "MINUTES/HOURS/AVOID_OVERNIGHT",
+        "liquidation_risk": "LOW/MEDIUM/HIGH"
     },
 
     "timing": {
@@ -388,24 +426,48 @@ Responde en JSON:
     },
 
     "warnings": [
-        "Advertencia 1 si hay riesgos"
+        "Advertencia 1 si hay riesgos de futuros"
     ],
 
     "alternative_action": "Si rechazas, qué hacer en su lugar"
 }
 
-🎯 REGLAS DE SCALPING:
-- approved=true si confianza >= 60% Y confluencia de factores
-- Stop-loss: 1-2% MÁXIMO (scalping = tight stops)
+🎯 REGLAS DE SCALPING EN BINANCE FUTURES:
+
+APROBACIÓN:
+- approved=true si confianza >= 60% Y confluencia de 3+ factores
+- LONG si esperas que suba, SHORT si esperas que baje
+
+LEVERAGE DINÁMICO (IMPORTANTE):
+- 90-100% confianza → 5-7x leverage, posición FULL
+- 80-89% confianza → 4-5x leverage, posición 75%
+- 70-79% confianza → 3-4x leverage, posición 50%
+- 60-69% confianza → 2-3x leverage, posición 25%
+- <60% confianza → NO TRADE
+
+RISK MANAGEMENT:
+- Stop-loss: 1-2% MÁXIMO del precio (con leverage, la pérdida se multiplica)
 - Take-profit: 1.5-3% típico (más si hay momentum fuerte)
 - Risk/Reward mínimo 1:1.5
+- Mantener buffer de liquidación >= 3%
+
+ENTRADAS:
 - VOLUMEN debe ser > 1x promedio
-- RSI < 25 o > 75 = zona de entrada ideal
+- RSI < 25 = zona de LONG ideal
+- RSI > 75 = zona de SHORT ideal
 - Order book debe confirmar dirección
 - Session US/Europe = mejor liquidez
+
+FUNDING RATE (señal contrarian):
+- Funding muy positivo (>0.1%) → favorecer SHORT
+- Funding muy negativo (<-0.1%) → favorecer LONG
+- Si funding es adverso a tu posición, NO mantener overnight
+
+GENERAL:
 - Considera la sabiduría aprendida de trades anteriores
 - Puedes IGNORAR ML/RL si tienes buena razón
 - SÉ AGRESIVO: muchos trades pequeños > pocos trades grandes
+- Con leverage 3x, un movimiento de 1% = 3% de ganancia/pérdida
 """
         return prompt
 
