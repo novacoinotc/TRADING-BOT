@@ -22,6 +22,7 @@ from src.llm.gpt_meta_reasoner import GPTMetaReasoner
 from src.llm.gpt_decision_explainer import GPTDecisionExplainer
 from src.llm.gpt_risk_assessor import GPTRiskAssessor
 from src.llm.gpt_strategy_advisor import GPTStrategyAdvisor
+from src.llm.gpt_market_analyst import GPTMarketAnalyst
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,7 @@ class GPTBrain:
             self.gpt_client,
             param_update_callback=param_update_callback
         )
+        self.market_analyst = GPTMarketAnalyst(self.gpt_client, config=config)
 
         # Callbacks
         self.param_update_callback = param_update_callback
@@ -676,3 +678,207 @@ Responde en 2-3 oraciones con:
                 f"El razonamiento GPT ha sido desactivado. "
                 f"El bot continuara operando sin analisis avanzado."
             )
+
+    # =========================================================================
+    # MARKET ANALYST METHODS
+    # =========================================================================
+
+    async def scan_market(
+        self,
+        pairs_data: List[Dict],
+        top_n: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Scan multiple trading pairs for opportunities using GPT
+
+        Args:
+            pairs_data: List of dicts with pair data (pair, indicators, sentiment, etc.)
+            top_n: Number of top opportunities to return
+
+        Returns:
+            Scan results with opportunities
+        """
+        if not self.is_enabled:
+            return {"success": False, "reason": "GPT Brain disabled"}
+
+        try:
+            result = await self.market_analyst.scan_opportunities(
+                pairs_data=pairs_data,
+                top_n=top_n
+            )
+
+            self.total_gpt_cost += result.get("cost", 0)
+
+            if result.get("success"):
+                opportunities = result.get("opportunities", [])
+                logger.info(
+                    f"GPT Market Scan: Found {len(opportunities)} opportunities"
+                )
+
+                # Notify about best opportunity
+                if opportunities and self.notification_callback:
+                    best = opportunities[0]
+                    await self._notify(
+                        f"🔍 **GPT Market Scan Completado**\n\n"
+                        f"**Mejor Oportunidad:**\n"
+                        f"Par: {best.get('pair', 'N/A')}\n"
+                        f"Accion: {best.get('action', 'N/A')}\n"
+                        f"Score: {best.get('score', 0)}/100\n"
+                        f"Urgencia: {best.get('urgency', 'N/A')}\n\n"
+                        f"📝 {best.get('reason', 'N/A')}\n\n"
+                        f"💰 Costo: ${result.get('cost', 0):.4f}"
+                    )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Market scan failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def analyze_pair(
+        self,
+        pair: str,
+        indicators: Dict,
+        sentiment_data: Optional[Dict] = None,
+        orderbook_data: Optional[Dict] = None,
+        regime_data: Optional[Dict] = None,
+        mtf_data: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Perform deep GPT analysis on a single trading pair
+
+        Args:
+            pair: Trading pair
+            indicators: Technical indicators
+            sentiment_data: Sentiment analysis
+            orderbook_data: Order book data
+            regime_data: Market regime
+            mtf_data: Multi-timeframe data
+
+        Returns:
+            Comprehensive analysis
+        """
+        if not self.is_enabled:
+            return {"success": False, "reason": "GPT Brain disabled"}
+
+        try:
+            result = await self.market_analyst.analyze_market(
+                pair=pair,
+                indicators=indicators,
+                sentiment_data=sentiment_data,
+                orderbook_data=orderbook_data,
+                regime_data=regime_data,
+                mtf_data=mtf_data
+            )
+
+            self.total_gpt_cost += result.get("cost", 0)
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Pair analysis failed: {e}")
+            return {"success": False, "error": str(e)}
+
+    async def generate_gpt_signal(
+        self,
+        pair: str,
+        indicators: Dict,
+        sentiment_data: Optional[Dict] = None,
+        orderbook_data: Optional[Dict] = None,
+        regime_data: Optional[Dict] = None,
+        existing_signal: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Generate a trading signal using GPT analysis
+
+        Args:
+            pair: Trading pair
+            indicators: Technical indicators
+            sentiment_data: Sentiment data
+            orderbook_data: Order book data
+            regime_data: Market regime
+            existing_signal: Existing signal to validate/enhance
+
+        Returns:
+            GPT-generated signal
+        """
+        if not self.is_enabled:
+            return {
+                "success": False,
+                "reason": "GPT Brain disabled",
+                "signal": {"action": "HOLD"}
+            }
+
+        try:
+            result = await self.market_analyst.generate_signal(
+                pair=pair,
+                indicators=indicators,
+                sentiment_data=sentiment_data,
+                orderbook_data=orderbook_data,
+                regime_data=regime_data,
+                existing_signal=existing_signal
+            )
+
+            self.total_gpt_cost += result.get("cost", 0)
+
+            if result.get("success"):
+                signal = result.get("signal", {})
+                logger.info(
+                    f"GPT Signal for {pair}: {signal.get('action', 'HOLD')} "
+                    f"(confidence={signal.get('confidence', 0)}%)"
+                )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"GPT signal generation failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "signal": {"action": "HOLD"}
+            }
+
+    async def validate_signal(
+        self,
+        pair: str,
+        signal: Dict,
+        market_context: Dict
+    ) -> Dict[str, Any]:
+        """
+        Validate a signal from the traditional system using GPT
+
+        Args:
+            pair: Trading pair
+            signal: Signal to validate
+            market_context: Market context
+
+        Returns:
+            Validation result
+        """
+        if not self.is_enabled:
+            return {
+                "success": True,
+                "validation": {"approved": True, "reasoning": "GPT disabled"}
+            }
+
+        try:
+            result = await self.market_analyst.validate_signal(
+                pair=pair,
+                signal=signal,
+                market_context=market_context
+            )
+
+            self.total_gpt_cost += result.get("cost", 0)
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Signal validation failed: {e}")
+            return {
+                "success": False,
+                "validation": {"approved": True, "reasoning": "Validation error"}
+            }
+
+    def get_analyst_stats(self) -> Dict[str, Any]:
+        """Get market analyst statistics"""
+        return self.market_analyst.get_stats()

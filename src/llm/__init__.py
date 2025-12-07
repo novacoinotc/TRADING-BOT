@@ -10,6 +10,7 @@ Components:
 - GPTDecisionExplainer: Explains trading decisions in natural language
 - GPTRiskAssessor: Evaluates risk before trades
 - GPTStrategyAdvisor: Modifies parameters based on reasoning
+- GPTMarketAnalyst: Analyzes market and generates trading signals
 - GPTBrain: Central orchestrator for all GPT components
 """
 
@@ -18,6 +19,7 @@ from src.llm.gpt_meta_reasoner import GPTMetaReasoner
 from src.llm.gpt_decision_explainer import GPTDecisionExplainer
 from src.llm.gpt_risk_assessor import GPTRiskAssessor
 from src.llm.gpt_strategy_advisor import GPTStrategyAdvisor
+from src.llm.gpt_market_analyst import GPTMarketAnalyst
 from src.llm.gpt_brain import GPTBrain
 
 __all__ = [
@@ -26,5 +28,6 @@ __all__ = [
     'GPTDecisionExplainer',
     'GPTRiskAssessor',
     'GPTStrategyAdvisor',
+    'GPTMarketAnalyst',
     'GPTBrain'
 ]

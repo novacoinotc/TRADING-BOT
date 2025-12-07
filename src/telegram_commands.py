@@ -72,6 +72,8 @@ class TelegramCommands:
             self.application.add_handler(CommandHandler("gpt_analyze", self.gpt_analyze_command))  # Análisis de performance
             self.application.add_handler(CommandHandler("gpt_optimize", self.gpt_optimize_command))  # Forzar optimización
             self.application.add_handler(CommandHandler("gpt_insight", self.gpt_insight_command))  # Insight de mercado
+            self.application.add_handler(CommandHandler("gpt_scan", self.gpt_scan_command))  # Escanear mercado con GPT
+            self.application.add_handler(CommandHandler("gpt_signal", self.gpt_signal_command))  # Generar señal GPT
             self.application.add_handler(CommandHandler("gpt_enable", self.gpt_enable_command))  # Habilitar GPT
             self.application.add_handler(CommandHandler("gpt_disable", self.gpt_disable_command))  # Deshabilitar GPT
 
@@ -314,6 +316,8 @@ class TelegramCommands:
                 "/gpt_analyze - Análisis de performance con GPT\n"
                 "/gpt_optimize - Forzar optimización de parámetros\n"
                 "/gpt_insight - Insight del mercado actual\n"
+                "/gpt_scan - Escanear mercado para oportunidades\n"
+                "/gpt_signal [par] - Generar señal GPT (ej: /gpt_signal BTC)\n"
                 "/gpt_enable - Habilitar GPT Brain\n"
                 "/gpt_disable - Deshabilitar GPT Brain\n\n"
                 "**Auto-Backup**: Cada 24h automático\n"
@@ -1426,4 +1430,262 @@ class TelegramCommands:
 
         except Exception as e:
             logger.error(f"Error en comando /gpt_disable: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_scan_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_scan
+        Escanea el mercado usando GPT para encontrar oportunidades
+        """
+        try:
+            logger.info("🔍 Comando /gpt_scan recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text("⚠️ GPT Brain no disponible")
+                return
+
+            if not self.gpt_brain.is_enabled:
+                await update.message.reply_text("⚠️ GPT Brain está desactivado. Usa /gpt_enable")
+                return
+
+            await update.message.reply_text(
+                "🔍 **Escaneando Mercado con GPT...**\n\n"
+                "Analizando todos los pares para encontrar oportunidades.\n"
+                "Esto puede tomar 20-40 segundos ⏳"
+            )
+
+            # Obtener datos de mercado
+            pairs_data = []
+
+            if self.market_monitor:
+                # Obtener indicadores de los últimos análisis
+                for pair in self.market_monitor.trading_pairs[:10]:  # Limitar a 10 pares
+                    try:
+                        # Intentar obtener datos del último análisis
+                        indicators = {}
+                        sentiment = {}
+
+                        # Si hay cache de análisis, usarlo
+                        if hasattr(self.market_monitor, 'last_analysis_cache'):
+                            cache = self.market_monitor.last_analysis_cache or {}
+                            if pair in cache:
+                                indicators = cache[pair].get('indicators', {})
+                                sentiment = cache[pair].get('sentiment', {})
+
+                        # Si no hay cache, usar datos básicos
+                        if not indicators:
+                            indicators = {
+                                'current_price': 0,
+                                'rsi': 50,
+                                'macd': 0,
+                                'macd_signal': 0,
+                                'volume_ratio': 1.0
+                            }
+
+                        pairs_data.append({
+                            'pair': pair,
+                            'indicators': indicators,
+                            'sentiment': sentiment
+                        })
+
+                    except Exception as e:
+                        logger.warning(f"Error obteniendo datos para {pair}: {e}")
+                        continue
+
+            if not pairs_data:
+                # Datos de ejemplo si no hay datos reales
+                pairs_data = [
+                    {'pair': 'BTC/USDT', 'indicators': {'current_price': 100000, 'rsi': 55}, 'sentiment': {'fear_greed_index': 0.6}},
+                    {'pair': 'ETH/USDT', 'indicators': {'current_price': 3800, 'rsi': 48}, 'sentiment': {'fear_greed_index': 0.55}},
+                    {'pair': 'SOL/USDT', 'indicators': {'current_price': 230, 'rsi': 62}, 'sentiment': {'fear_greed_index': 0.58}},
+                ]
+
+            # Ejecutar scan
+            result = await self.gpt_brain.scan_market(
+                pairs_data=pairs_data,
+                top_n=5
+            )
+
+            if result.get("success"):
+                opportunities = result.get("opportunities", [])
+                market_summary = result.get("market_summary", "N/A")
+
+                message = (
+                    "🔍 **GPT Market Scan Completado**\n\n"
+                    f"**📊 Resumen del Mercado:**\n{market_summary}\n\n"
+                )
+
+                if opportunities:
+                    message += "**🎯 Oportunidades Encontradas:**\n\n"
+                    for i, opp in enumerate(opportunities[:5], 1):
+                        emoji = "🟢" if opp.get('action') == 'BUY' else "🔴"
+                        message += (
+                            f"{i}. {emoji} **{opp.get('pair', 'N/A')}**\n"
+                            f"   Acción: {opp.get('action', 'N/A')}\n"
+                            f"   Score: {opp.get('score', 0)}/100\n"
+                            f"   Urgencia: {opp.get('urgency', 'N/A')}\n"
+                            f"   📝 {opp.get('reason', 'N/A')[:100]}...\n\n"
+                        )
+                else:
+                    message += "ℹ️ No se encontraron oportunidades claras en este momento.\n"
+
+                # Pares a evitar
+                avoid = result.get("avoid_pairs", [])
+                if avoid:
+                    message += "\n**⚠️ Pares a Evitar:**\n"
+                    for ap in avoid[:3]:
+                        message += f"  • {ap.get('pair', 'N/A')}: {ap.get('reason', 'N/A')}\n"
+
+                message += f"\n💰 Costo del análisis: ${result.get('cost', 0):.4f}"
+
+                await update.message.reply_text(message)
+            else:
+                await update.message.reply_text(
+                    f"❌ Scan falló: {result.get('error', 'Error desconocido')}"
+                )
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_scan: {e}", exc_info=True)
+            await update.message.reply_text(f"❌ Error: {str(e)}")
+
+    async def gpt_signal_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """
+        Comando /gpt_signal [pair]
+        Genera una señal de trading usando GPT para un par específico
+        Uso: /gpt_signal BTC/USDT
+        """
+        try:
+            logger.info("🧠 Comando /gpt_signal recibido")
+
+            if not self.gpt_brain:
+                await update.message.reply_text("⚠️ GPT Brain no disponible")
+                return
+
+            if not self.gpt_brain.is_enabled:
+                await update.message.reply_text("⚠️ GPT Brain está desactivado. Usa /gpt_enable")
+                return
+
+            # Obtener par del argumento
+            args = context.args
+            if not args:
+                pair = "BTC/USDT"  # Default
+            else:
+                pair = args[0].upper()
+                if "/" not in pair:
+                    pair = f"{pair}/USDT"
+
+            await update.message.reply_text(
+                f"🧠 **Generando Señal GPT para {pair}...**\n\n"
+                "Analizando indicadores y contexto de mercado.\n"
+                "Esto puede tomar 10-20 segundos ⏳"
+            )
+
+            # Obtener indicadores del par
+            indicators = {
+                'current_price': 0,
+                'rsi': 50,
+                'macd': 0,
+                'macd_signal': 0,
+                'ema_9': 0,
+                'ema_21': 0,
+                'ema_50': 0,
+                'bb_upper': 0,
+                'bb_lower': 0,
+                'atr': 0,
+                'adx': 0,
+                'volume_ratio': 1.0
+            }
+
+            sentiment_data = None
+            orderbook_data = None
+            regime_data = None
+
+            # Intentar obtener datos reales del market monitor
+            if self.market_monitor:
+                if hasattr(self.market_monitor, 'last_analysis_cache'):
+                    cache = self.market_monitor.last_analysis_cache or {}
+                    if pair in cache:
+                        indicators = cache[pair].get('indicators', indicators)
+                        sentiment_data = cache[pair].get('sentiment')
+                        orderbook_data = cache[pair].get('orderbook')
+                        regime_data = cache[pair].get('regime')
+
+            # Generar señal
+            result = await self.gpt_brain.generate_gpt_signal(
+                pair=pair,
+                indicators=indicators,
+                sentiment_data=sentiment_data,
+                orderbook_data=orderbook_data,
+                regime_data=regime_data
+            )
+
+            if result.get("success"):
+                signal = result.get("signal", {})
+                action = signal.get("action", "HOLD")
+                confidence = signal.get("confidence", 0)
+
+                # Emojis según acción
+                if "BUY" in action:
+                    emoji = "🟢"
+                elif "SELL" in action:
+                    emoji = "🔴"
+                else:
+                    emoji = "⚪"
+
+                message = (
+                    f"🧠 **Señal GPT para {pair}**\n\n"
+                    f"{emoji} **Acción:** {action}\n"
+                    f"📊 **Confianza:** {confidence}%\n\n"
+                )
+
+                # Razonamiento
+                reasoning = signal.get("reasoning", {})
+                if reasoning:
+                    message += f"**📝 Análisis:**\n"
+                    message += f"  • Factor principal: {reasoning.get('main_factor', 'N/A')}\n"
+                    supporting = reasoning.get('supporting_factors', [])
+                    if supporting:
+                        message += f"  • Factores de apoyo: {', '.join(supporting[:2])}\n"
+                    concerns = reasoning.get('concerns', [])
+                    if concerns:
+                        message += f"  • Preocupaciones: {', '.join(concerns[:2])}\n"
+
+                # Trade setup
+                trade_setup = signal.get("trade_setup", {})
+                if trade_setup and action != "HOLD":
+                    message += f"\n**💰 Setup de Trade:**\n"
+                    if trade_setup.get('entry_price'):
+                        message += f"  • Entry: ${trade_setup.get('entry_price', 0):,.2f}\n"
+                    if trade_setup.get('stop_loss'):
+                        message += f"  • Stop Loss: ${trade_setup.get('stop_loss', 0):,.2f}\n"
+                    if trade_setup.get('take_profit'):
+                        message += f"  • Take Profit: ${trade_setup.get('take_profit', 0):,.2f}\n"
+                    if trade_setup.get('risk_reward'):
+                        message += f"  • R/R: {trade_setup.get('risk_reward', 0):.1f}\n"
+                    if trade_setup.get('position_size_recommendation'):
+                        message += f"  • Tamaño: {trade_setup.get('position_size_recommendation', 'FULL')}\n"
+
+                # Timing
+                timing = signal.get("timing", {})
+                if timing:
+                    message += f"\n**⏰ Timing:**\n"
+                    message += f"  • Urgencia: {timing.get('urgency', 'N/A')}\n"
+                    if timing.get('valid_for_hours'):
+                        message += f"  • Válido por: {timing.get('valid_for_hours', 0)}h\n"
+
+                # Summary
+                summary = signal.get("summary", "")
+                if summary:
+                    message += f"\n**📌 Resumen:**\n{summary}\n"
+
+                message += f"\n💰 Costo: ${result.get('cost', 0):.4f}"
+
+                await update.message.reply_text(message)
+            else:
+                await update.message.reply_text(
+                    f"❌ No se pudo generar señal: {result.get('error', 'Error desconocido')}"
+                )
+
+        except Exception as e:
+            logger.error(f"Error en comando /gpt_signal: {e}", exc_info=True)
             await update.message.reply_text(f"❌ Error: {str(e)}")
