@@ -853,14 +853,30 @@ class AutonomyController:
                     ml_training_buffer = ml_system.training_buffer
                     logger.debug(f"🧠 ML Training Buffer incluido en export: {len(ml_training_buffer)} features")
 
+        # Guardar GPT wisdom y trade memory si existe
+        gpt_wisdom = {}
+        gpt_trade_memory = []
+        if hasattr(self, 'gpt_brain') and self.gpt_brain:
+            if hasattr(self.gpt_brain, 'experience_learner'):
+                learner = self.gpt_brain.experience_learner
+                gpt_wisdom = learner.wisdom
+                gpt_trade_memory = learner.trade_memory
+                logger.debug(
+                    f"🧠 GPT Wisdom incluido en export: "
+                    f"{len(gpt_wisdom.get('lessons', []))} lecciones, "
+                    f"{len(gpt_trade_memory)} trades en memoria"
+                )
+
         success = self.persistence.save_full_state(
             rl_agent_state=rl_state,
             optimizer_state=optimizer_state,
             performance_history=performance_summary,
             change_history=self.change_history,  # Histórico de cambios con razonamiento
             metadata=metadata,
-            paper_trading=paper_trading_state,  # NUEVO: incluir paper trading
-            ml_training_buffer=ml_training_buffer  # NUEVO: incluir training buffer
+            paper_trading=paper_trading_state,  # incluir paper trading
+            ml_training_buffer=ml_training_buffer,  # incluir training buffer
+            gpt_wisdom=gpt_wisdom,  # NUEVO: incluir GPT wisdom
+            gpt_trade_memory=gpt_trade_memory  # NUEVO: incluir GPT trade memory
         )
 
         if success:
@@ -1536,5 +1552,82 @@ class AutonomyController:
             logger.error(f"❌ Error en auto-entrenamiento ML: {e}", exc_info=True)
             logger.info("   El ML entrenará más tarde cuando haya datos suficientes")
         # ===== FIN AUTO-ENTRENAMIENTO ML =====
+
+        # ===== RESTAURAR GPT WISDOM =====
+        try:
+            if 'gpt_brain' in loaded and loaded['gpt_brain']:
+                gpt_data = loaded['gpt_brain']
+                logger.info("🧠 Restaurando GPT Wisdom...")
+
+                # Verificar que tengamos acceso al gpt_brain
+                if hasattr(self, 'gpt_brain') and self.gpt_brain:
+                    if hasattr(self.gpt_brain, 'experience_learner'):
+                        learner = self.gpt_brain.experience_learner
+
+                        # Restaurar wisdom
+                        if 'wisdom' in gpt_data and gpt_data['wisdom']:
+                            if merge:
+                                # En merge, combinar lessons y patterns
+                                existing_lessons = learner.wisdom.get('lessons', [])
+                                new_lessons = gpt_data['wisdom'].get('lessons', [])
+                                for lesson in new_lessons:
+                                    if lesson not in existing_lessons:
+                                        existing_lessons.append(lesson)
+                                learner.wisdom['lessons'] = existing_lessons
+
+                                # Merge golden rules
+                                existing_rules = learner.wisdom.get('golden_rules', [])
+                                new_rules = gpt_data['wisdom'].get('golden_rules', [])
+                                for rule in new_rules:
+                                    if rule not in existing_rules:
+                                        existing_rules.append(rule)
+                                learner.wisdom['golden_rules'] = existing_rules
+
+                                # Merge patterns
+                                for pattern_type in ['winning_patterns', 'losing_patterns']:
+                                    existing = learner.wisdom.get('patterns', {}).get(pattern_type, [])
+                                    new_patterns = gpt_data['wisdom'].get('patterns', {}).get(pattern_type, [])
+                                    for pattern in new_patterns:
+                                        if pattern not in existing:
+                                            existing.append(pattern)
+                                    learner.wisdom['patterns'][pattern_type] = existing
+
+                                logger.info(f"  ✅ GPT Wisdom combinada")
+                            else:
+                                # En replace, reemplazar completamente
+                                learner.wisdom = gpt_data['wisdom']
+                                logger.info(f"  ✅ GPT Wisdom restaurada")
+
+                            # Guardar a disco
+                            learner._save_wisdom()
+
+                            # Log stats
+                            lessons = len(learner.wisdom.get('lessons', []))
+                            rules = len(learner.wisdom.get('golden_rules', []))
+                            patterns = len(learner.wisdom.get('patterns', {}).get('winning_patterns', []))
+                            logger.info(f"  📊 {lessons} lecciones, {rules} reglas de oro, {patterns} patrones")
+
+                        # Restaurar trade memory
+                        if 'trade_memory' in gpt_data and gpt_data['trade_memory']:
+                            if merge:
+                                learner.trade_memory.extend(gpt_data['trade_memory'])
+                                # Mantener solo últimos 500
+                                learner.trade_memory = learner.trade_memory[-500:]
+                            else:
+                                learner.trade_memory = gpt_data['trade_memory']
+
+                            learner._save_trade_memory()
+                            logger.info(f"  ✅ GPT Trade Memory restaurada: {len(learner.trade_memory)} trades")
+                    else:
+                        logger.warning("⚠️ GPT Experience Learner no disponible")
+                else:
+                    logger.warning("⚠️ GPT Brain no disponible, no se puede restaurar wisdom")
+            else:
+                logger.debug("ℹ️  No se encontró 'gpt_brain' en el archivo (puede ser un export antiguo)")
+
+        except Exception as e:
+            logger.error(f"❌ Error restaurando GPT Wisdom: {e}", exc_info=True)
+            # No es crítico, continuar
+        # ===== FIN RESTAURAR GPT WISDOM =====
 
         return True

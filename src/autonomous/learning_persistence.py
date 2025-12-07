@@ -67,7 +67,9 @@ class LearningPersistence:
         metadata: Optional[Dict] = None,
         paper_trading: Optional[Dict] = None,
         ml_training_buffer: Optional[list] = None,
-        advanced_modules_state: Optional[Dict] = None
+        advanced_modules_state: Optional[Dict] = None,
+        gpt_wisdom: Optional[Dict] = None,
+        gpt_trade_memory: Optional[list] = None
     ) -> bool:
         """
         Guarda estado completo del sistema autónomo
@@ -81,6 +83,8 @@ class LearningPersistence:
             paper_trading: Estado del paper trading (balance, trades, etc.)
             ml_training_buffer: Training buffer del ML System (features para entrenamiento)
             advanced_modules_state: Estado del arsenal avanzado (correlation, liquidation, funding, etc.)
+            gpt_wisdom: Sabiduría aprendida por GPT (lecciones, patrones, reglas de oro)
+            gpt_trade_memory: Memoria de trades de GPT para análisis de patrones
 
         Returns:
             True si guardado fue exitoso
@@ -94,7 +98,7 @@ class LearningPersistence:
 
             # Construir estado completo
             full_state = {
-                'version': '2.0',  # Bumped to 2.0 para soportar arsenal avanzado
+                'version': '3.0',  # Bumped to 3.0 para soportar GPT wisdom
                 'timestamp': datetime.now().isoformat(),
                 'rl_agent': rl_agent_state,
                 'parameter_optimizer': optimizer_state,
@@ -103,7 +107,12 @@ class LearningPersistence:
                 'metadata': metadata or {},
                 'paper_trading': paper_trading or {},  # Estado de paper trading
                 'ml_training_buffer': ml_training_buffer or [],  # Training buffer del ML System
-                'advanced_modules': advanced_modules_state or {}  # NUEVO: Estado del arsenal avanzado (7 módulos)
+                'advanced_modules': advanced_modules_state or {},  # Estado del arsenal avanzado (7 módulos)
+                'gpt_brain': {  # NUEVO: Estado completo del GPT Brain
+                    'wisdom': gpt_wisdom or {},
+                    'trade_memory': gpt_trade_memory or [],
+                    'version': '1.0'
+                }
             }
 
             # Calcular checksum para validación
@@ -214,6 +223,9 @@ class LearningPersistence:
         rl_stats = state.get('rl_agent', {}).get('statistics', {})
         opt_stats = state.get('parameter_optimizer', {})
         change_history = state.get('change_history', [])
+        gpt_brain = state.get('gpt_brain', {})
+        gpt_wisdom = gpt_brain.get('wisdom', {})
+        gpt_memory = gpt_brain.get('trade_memory', [])
 
         logger.info(
             f"📊 Resumen guardado:\n"
@@ -223,6 +235,9 @@ class LearningPersistence:
             f"mejor score: {opt_stats.get('best_performance', 0):.3f}\n"
             f"  • Q-Table: {rl_stats.get('q_table_size', 0)} estados aprendidos\n"
             f"  • Histórico de cambios: {len(change_history)} modificaciones registradas\n"
+            f"  • GPT Wisdom: {len(gpt_wisdom.get('lessons', []))} lecciones, "
+            f"{len(gpt_wisdom.get('golden_rules', []))} reglas de oro\n"
+            f"  • GPT Trade Memory: {len(gpt_memory)} trades\n"
             f"  • Timestamp: {state.get('timestamp', 'N/A')}"
         )
 
@@ -231,6 +246,9 @@ class LearningPersistence:
         rl_stats = state.get('rl_agent', {}).get('statistics', {})
         opt_stats = state.get('parameter_optimizer', {})
         change_history = state.get('change_history', [])
+        gpt_brain = state.get('gpt_brain', {})
+        gpt_wisdom = gpt_brain.get('wisdom', {})
+        gpt_memory = gpt_brain.get('trade_memory', [])
 
         logger.info(
             f"📊 Resumen cargado:\n"
@@ -239,6 +257,9 @@ class LearningPersistence:
             f"  • Parameter Optimizer: {opt_stats.get('total_trials', 0)} trials\n"
             f"  • Q-Table: {rl_stats.get('q_table_size', 0)} estados\n"
             f"  • Histórico de cambios: {len(change_history)} modificaciones\n"
+            f"  • GPT Wisdom: {len(gpt_wisdom.get('lessons', []))} lecciones, "
+            f"{len(gpt_wisdom.get('golden_rules', []))} reglas de oro\n"
+            f"  • GPT Trade Memory: {len(gpt_memory)} trades\n"
             f"  • Guardado: {state.get('timestamp', 'N/A')}"
         )
 

@@ -364,6 +364,89 @@ ENABLE_AUTO_STOP = os.getenv('ENABLE_AUTO_STOP', 'true').lower() == 'true'  # Au
 MIN_NOTIONAL_VALUE = float(os.getenv('MIN_NOTIONAL_VALUE', '5.0'))  # Minimo valor de orden en USDT
 
 # ============================================================================
+# GPT BRAIN CONFIGURATION - ADVANCED AI REASONING
+# ============================================================================
+# GPT Brain provides advanced reasoning capabilities for the trading bot:
+# - Meta-Reasoner: Analyzes performance and suggests improvements
+# - Decision Explainer: Explains trading decisions in natural language
+# - Risk Assessor: Evaluates risk before executing trades
+# - Strategy Advisor: Autonomously optimizes parameters
+# ============================================================================
+
+# Enable/Disable GPT Brain
+ENABLE_GPT_BRAIN = os.getenv('ENABLE_GPT_BRAIN', 'true').lower() == 'true'
+
+# OpenAI API Configuration
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o')  # gpt-4o, gpt-4o-mini, gpt-4-turbo
+
+# GPT Behavior Settings
+GPT_TEMPERATURE = float(os.getenv('GPT_TEMPERATURE', '0.7'))  # 0.0-1.0 (creativity)
+GPT_MAX_TOKENS = int(os.getenv('GPT_MAX_TOKENS', '2000'))  # Max response length
+
+# GPT Features Toggle
+GPT_RISK_ASSESSMENT = os.getenv('GPT_RISK_ASSESSMENT', 'true').lower() == 'true'
+GPT_DECISION_EXPLANATION = os.getenv('GPT_DECISION_EXPLANATION', 'true').lower() == 'true'
+GPT_STRATEGY_OPTIMIZATION = os.getenv('GPT_STRATEGY_OPTIMIZATION', 'true').lower() == 'true'
+GPT_AUTO_PARAMETER_ADJUSTMENT = os.getenv('GPT_AUTO_PARAMETER_ADJUSTMENT', 'true').lower() == 'true'
+
+# Optimization Intervals
+GPT_OPTIMIZATION_INTERVAL_HOURS = float(os.getenv('GPT_OPTIMIZATION_INTERVAL_HOURS', '2.0'))
+GPT_MIN_TRADES_FOR_OPTIMIZATION = int(os.getenv('GPT_MIN_TRADES_FOR_OPTIMIZATION', '20'))
+
+# Risk Assessment Settings
+GPT_BLOCK_HIGH_RISK_TRADES = os.getenv('GPT_BLOCK_HIGH_RISK_TRADES', 'true').lower() == 'true'
+GPT_MAX_RISK_SCORE_TO_APPROVE = int(os.getenv('GPT_MAX_RISK_SCORE_TO_APPROVE', '70'))  # 0-100
+
+# Reaction Settings
+GPT_REACT_TO_LOSING_STREAK = os.getenv('GPT_REACT_TO_LOSING_STREAK', 'true').lower() == 'true'
+GPT_LOSING_STREAK_THRESHOLD = int(os.getenv('GPT_LOSING_STREAK_THRESHOLD', '3'))
+GPT_REACT_TO_WINNING_STREAK = os.getenv('GPT_REACT_TO_WINNING_STREAK', 'true').lower() == 'true'
+GPT_WINNING_STREAK_THRESHOLD = int(os.getenv('GPT_WINNING_STREAK_THRESHOLD', '5'))
+
+# Cost Control
+GPT_MAX_DAILY_COST_USD = float(os.getenv('GPT_MAX_DAILY_COST_USD', '10.0'))  # Max daily API cost
+GPT_CACHE_RESPONSES = os.getenv('GPT_CACHE_RESPONSES', 'true').lower() == 'true'
+
+# Notification Settings
+GPT_NOTIFY_BLOCKED_TRADES = os.getenv('GPT_NOTIFY_BLOCKED_TRADES', 'true').lower() == 'true'
+GPT_NOTIFY_PARAMETER_CHANGES = os.getenv('GPT_NOTIFY_PARAMETER_CHANGES', 'true').lower() == 'true'
+GPT_NOTIFY_ANALYSIS_RESULTS = os.getenv('GPT_NOTIFY_ANALYSIS_RESULTS', 'true').lower() == 'true'
+
+# ============================================================================
+# SCALPING STRATEGY CONFIGURATION
+# ============================================================================
+# Strategy: Many trades with quick entries/exits and tight risk management
+# Philosophy: Small consistent wins > few large wins
+# ============================================================================
+
+# Scalping Mode (enables aggressive trading)
+SCALPING_MODE = os.getenv('SCALPING_MODE', 'true').lower() == 'true'
+
+# Scalping Risk Parameters (TIGHT)
+SCALPING_STOP_LOSS_PCT = float(os.getenv('SCALPING_STOP_LOSS_PCT', '1.5'))  # 1-2% max
+SCALPING_TAKE_PROFIT_PCT = float(os.getenv('SCALPING_TAKE_PROFIT_PCT', '2.5'))  # 1.5-3% typical
+SCALPING_MIN_RR_RATIO = float(os.getenv('SCALPING_MIN_RR_RATIO', '1.5'))  # Minimum 1:1.5 R:R
+
+# Scalping Entry Requirements
+SCALPING_MIN_VOLUME_RATIO = float(os.getenv('SCALPING_MIN_VOLUME_RATIO', '1.0'))  # Volume > average
+SCALPING_MAX_SPREAD_PCT = float(os.getenv('SCALPING_MAX_SPREAD_PCT', '0.1'))  # Max 0.1% spread
+SCALPING_RSI_OVERSOLD = int(os.getenv('SCALPING_RSI_OVERSOLD', '25'))  # Buy zone
+SCALPING_RSI_OVERBOUGHT = int(os.getenv('SCALPING_RSI_OVERBOUGHT', '75'))  # Sell zone
+
+# Scalping Position Sizing
+SCALPING_POSITION_SIZE_PCT = float(os.getenv('SCALPING_POSITION_SIZE_PCT', '10.0'))  # 10% per trade
+SCALPING_MAX_POSITIONS = int(os.getenv('SCALPING_MAX_POSITIONS', '5'))  # Max concurrent positions
+
+# Scalping Session Preferences
+SCALPING_PREFER_US_SESSION = os.getenv('SCALPING_PREFER_US_SESSION', 'true').lower() == 'true'
+SCALPING_AVOID_LOW_VOLUME = os.getenv('SCALPING_AVOID_LOW_VOLUME', 'true').lower() == 'true'
+
+# Scalping GPT Requirements
+SCALPING_MIN_CONFIDENCE = int(os.getenv('SCALPING_MIN_CONFIDENCE', '60'))  # Min GPT confidence
+SCALPING_MIN_FACTORS = int(os.getenv('SCALPING_MIN_FACTORS', '3'))  # Min confluent factors
+
+# ============================================================================
 # LIVE TRADING SAFETY CHECKLIST
 # ============================================================================
 # Antes de cambiar TRADING_MODE a 'LIVE', verifica:

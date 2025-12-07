@@ -12,6 +12,9 @@ python-dotenv==1.0.0
 xgboost==2.0.3
 scikit-learn==1.4.0
 
+# GPT Brain - Advanced AI Reasoning
+openai>=1.0.0
+
 # Async support
 aiohttp==3.9.1
 asyncio==3.4.3
