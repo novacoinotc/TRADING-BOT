@@ -414,6 +414,39 @@ GPT_NOTIFY_PARAMETER_CHANGES = os.getenv('GPT_NOTIFY_PARAMETER_CHANGES', 'true')
 GPT_NOTIFY_ANALYSIS_RESULTS = os.getenv('GPT_NOTIFY_ANALYSIS_RESULTS', 'true').lower() == 'true'
 
 # ============================================================================
+# SCALPING STRATEGY CONFIGURATION
+# ============================================================================
+# Strategy: Many trades with quick entries/exits and tight risk management
+# Philosophy: Small consistent wins > few large wins
+# ============================================================================
+
+# Scalping Mode (enables aggressive trading)
+SCALPING_MODE = os.getenv('SCALPING_MODE', 'true').lower() == 'true'
+
+# Scalping Risk Parameters (TIGHT)
+SCALPING_STOP_LOSS_PCT = float(os.getenv('SCALPING_STOP_LOSS_PCT', '1.5'))  # 1-2% max
+SCALPING_TAKE_PROFIT_PCT = float(os.getenv('SCALPING_TAKE_PROFIT_PCT', '2.5'))  # 1.5-3% typical
+SCALPING_MIN_RR_RATIO = float(os.getenv('SCALPING_MIN_RR_RATIO', '1.5'))  # Minimum 1:1.5 R:R
+
+# Scalping Entry Requirements
+SCALPING_MIN_VOLUME_RATIO = float(os.getenv('SCALPING_MIN_VOLUME_RATIO', '1.0'))  # Volume > average
+SCALPING_MAX_SPREAD_PCT = float(os.getenv('SCALPING_MAX_SPREAD_PCT', '0.1'))  # Max 0.1% spread
+SCALPING_RSI_OVERSOLD = int(os.getenv('SCALPING_RSI_OVERSOLD', '25'))  # Buy zone
+SCALPING_RSI_OVERBOUGHT = int(os.getenv('SCALPING_RSI_OVERBOUGHT', '75'))  # Sell zone
+
+# Scalping Position Sizing
+SCALPING_POSITION_SIZE_PCT = float(os.getenv('SCALPING_POSITION_SIZE_PCT', '10.0'))  # 10% per trade
+SCALPING_MAX_POSITIONS = int(os.getenv('SCALPING_MAX_POSITIONS', '5'))  # Max concurrent positions
+
+# Scalping Session Preferences
+SCALPING_PREFER_US_SESSION = os.getenv('SCALPING_PREFER_US_SESSION', 'true').lower() == 'true'
+SCALPING_AVOID_LOW_VOLUME = os.getenv('SCALPING_AVOID_LOW_VOLUME', 'true').lower() == 'true'
+
+# Scalping GPT Requirements
+SCALPING_MIN_CONFIDENCE = int(os.getenv('SCALPING_MIN_CONFIDENCE', '60'))  # Min GPT confidence
+SCALPING_MIN_FACTORS = int(os.getenv('SCALPING_MIN_FACTORS', '3'))  # Min confluent factors
+
+# ============================================================================
 # LIVE TRADING SAFETY CHECKLIST
 # ============================================================================
 # Antes de cambiar TRADING_MODE a 'LIVE', verifica:

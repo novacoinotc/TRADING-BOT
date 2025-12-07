@@ -121,7 +121,20 @@ class GPTBrain:
         self.last_optimization_time: Optional[datetime] = None
         self.last_analysis_time: Optional[datetime] = None
 
+        # Data Provider (connected later via set_data_provider)
+        self.data_provider = None
+
         logger.info(f"GPT Brain initialized with model: {model} - ABSOLUTE CONTROL MODE")
+
+    def set_data_provider(self, data_provider: Any):
+        """
+        Connect the GPT Data Provider for comprehensive data access.
+
+        Args:
+            data_provider: GPTDataProvider instance with all data sources
+        """
+        self.data_provider = data_provider
+        logger.info("🔗 GPT Data Provider connected - Full data access enabled")
 
     async def initialize(self):
         """Async initialization tasks"""

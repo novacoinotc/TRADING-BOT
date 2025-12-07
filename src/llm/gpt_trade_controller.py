@@ -1,5 +1,5 @@
 """
-GPT Trade Controller - Absolute Control Over Trading
+GPT Trade Controller - Absolute Control Over Trading (SCALPING OPTIMIZED)
 
 This is the MASTER CONTROLLER that gives GPT complete control over:
 1. Signal evaluation and generation
@@ -11,6 +11,13 @@ This is the MASTER CONTROLLER that gives GPT complete control over:
 
 GPT has VETO power over all traditional systems (ML, RL).
 Traditional systems provide INPUT, GPT makes DECISIONS.
+
+SCALPING STRATEGY:
+- Many trades with quick entries/exits
+- Tight stop-losses (1-2%)
+- Moderate take-profits (1.5-3%)
+- Focus on high-probability setups
+- Volume and momentum confirmation required
 """
 
 import logging
@@ -36,31 +43,46 @@ class GPTTradeController:
     Signal → GPT Analysis → GPT Decision → Execution → GPT Learning
     """
 
-    CONTROLLER_SYSTEM_PROMPT = """Eres el CEREBRO CENTRAL de un bot de trading de criptomonedas.
+    CONTROLLER_SYSTEM_PROMPT = """Eres el CEREBRO CENTRAL de un bot de SCALPING de criptomonedas.
 Tienes CONTROL ABSOLUTO sobre todas las decisiones de trading.
 
 Tu trabajo es:
 1. Evaluar señales de trading holísticamente
 2. Decidir si abrir o no abrir trades
 3. Determinar tamaño de posición y leverage
-4. Establecer stop-loss y take-profit óptimos
+4. Establecer stop-loss y take-profit óptimos (SCALPING)
 5. Decidir cuándo cerrar trades
 6. Aprender de cada resultado
 
-FILOSOFÍA DE TRADING:
-- Preservar capital es PRIORIDAD #1
-- Solo trades con alta probabilidad (>65%)
+🎯 FILOSOFÍA DE SCALPING:
+- MUCHOS TRADES con ganancias pequeñas pero constantes
+- Stop-loss AJUSTADOS (1-2% máximo)
+- Take-profit RAZONABLES (1.5-3%)
 - Risk/Reward mínimo 1:1.5
-- Mejor perder una oportunidad que perder dinero
-- Un "NO TRADE" es una decisión válida
+- VELOCIDAD: entrar y salir rápido
+- Buscar momentos de MOMENTUM y VOLUMEN
+- RSI extremos (< 25 o > 75) = oportunidad
+- Cruces de MACD frescos = entrada
+- Confirmación de ORDER BOOK obligatoria
 
-TIENES ACCESO A:
-- Indicadores técnicos (RSI, MACD, EMA, etc.)
-- Sentiment del mercado (Fear & Greed, noticias)
-- Order book (presión de compra/venta)
-- Predicciones ML (como referencia, puedes ignorarlas)
-- Recomendaciones RL (como referencia, puedes ignorarlas)
-- Sabiduría aprendida de trades pasados
+DATOS DISPONIBLES (ARSENAL COMPLETO):
+📊 Indicadores técnicos (RSI, MACD, EMA, BB, ATR, ADX, Volumen)
+💭 Sentiment (Fear & Greed, CryptoPanic News)
+📚 Order Book (presión, imbalance, profundidad)
+🔥 Liquidation Zones (cascadas potenciales)
+💰 Funding Rate (señales contrarian)
+📈 Patterns (patrones chartistas detectados)
+🌐 Sessions (Asia/Europa/US)
+🤖 ML/RL (como referencia, puedes ignorarlos)
+📖 Sabiduría de trades pasados
+
+REGLAS DE SCALPING:
+✅ approved=true SOLO si hay confluencia de 3+ factores
+✅ Stop-loss: 1-2% máximo
+✅ Take-profit: 1.5-3% (puede ser más si hay momentum)
+✅ Volumen > 1x promedio para entrar
+✅ NO tradear si spread > 0.1%
+✅ Considerar session actual (US = más volumen)
 
 Responde SIEMPRE en español y en JSON estructurado."""
 
@@ -348,10 +370,10 @@ Responde en JSON:
     },
 
     "risk_management": {
-        "stop_loss_pct": 2.0,
-        "take_profit_pct": 4.0,
+        "stop_loss_pct": 1.5,
+        "take_profit_pct": 2.5,
         "trailing_stop": true,
-        "risk_reward_ratio": 2.0
+        "risk_reward_ratio": 1.67
     },
 
     "timing": {
@@ -372,12 +394,18 @@ Responde en JSON:
     "alternative_action": "Si rechazas, qué hacer en su lugar"
 }
 
-REGLAS:
-- approved=true SOLO si confianza >= 65%
+🎯 REGLAS DE SCALPING:
+- approved=true si confianza >= 60% Y confluencia de factores
+- Stop-loss: 1-2% MÁXIMO (scalping = tight stops)
+- Take-profit: 1.5-3% típico (más si hay momentum fuerte)
 - Risk/Reward mínimo 1:1.5
-- Máximo 2% riesgo por trade
-- Considera la sabiduría aprendida
+- VOLUMEN debe ser > 1x promedio
+- RSI < 25 o > 75 = zona de entrada ideal
+- Order book debe confirmar dirección
+- Session US/Europe = mejor liquidez
+- Considera la sabiduría aprendida de trades anteriores
 - Puedes IGNORAR ML/RL si tienes buena razón
+- SÉ AGRESIVO: muchos trades pequeños > pocos trades grandes
 """
         return prompt
 

@@ -13,6 +13,7 @@ Components:
 - GPTMarketAnalyst: Analyzes market and generates trading signals
 - GPTExperienceLearner: Persistent learning from trade history
 - GPTTradeController: ABSOLUTE CONTROL over trading decisions
+- GPTDataProvider: Comprehensive data integration (ALL sources)
 - GPTBrain: Central orchestrator for all GPT components
 """
 
@@ -24,6 +25,7 @@ from src.llm.gpt_strategy_advisor import GPTStrategyAdvisor
 from src.llm.gpt_market_analyst import GPTMarketAnalyst
 from src.llm.gpt_experience_learner import GPTExperienceLearner
 from src.llm.gpt_trade_controller import GPTTradeController
+from src.llm.gpt_data_provider import GPTDataProvider
 from src.llm.gpt_brain import GPTBrain
 
 __all__ = [
@@ -35,5 +37,6 @@ __all__ = [
     'GPTMarketAnalyst',
     'GPTExperienceLearner',
     'GPTTradeController',
+    'GPTDataProvider',
     'GPTBrain'
 ]
