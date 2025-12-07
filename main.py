@@ -28,6 +28,7 @@ if config.ENABLE_AUTONOMOUS_MODE:
 # Import GPT Brain for advanced AI reasoning
 if hasattr(config, 'ENABLE_GPT_BRAIN') and config.ENABLE_GPT_BRAIN:
     from src.llm.gpt_brain import GPTBrain
+    from src.llm.gpt_data_provider import GPTDataProvider
 
 
 async def send_bot_status_message(monitor):
@@ -359,6 +360,36 @@ async def main():
                 # Inicializar GPT Brain
                 await gpt_brain.initialize()
                 logger.info(f"✅ GPT Brain activo con modelo: {config.GPT_MODEL}")
+
+                # Connect GPT Data Provider with ALL available data sources
+                try:
+                    # Get portfolio from ml_system if available
+                    portfolio = None
+                    ml_system = None
+                    if hasattr(monitor, 'ml_system') and monitor.ml_system:
+                        ml_system = monitor.ml_system
+                        if hasattr(ml_system, 'paper_trader') and ml_system.paper_trader:
+                            portfolio = ml_system.paper_trader.portfolio
+
+                    # Create GPT Data Provider with all sources
+                    data_provider = GPTDataProvider(
+                        config=config,
+                        feature_aggregator=getattr(monitor, 'feature_aggregator', None),
+                        sentiment_analyzer=getattr(monitor, 'sentiment_system', None),
+                        orderbook_analyzer=getattr(monitor, 'orderbook_analyzer', None),
+                        news_collector=getattr(monitor.sentiment_system, 'news_collector', None) if hasattr(monitor, 'sentiment_system') else None,
+                        market_monitor=monitor,
+                        ml_system=ml_system,
+                        rl_agent=getattr(autonomy_controller, 'rl_agent', None) if autonomy_controller else None,
+                        portfolio=portfolio
+                    )
+
+                    # Connect to GPT Brain
+                    gpt_brain.set_data_provider(data_provider)
+                    logger.info("🔗 GPT Data Provider conectado - Arsenal completo disponible")
+
+                except Exception as e:
+                    logger.warning(f"⚠️ No se pudo conectar GPT Data Provider: {e}")
 
                 # Agregar comandos GPT a Telegram si disponible
                 if telegram_commands:
