@@ -101,12 +101,12 @@ class Portfolio:
             )
             return None
 
-        # Validar leverage para FUTURES
+        # Validar leverage para FUTURES (MAX 10x por seguridad)
         if trade_type == 'FUTURES':
-            if not (1 <= leverage <= 20):
+            if not (1 <= leverage <= 10):
                 raise ValueError(
                     f"❌ Leverage {leverage}x inválido para {pair}\n"
-                    f"   Permitido: 1-20x\n"
+                    f"   Permitido: 1-10x (límite de seguridad del sistema)\n"
                     f"   Verifica que el RL Agent esté calculando leverage correctamente"
                 )
 

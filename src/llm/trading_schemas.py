@@ -242,9 +242,9 @@ def validate_trading_decision(decision: dict) -> tuple[bool, list[str]]:
     risk_mgmt = decision.get("risk_management", {})
     direction = decision.get("direction", "HOLD")
 
-    # === Validation 1: TP must be > commissions (minimum 0.15% for taker) ===
+    # === Validation 1: TP must be > commissions (minimum 0.20% for taker) ===
     tp_pct = risk_mgmt.get("take_profit_pct", 0)
-    MIN_TP_FOR_PROFIT = 0.15  # Minimum to cover taker fees (0.09%) + slippage
+    MIN_TP_FOR_PROFIT = 0.20  # Minimum to cover taker fees (0.09% x2) + slippage (~0.02%)
     if tp_pct < MIN_TP_FOR_PROFIT:
         errors.append(f"TP {tp_pct}% is below minimum profitable {MIN_TP_FOR_PROFIT}% (doesn't cover fees)")
 

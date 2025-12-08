@@ -302,14 +302,14 @@ Responde ÚNICAMENTE en JSON válido conforme al esquema."""
 
         except Exception as e:
             logger.error(f"Signal evaluation failed: {e}")
-            # On error, defer to traditional system with reduced size
-            # IMPORTANTE: Incluir TODOS los campos que autonomy_controller espera
+            # On error, DO NOT approve - safety first
+            # IMPORTANTE: En caso de error, rechazar el trade por seguridad
             action = signal.get('action', 'HOLD')
             return {
                 "success": False,
-                "approved": True,
+                "approved": False,
                 "decision": {
-                    "approved": True,
+                    "approved": False,
                     "confidence": signal.get("confidence", 30),
                     "direction": "LONG" if action == "BUY" else "SHORT" if action == "SELL" else "HOLD",
                     "reasoning": f"GPT error fallback: {str(e)[:100]}",

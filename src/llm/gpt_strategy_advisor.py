@@ -39,7 +39,7 @@ REGLAS CRITICAS:
 - Si el bot esta perdiendo, se MAS conservador
 - Si el bot esta ganando, puedes ser MAS agresivo (con cuidado)
 - NUNCA pongas position_size > 15%
-- NUNCA pongas leverage > 20x
+- NUNCA pongas leverage > 10x (límite de seguridad del sistema)
 - SIEMPRE justifica cada cambio
 
 Responde siempre en español con formato JSON estructurado."""

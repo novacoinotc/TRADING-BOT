@@ -138,26 +138,23 @@ class AutonomyController:
         """
         Calcula el máximo leverage permitido basado en experiencia
 
-        Límites escalonados:
-        - 0-50 trades: máximo 5x
-        - 50-100 trades: máximo 8x
-        - 100-150 trades: máximo 10x
-        - 150-500 trades: máximo 15x
-        - 500+ trades: máximo 20x
+        Límites escalonados (MAX 10x para Binance Futures safety):
+        - 0-50 trades: máximo 3x (conservador inicial)
+        - 50-100 trades: máximo 5x
+        - 100-200 trades: máximo 7x
+        - 200+ trades: máximo 10x (límite absoluto del sistema)
 
         Returns:
-            Leverage máximo permitido (1-20x)
+            Leverage máximo permitido (1-10x)
         """
         if self.total_trades_all_time < 50:
-            return 5
+            return 3
         elif self.total_trades_all_time < 100:
-            return 8
-        elif self.total_trades_all_time < 150:
-            return 10
-        elif self.total_trades_all_time < 500:
-            return 15
+            return 5
+        elif self.total_trades_all_time < 200:
+            return 7
         else:
-            return 20
+            return 10  # MÁXIMO ABSOLUTO - sincronizado con trading_schemas.py
 
     def _gpt_size_to_multiplier(self, size_recommendation: str) -> float:
         """
