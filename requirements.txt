@@ -11,6 +11,7 @@ python-dotenv==1.0.0
 # Machine Learning
 xgboost==2.0.3
 scikit-learn==1.4.0
+scipy>=1.11.0
 
 # GPT Brain - Advanced AI Reasoning
 openai>=1.0.0

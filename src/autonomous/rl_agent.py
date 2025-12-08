@@ -214,7 +214,7 @@ class RLAgent:
 
         Args:
             market_data: Datos del mercado (indicadores, sentiment, etc.)
-            max_leverage: Máximo leverage permitido basado en experiencia (1-20x)
+            max_leverage: Máximo leverage permitido basado en experiencia (1-10x)
 
         Returns:
             Dict con decisión: {
@@ -222,7 +222,7 @@ class RLAgent:
                 'action': str,  # 'OPEN', 'SKIP'
                 'trade_type': str,  # 'SPOT' o 'FUTURES'
                 'position_size_multiplier': float,  # 1.0 = normal, 0.5 = conservador, 1.5 = agresivo
-                'leverage': int,  # 1-20x (solo para FUTURES)
+                'leverage': int,  # 1-10x (solo para FUTURES)
                 'confidence': float  # 0-1
             }
         """

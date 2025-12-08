@@ -170,8 +170,8 @@ MIN_WINRATE_FOR_FUTURES = float(os.getenv('MIN_WINRATE_FOR_FUTURES', '55.0'))  #
 MAX_DRAWDOWN_FOR_FUTURES = float(os.getenv('MAX_DRAWDOWN_FOR_FUTURES', '10.0'))  # 5-15% (optimizable)
 VOLATILITY_THRESHOLD_FUTURES = float(os.getenv('VOLATILITY_THRESHOLD_FUTURES', '0.02'))  # 0.015-0.03 (optimizable)
 CONSERVATIVE_LEVERAGE = int(os.getenv('CONSERVATIVE_LEVERAGE', '3'))  # 2-5x (optimizable)
-BALANCED_LEVERAGE = int(os.getenv('BALANCED_LEVERAGE', '8'))  # 5-10x (optimizable)
-AGGRESSIVE_LEVERAGE = int(os.getenv('AGGRESSIVE_LEVERAGE', '15'))  # 10-20x (optimizable)
+BALANCED_LEVERAGE = int(os.getenv('BALANCED_LEVERAGE', '7'))  # 5-8x (optimizable)
+AGGRESSIVE_LEVERAGE = int(os.getenv('AGGRESSIVE_LEVERAGE', '10'))  # 8-10x MAX (límite de seguridad)
 
 # Trailing Stops Automáticos
 # Stop loss dinámico que sigue el precio y protege ganancias automáticamente

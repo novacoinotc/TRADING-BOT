@@ -45,10 +45,10 @@ class SmartOrderRouter:
         self.max_drawdown_for_futures = config.get('MAX_DRAWDOWN_FOR_FUTURES', 10.0)  # 5-15%
         self.volatility_threshold = config.get('VOLATILITY_THRESHOLD_FUTURES', 0.02)  # 0.015-0.03 (2%)
 
-        # Leverage escalonado según condiciones
+        # Leverage escalonado según condiciones (MAX 10x por seguridad)
         self.conservative_leverage = config.get('CONSERVATIVE_LEVERAGE', 3)  # 2-5x
-        self.balanced_leverage = config.get('BALANCED_LEVERAGE', 8)  # 5-10x
-        self.aggressive_leverage = config.get('AGGRESSIVE_LEVERAGE', 15)  # 10-20x
+        self.balanced_leverage = config.get('BALANCED_LEVERAGE', 7)  # 5-8x
+        self.aggressive_leverage = config.get('AGGRESSIVE_LEVERAGE', 10)  # 8-10x MAX
 
         logger.info(f"SmartOrderRouter initialized with futures threshold: confidence={self.min_confidence_for_futures}%, winrate={self.min_winrate_for_futures}%")
 
@@ -197,28 +197,25 @@ class SmartOrderRouter:
         Límite de leverage basado en experiencia (protección)
 
         Escalonamiento:
-        - 0-50 trades: máximo 5x
-        - 50-100 trades: máximo 8x
-        - 100-150 trades: máximo 10x
-        - 150-500 trades: máximo 15x
-        - 500+ trades: máximo 20x
+        - 0-50 trades: máximo 3x
+        - 50-100 trades: máximo 5x
+        - 100-200 trades: máximo 7x
+        - 200+ trades: máximo 10x (límite absoluto del sistema)
         """
         if total_trades < 50:
-            return 5
+            return 3
         elif total_trades < 100:
-            return 8
-        elif total_trades < 150:
-            return 10
-        elif total_trades < 500:
-            return 15
+            return 5
+        elif total_trades < 200:
+            return 7
         else:
-            return 20
+            return 10  # MAX ABSOLUTO - sincronizado con trading_schemas.py
 
     def adjust_leverage_by_experience(self, desired_leverage: int, total_trades: int) -> int:
         """
         Ajusta el leverage deseado según la experiencia del bot
 
-        Esto evita que un bot novato use 20x inmediatamente
+        Esto evita que un bot novato use 10x inmediatamente
         """
         max_allowed = self.get_max_leverage_for_experience(total_trades)
 

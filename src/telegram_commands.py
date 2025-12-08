@@ -467,14 +467,11 @@ class TelegramCommands:
                 next_unlock = 100 - total_trades
                 next_leverage = 10
             elif total_trades < 150:
-                next_unlock = 150 - total_trades
-                next_leverage = 15
-            elif total_trades < 500:
-                next_unlock = 500 - total_trades
-                next_leverage = 20
+                next_unlock = 200 - total_trades
+                next_leverage = 10
             else:
                 next_unlock = 0
-                next_leverage = 20
+                next_leverage = 10  # MAX 10x por seguridad
 
             # Obtener estadísticas del portfolio
             paper_trader = self.autonomy_controller.paper_trader if hasattr(self.autonomy_controller, 'paper_trader') else None
@@ -527,17 +524,16 @@ class TelegramCommands:
             if next_unlock > 0:
                 message += f"  • Próximo desbloqueo: {next_leverage}x en {next_unlock} trades\n\n"
             else:
-                message += f"  • ✅ Max leverage alcanzado (20x)\n\n"
+                message += f"  • ✅ Max leverage alcanzado (10x)\n\n"
 
             message += futures_stats_text
 
             message += (
-                "\n**📍 Límites de Leverage:**\n"
-                "  • 0-50 trades: 5x\n"
-                "  • 50-100 trades: 8x\n"
-                "  • 100-150 trades: 10x\n"
-                "  • 150-500 trades: 15x\n"
-                "  • 500+ trades: 20x"
+                "\n**📍 Límites de Leverage (MAX 10x):**\n"
+                "  • 0-50 trades: 3x\n"
+                "  • 50-100 trades: 5x\n"
+                "  • 100-200 trades: 7x\n"
+                "  • 200+ trades: 10x (máximo)"
             )
 
             await update.message.reply_text(message)

@@ -107,7 +107,7 @@ TRADING_DECISION_SCHEMA = {
                         "description": "Justification for TP level"
                     }
                 },
-                "required": ["stop_loss_pct", "take_profit_pct", "trailing_stop", "risk_reward_ratio", "tp_reasoning"],
+                "required": ["stop_loss_pct", "take_profit_pct", "trailing_stop", "trailing_distance_pct", "risk_reward_ratio", "liquidation_buffer_pct", "tp_reasoning"],
                 "additionalProperties": False
             },
             "futures_considerations": {
@@ -140,7 +140,7 @@ TRADING_DECISION_SCHEMA = {
                         "type": ["string", "null"]
                     }
                 },
-                "required": ["urgency"],
+                "required": ["urgency", "wait_for"],
                 "additionalProperties": False
             },
             "overrides": {
@@ -156,7 +156,7 @@ TRADING_DECISION_SCHEMA = {
                         "type": ["string", "null"]
                     }
                 },
-                "required": ["ml", "rl"],
+                "required": ["ml", "rl", "override_reason"],
                 "additionalProperties": False
             },
             "warnings": {
@@ -174,13 +174,17 @@ TRADING_DECISION_SCHEMA = {
             "confidence",
             "direction",
             "reasoning",
+            "rejection_reason",
+            "is_risky_trade",
+            "learning_opportunity",
             "position_size",
             "leverage",
             "risk_management",
             "futures_considerations",
             "timing",
             "overrides",
-            "warnings"
+            "warnings",
+            "alternative_action"
         ],
         "additionalProperties": False
     }
@@ -218,7 +222,7 @@ TRADE_MANAGEMENT_SCHEMA = {
                 "type": "integer"
             }
         },
-        "required": ["action", "reason", "urgency", "confidence"],
+        "required": ["action", "reason", "new_stop_loss", "new_take_profit", "close_percentage", "urgency", "confidence"],
         "additionalProperties": False
     }
 }
@@ -242,9 +246,9 @@ def validate_trading_decision(decision: dict) -> tuple[bool, list[str]]:
     risk_mgmt = decision.get("risk_management", {})
     direction = decision.get("direction", "HOLD")
 
-    # === Validation 1: TP must be > commissions (minimum 0.15% for taker) ===
+    # === Validation 1: TP must be > commissions (minimum 0.20% for taker) ===
     tp_pct = risk_mgmt.get("take_profit_pct", 0)
-    MIN_TP_FOR_PROFIT = 0.15  # Minimum to cover taker fees (0.09%) + slippage
+    MIN_TP_FOR_PROFIT = 0.20  # Minimum to cover taker fees (0.09% x2) + slippage (~0.02%)
     if tp_pct < MIN_TP_FOR_PROFIT:
         errors.append(f"TP {tp_pct}% is below minimum profitable {MIN_TP_FOR_PROFIT}% (doesn't cover fees)")
 
