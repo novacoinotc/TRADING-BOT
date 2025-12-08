@@ -203,8 +203,16 @@ class GPTClient:
             "model": selected_model,
             "messages": messages,
             "temperature": temperature if temperature is not None else self.temperature,
-            "max_tokens": max_tokens if max_tokens is not None else self.max_tokens,
         }
+
+        # Use max_completion_tokens for newer models (gpt-4o, o1, etc.), max_tokens for legacy
+        # OpenAI changed the parameter name for newer models
+        tokens_value = max_tokens if max_tokens is not None else self.max_tokens
+        newer_models = ['gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini', 'o1-preview', 'gpt-4-turbo', 'gpt-5', 'chatgpt-4o']
+        if any(model in selected_model.lower() for model in newer_models):
+            params["max_completion_tokens"] = tokens_value
+        else:
+            params["max_tokens"] = tokens_value
 
         if json_mode:
             params["response_format"] = {"type": "json_object"}
