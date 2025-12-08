@@ -737,6 +737,37 @@ class AutonomyController:
         # Verificar si es momento de optimizar parámetros
         await self._check_and_optimize(portfolio_metrics)
 
+        # ===== GPT BRAIN LEARNING =====
+        # Enviar trade cerrado a GPT Brain para aprendizaje (si está habilitado)
+        if hasattr(self, 'gpt_brain') and self.gpt_brain:
+            try:
+                # Preparar contexto para GPT learning
+                gpt_trade_data = {
+                    'pair': trade_data.get('pair'),
+                    'side': trade_data.get('action'),
+                    'trade_type': trade_data.get('trade_type', 'FUTURES'),
+                    'leverage': trade_data.get('leverage', 1),
+                    'entry_price': trade_data.get('entry_price', 0),
+                    'exit_price': trade_data.get('exit_price', 0),
+                    'pnl': trade_data.get('profit_amount', 0),
+                    'pnl_pct': trade_data.get('profit_pct', 0),
+                    'duration': trade_data.get('duration', 0),
+                    'reason': trade_data.get('exit_reason', 'UNKNOWN'),
+                    'liquidated': trade_data.get('liquidated', False)
+                }
+
+                # Llamar al GPT Brain para aprendizaje
+                if hasattr(self.gpt_brain, 'learn_from_closed_trade'):
+                    await self.gpt_brain.learn_from_closed_trade(
+                        trade=gpt_trade_data,
+                        market_context=market_state,
+                        signal_data={}  # Signal data no disponible en este punto
+                    )
+                    logger.debug(f"🧠 GPT Brain aprendió del trade: {trade_data.get('pair')}")
+            except Exception as e:
+                logger.warning(f"⚠️ Error en GPT Brain learning: {e}")
+        # ===== FIN GPT BRAIN LEARNING =====
+
         # Auto-save periódico
         await self._auto_save_if_needed()
 

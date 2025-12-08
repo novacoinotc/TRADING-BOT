@@ -55,7 +55,8 @@ class DynamicTPManager:
         entry_price: float,
         signal_metadata: Optional[Dict] = None,
         market_regime: str = 'SIDEWAYS',
-        volatility: str = 'medium'
+        volatility: str = 'medium',
+        side: str = 'BUY'
     ) -> Tuple[float, float, float]:
         """
         Calcula TPs dinámicos basados en contexto
@@ -65,6 +66,7 @@ class DynamicTPManager:
             signal_metadata: Metadata del signal (criticality_score, source, etc)
             market_regime: BULL, BEAR, SIDEWAYS
             volatility: high, medium, low
+            side: 'BUY' (LONG) o 'SELL' (SHORT) - CRÍTICO para dirección del TP
 
         Returns:
             Tuple (tp1, tp2, tp3) en precio absoluto
@@ -148,10 +150,19 @@ class DynamicTPManager:
         tp2_pct = min(tp2_pct, 2.0)   # Max 2%
         tp3_pct = min(tp3_pct, 3.5)   # Max 3.5%
 
-        # Calcular precios absolutos
-        tp1_price = entry_price * (1 + tp1_pct / 100)
-        tp2_price = entry_price * (1 + tp2_pct / 100)
-        tp3_price = entry_price * (1 + tp3_pct / 100)
+        # Calcular precios absolutos según dirección (LONG vs SHORT)
+        # ================================================================
+        # LONG (BUY): TP está ARRIBA del entry → sumar porcentaje
+        # SHORT (SELL): TP está ABAJO del entry → restar porcentaje
+        # ================================================================
+        if side == 'BUY':  # LONG
+            tp1_price = entry_price * (1 + tp1_pct / 100)
+            tp2_price = entry_price * (1 + tp2_pct / 100)
+            tp3_price = entry_price * (1 + tp3_pct / 100)
+        else:  # SHORT (SELL)
+            tp1_price = entry_price * (1 - tp1_pct / 100)
+            tp2_price = entry_price * (1 - tp2_pct / 100)
+            tp3_price = entry_price * (1 - tp3_pct / 100)
 
         # Log ajustes
         if adjustment_reason:
@@ -171,7 +182,8 @@ class DynamicTPManager:
         current_price: float,
         entry_price: float,
         tp1_price: float,
-        signal_metadata: Optional[Dict] = None
+        signal_metadata: Optional[Dict] = None,
+        side: str = 'BUY'
     ) -> bool:
         """
         Determina si debe mantener el trade más tiempo
@@ -186,6 +198,7 @@ class DynamicTPManager:
             entry_price: Precio de entrada
             tp1_price: Precio TP1
             signal_metadata: Metadata del signal
+            side: 'BUY' (LONG) o 'SELL' (SHORT)
 
         Returns:
             True si debe mantener más tiempo
@@ -193,8 +206,11 @@ class DynamicTPManager:
         if not signal_metadata:
             return False
 
-        # Si ya llegó a TP1 o más
-        current_profit_pct = ((current_price - entry_price) / entry_price) * 100
+        # Si ya llegó a TP1 o más (calcular profit según dirección)
+        if side == 'BUY':  # LONG
+            current_profit_pct = ((current_price - entry_price) / entry_price) * 100
+        else:  # SHORT
+            current_profit_pct = ((entry_price - current_price) / entry_price) * 100
 
         if current_profit_pct < (tp1_price / entry_price - 1) * 100:
             return False  # Aún no llegó a TP1

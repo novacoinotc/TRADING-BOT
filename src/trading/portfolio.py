@@ -151,7 +151,8 @@ class Portfolio:
             'take_profit': take_profit,
             'current_price': entry_price,
             'unrealized_pnl': 0.0,
-            'status': 'OPEN'
+            'status': 'OPEN',
+            'commission_rate': 0.00045  # 0.045% TAKER rate (Binance Futures)
         }
 
         self.positions[pair] = position
@@ -188,11 +189,12 @@ class Portfolio:
         else:  # SELL
             pnl = (position['entry_price'] - current_price) * position['quantity']
 
-        # Para FUTURES: multiplicar PnL por leverage
-        if position.get('trade_type') == 'FUTURES':
-            leverage = position.get('leverage', 1)
-            pnl = pnl * leverage
-
+        # Para FUTURES: NO multiplicar PnL por leverage
+        # El P&L ya está calculado correctamente en términos absolutos (dólares)
+        # El leverage solo afecta el colateral requerido y el % de retorno sobre colateral
+        # Ejemplo: $1000 colateral con 10x = $10,000 notional
+        # Si precio sube 1% = $100 de ganancia (NO $100 * 10)
+        # El retorno sobre colateral es $100 / $1000 = 10% (esto sí refleja el leverage)
         position['unrealized_pnl'] = pnl
 
         # Verificar liquidación para FUTURES
@@ -296,19 +298,24 @@ class Portfolio:
             )
             pnl_pct = 0.0
 
-        # Para FUTURES: aplicar leverage al PnL
+        # Para FUTURES: Calcular P&L correctamente SIN multiplicar por leverage
+        # =====================================================================
+        # IMPORTANTE: El P&L en dólares ya es correcto (diferencia de precio * quantity)
+        # El leverage NO multiplica las ganancias/pérdidas en términos absolutos
+        #
+        # Ejemplo con 10x leverage:
+        # - Colateral: $1,000 → Controla: $10,000 notional
+        # - Precio sube 1%: Ganancia = $10,000 * 0.01 = $100 (NO $100 * 10)
+        # - Retorno sobre colateral: $100 / $1,000 = 10% (aquí SÍ se refleja el leverage)
+        # =====================================================================
         exit_value = 0
         if trade_type == 'FUTURES':
-            pnl = pnl * leverage
-            pnl_pct = pnl_pct * leverage
-
-            # VALIDACIÓN: Verificar que pnl no se corrompió después de aplicar leverage
-            if math.isnan(pnl) or math.isinf(pnl):
-                logger.error(
-                    f"❌ P&L INVÁLIDO después de aplicar leverage para {pair}: {pnl}\n"
-                    f"   Esto indica valores corruptos. Manteniendo posición abierta."
-                )
-                return None
+            # Calcular retorno % sobre COLATERAL (no sobre notional)
+            collateral = position.get('collateral', position_value / leverage)
+            if collateral > 0:
+                pnl_pct = (pnl / collateral) * 100  # Retorno sobre capital real invertido
+            else:
+                pnl_pct = 0
 
             # Para LIQUIDACIÓN: PnL es -100% del colateral
             if reason == 'LIQUIDATION':
@@ -404,11 +411,27 @@ class Portfolio:
         return closed_trade
 
     def _update_equity(self):
-        """Actualiza equity total (balance + valor posiciones abiertas)"""
-        positions_value = sum(
-            pos['current_price'] * pos['quantity']
-            for pos in self.positions.values()
-        )
+        """
+        Actualiza equity total (balance + valor posiciones abiertas)
+
+        Para FUTURES: Usamos unrealized_pnl (no valor notional)
+        Para SPOT: Usamos valor actual de posición
+
+        Esto evita inflar artificialmente el equity con el valor notional
+        """
+        positions_value = 0
+        for pos in self.positions.values():
+            if pos.get('trade_type') == 'FUTURES':
+                # Para FUTURES: equity = colateral + unrealized_pnl
+                # El colateral ya fue descontado del balance al abrir
+                # Solo sumamos el unrealized_pnl (ganancia/pérdida no realizada)
+                unrealized = pos.get('unrealized_pnl', 0)
+                collateral = pos.get('collateral', 0)
+                positions_value += collateral + unrealized
+            else:
+                # Para SPOT: usar valor actual
+                positions_value += pos['current_price'] * pos['quantity']
+
         self.equity = self.balance + positions_value
 
         # Actualizar peak equity

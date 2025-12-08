@@ -312,13 +312,54 @@ Responde SIEMPRE en español y en JSON estructurado."""
         except Exception as e:
             logger.error(f"Signal evaluation failed: {e}")
             # On error, defer to traditional system with reduced size
+            # IMPORTANTE: Incluir TODOS los campos que autonomy_controller espera
+            action = signal.get('action', 'HOLD')
             return {
                 "success": False,
                 "approved": True,
                 "decision": {
                     "approved": True,
-                    "position_size": {"modifier": 0.5},
-                    "reason": "GPT unavailable, using conservative fallback"
+                    "confidence": signal.get("confidence", 30),
+                    "direction": "LONG" if action == "BUY" else "SHORT" if action == "SELL" else "HOLD",
+                    "reasoning": f"GPT error fallback: {str(e)[:100]}",
+                    "is_risky_trade": True,
+                    "learning_opportunity": "Error case - conservative approach",
+                    "position_size": {
+                        "recommendation": "HALF",
+                        "percentage": 50,
+                        "modifier": 0.5,
+                        "reason": "Conservative fallback due to GPT error"
+                    },
+                    "leverage": {
+                        "recommended": 2,
+                        "max_safe": 3,
+                        "reason": "Fallback conservative leverage"
+                    },
+                    "risk_management": {
+                        "stop_loss_pct": 2.0,
+                        "take_profit_pct": 3.0,
+                        "trailing_stop": True,
+                        "trailing_distance_pct": 0.5,
+                        "risk_reward_ratio": 1.5,
+                        "liquidation_buffer_pct": 5.0,
+                        "tp_reasoning": "Conservative TP for error fallback"
+                    },
+                    "futures_considerations": {
+                        "funding_rate_impact": "NEUTRAL",
+                        "hold_duration": "MINUTES",
+                        "liquidation_risk": "MEDIUM"
+                    },
+                    "timing": {
+                        "urgency": "LOW",
+                        "wait_for": None
+                    },
+                    "overrides": {
+                        "ml": False,
+                        "rl": False,
+                        "override_reason": "GPT unavailable"
+                    },
+                    "warnings": [f"GPT system error: {str(e)[:50]}"],
+                    "alternative_action": "Consider waiting for next signal"
                 },
                 "error": str(e)
             }
