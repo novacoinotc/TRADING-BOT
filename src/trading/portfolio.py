@@ -7,6 +7,7 @@ import math
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +153,7 @@ class Portfolio:
             'current_price': entry_price,
             'unrealized_pnl': 0.0,
             'status': 'OPEN',
-            'commission_rate': 0.00045  # 0.045% TAKER rate (Binance Futures)
+            'commission_rate': getattr(config, 'BINANCE_TAKER_FEE_PCT', 0.045) / 100  # TAKER rate from config
         }
 
         self.positions[pair] = position

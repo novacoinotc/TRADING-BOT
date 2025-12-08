@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from openai import AsyncOpenAI
 from openai import APIError, RateLimitError, APIConnectionError
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,10 @@ class GPTClient:
         # Rate limiting
         self._last_request_time = None
         self._min_request_interval = 0.1  # 100ms between requests
+
+        # Daily cost limit from config
+        self._daily_cost_limit = getattr(config, 'GPT_MAX_DAILY_COST_USD', 10.0)
+        self._daily_cost_reset_date = datetime.now().date()
 
         # Model pricing (per 1M tokens) - Updated Dec 2024
         self._pricing = {
@@ -111,6 +116,30 @@ class GPTClient:
                 await asyncio.sleep(self._min_request_interval - elapsed)
         self._last_request_time = datetime.now()
 
+    def _check_daily_cost_limit(self) -> bool:
+        """
+        Check if daily cost limit has been reached.
+        Resets counter at midnight.
+
+        Returns:
+            True if under limit, False if limit exceeded
+        """
+        today = datetime.now().date()
+
+        # Reset daily cost if new day
+        if today > self._daily_cost_reset_date:
+            logger.info(f"🔄 Resetting daily GPT cost counter (new day)")
+            self.total_cost = 0.0
+            self._daily_cost_reset_date = today
+
+        if self.total_cost >= self._daily_cost_limit:
+            logger.warning(
+                f"⚠️ Daily GPT cost limit reached: ${self.total_cost:.2f} >= ${self._daily_cost_limit:.2f}"
+            )
+            return False
+
+        return True
+
     def set_models(self, frequent: str, premium: str):
         """
         Configure model routing
@@ -153,6 +182,13 @@ class GPTClient:
             if self._is_cache_valid(cache_entry):
                 logger.debug("Returning cached GPT response")
                 return {**cache_entry["response"], "cached": True}
+
+        # Check daily cost limit (CRÍTICO: prevent runaway API costs)
+        if not self._check_daily_cost_limit():
+            raise Exception(
+                f"Daily GPT cost limit exceeded (${self.total_cost:.2f} >= ${self._daily_cost_limit:.2f}). "
+                f"Increase GPT_MAX_DAILY_COST_USD in config or wait until tomorrow."
+            )
 
         # Apply rate limiting
         await self._rate_limit()
@@ -282,7 +318,8 @@ class GPTClient:
         user_prompt: str,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        json_response: bool = False
+        json_response: bool = False,
+        use_premium: bool = False
     ) -> Dict[str, Any]:
         """
         Simplified analysis request
@@ -293,6 +330,7 @@ class GPTClient:
             temperature: Override temperature
             max_tokens: Override max_tokens
             json_response: Whether to expect JSON
+            use_premium: Whether to use premium model (gpt-5.1) for critical decisions
 
         Returns:
             Response dict
@@ -303,9 +341,30 @@ class GPTClient:
         ]
 
         if json_response:
-            return await self.chat_json(messages, temperature, max_tokens)
+            # For JSON responses, we need to pass use_premium to the underlying chat call
+            response = await self.chat(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                json_mode=True,
+                use_premium=use_premium
+            )
+            try:
+                content = response["content"]
+                parsed = json.loads(content)
+                return {
+                    "data": parsed,
+                    "usage": response["usage"],
+                    "cost": response["cost"],
+                    "cached": response["cached"],
+                    "model_used": response.get("model_used"),
+                    "is_premium": response.get("is_premium", use_premium)
+                }
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {e}")
+                raise
         else:
-            return await self.chat(messages, temperature, max_tokens)
+            return await self.chat(messages, temperature, max_tokens, use_premium=use_premium)
 
     def get_usage_stats(self) -> Dict[str, Any]:
         """Get token usage statistics"""
