@@ -1095,7 +1095,8 @@ class MarketMonitor:
                             logger.debug(f"{pair}: No flash signal detected")
 
         except Exception as e:
-            logger.error(f"Error analyzing {pair}: {e}")
+            import traceback
+            logger.error(f"Error analyzing {pair}: {e}\n{traceback.format_exc()}")
 
     async def monitor_loop(self):
         """
