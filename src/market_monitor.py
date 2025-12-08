@@ -805,7 +805,7 @@ class MarketMonitor:
                         # Decidir si ejecutar trade basado en RL Agent
                         should_execute_trade = rl_decision.get('should_trade', True)
 
-                        # Aplicar parámetros del RL Agent (tamaño, trade_type, leverage)
+                        # Aplicar parámetros del RL Agent/GPT (tamaño, trade_type, leverage, TP/SL)
                         if should_execute_trade and 'position_size_multiplier' in rl_decision:
                             # Pasar el multiplicador a la señal para que ml_system lo use
                             signals['rl_position_multiplier'] = rl_decision['position_size_multiplier']
@@ -813,6 +813,32 @@ class MarketMonitor:
                             # Pasar trade_type y leverage para futuros
                             signals['trade_type'] = rl_decision.get('trade_type', 'FUTURES')  # Default FUTURES
                             signals['leverage'] = rl_decision.get('leverage', 1)  # 1x = sin apalancamiento
+
+                            # ===== CONVERTIR TP/SL DE GPT (porcentajes) A PRECIOS ABSOLUTOS =====
+                            # GPT devuelve take_profit_pct y stop_loss_pct como porcentajes
+                            # Estos deben convertirse a precios absolutos para el position_manager
+                            action = signals.get('action', 'HOLD')
+
+                            # Take Profit (porcentaje -> precio)
+                            tp_pct = rl_decision.get('take_profit_pct', 0)
+                            if tp_pct and tp_pct > 0:
+                                if action == 'BUY':
+                                    gpt_tp_price = current_price * (1 + tp_pct / 100)
+                                else:  # SELL
+                                    gpt_tp_price = current_price * (1 - tp_pct / 100)
+                                signals['take_profit'] = {'tp': gpt_tp_price}
+                                logger.debug(f"GPT TP: {tp_pct}% -> ${gpt_tp_price:.2f}")
+
+                            # Stop Loss (porcentaje -> precio)
+                            sl_pct = rl_decision.get('stop_loss_pct', 0)
+                            if sl_pct and sl_pct > 0:
+                                if action == 'BUY':
+                                    gpt_sl_price = current_price * (1 - sl_pct / 100)
+                                else:  # SELL
+                                    gpt_sl_price = current_price * (1 + sl_pct / 100)
+                                signals['stop_loss'] = gpt_sl_price
+                                logger.debug(f"GPT SL: {sl_pct}% -> ${gpt_sl_price:.2f}")
+                            # ===== FIN CONVERSIÓN TP/SL =====
 
                     # Ejecutar trade solo si RL Agent lo aprueba
                     if should_execute_trade:
@@ -1048,10 +1074,34 @@ class MarketMonitor:
 
                                 should_execute_flash = rl_flash_decision.get('should_trade', True)
 
-                                # Aplicar modificador de tamaño de posición
+                                # Aplicar modificador de tamaño de posición y parámetros GPT
                                 if should_execute_flash and 'position_size_multiplier' in rl_flash_decision:
                                     flash_signals['rl_position_multiplier'] = rl_flash_decision['position_size_multiplier']
                                     flash_signals['rl_action'] = rl_flash_decision.get('chosen_action', 'UNKNOWN')
+                                    flash_signals['trade_type'] = rl_flash_decision.get('trade_type', 'FUTURES')
+                                    flash_signals['leverage'] = rl_flash_decision.get('leverage', 1)
+
+                                    # ===== CONVERTIR TP/SL DE GPT PARA FLASH =====
+                                    flash_action = flash_signals.get('action', 'HOLD')
+
+                                    # Take Profit (porcentaje -> precio)
+                                    flash_tp_pct = rl_flash_decision.get('take_profit_pct', 0)
+                                    if flash_tp_pct and flash_tp_pct > 0:
+                                        if flash_action == 'BUY':
+                                            flash_gpt_tp = flash_price * (1 + flash_tp_pct / 100)
+                                        else:
+                                            flash_gpt_tp = flash_price * (1 - flash_tp_pct / 100)
+                                        flash_signals['take_profit'] = {'tp': flash_gpt_tp}
+
+                                    # Stop Loss (porcentaje -> precio)
+                                    flash_sl_pct = rl_flash_decision.get('stop_loss_pct', 0)
+                                    if flash_sl_pct and flash_sl_pct > 0:
+                                        if flash_action == 'BUY':
+                                            flash_gpt_sl = flash_price * (1 - flash_sl_pct / 100)
+                                        else:
+                                            flash_gpt_sl = flash_price * (1 + flash_sl_pct / 100)
+                                        flash_signals['stop_loss'] = flash_gpt_sl
+                                    # ===== FIN CONVERSIÓN TP/SL FLASH =====
 
                             # Ejecutar flash trade solo si RL Agent lo aprueba
                             if should_execute_flash:

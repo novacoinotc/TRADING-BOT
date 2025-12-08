@@ -685,15 +685,54 @@ Responde en JSON:
         return {}
 
     def _default_approval(self, signal: Dict) -> Dict:
-        """Default approval when GPT is disabled"""
+        """Default approval when GPT is disabled - includes all required fields"""
+        action = signal.get('action', 'HOLD')
         return {
             "success": True,
             "approved": True,
             "decision": {
                 "approved": True,
                 "confidence": signal.get("confidence", 50),
+                "direction": "LONG" if action == "BUY" else "SHORT" if action == "SELL" else "HOLD",
                 "reasoning": "GPT disabled - using system defaults",
-                "position_size": {"recommendation": "FULL", "modifier": 1.0}
+                "is_risky_trade": False,
+                "learning_opportunity": "N/A",
+                "position_size": {
+                    "recommendation": "HALF",
+                    "percentage": 50,
+                    "modifier": 0.5,
+                    "reason": "Default conservative sizing"
+                },
+                "leverage": {
+                    "recommended": 3,
+                    "max_safe": 5,
+                    "reason": "Default conservative leverage"
+                },
+                "risk_management": {
+                    "stop_loss_pct": 1.5,
+                    "take_profit_pct": 2.0,
+                    "trailing_stop": True,
+                    "trailing_distance_pct": 0.5,
+                    "risk_reward_ratio": 1.33,
+                    "liquidation_buffer_pct": 3.0,
+                    "tp_reasoning": "Default TP covering commissions"
+                },
+                "futures_considerations": {
+                    "funding_rate_impact": "NEUTRAL",
+                    "hold_duration": "HOURS",
+                    "liquidation_risk": "LOW"
+                },
+                "timing": {
+                    "urgency": "IMMEDIATE",
+                    "wait_for": None
+                },
+                "overrides": {
+                    "ml": False,
+                    "rl": False,
+                    "override_reason": None
+                },
+                "warnings": [],
+                "alternative_action": None
             }
         }
 

@@ -246,13 +246,39 @@ class Portfolio:
             )
             return None
 
-        # Calcular P&L realizado
+        # Calcular P&L realizado (BRUTO - antes de comisiones)
         if position['side'] == 'BUY':
-            pnl = (exit_price - position['entry_price']) * position['quantity']
-            pnl_pct = ((exit_price / position['entry_price']) - 1) * 100
+            pnl_gross = (exit_price - position['entry_price']) * position['quantity']
         else:  # SELL
-            pnl = (position['entry_price'] - exit_price) * position['quantity']
-            pnl_pct = ((position['entry_price'] / exit_price) - 1) * 100
+            pnl_gross = (position['entry_price'] - exit_price) * position['quantity']
+
+        # ===== DEDUCIR COMISIONES DE BINANCE FUTURES =====
+        # Comisión TAKER: 0.045% por operación (entrada + salida = 0.09%)
+        # Comisión MAKER: 0.018% por operación (entrada + salida = 0.036%)
+        # Usamos TAKER como default (peor caso, órdenes de mercado)
+        commission_rate = position.get('commission_rate', 0.00045)  # 0.045% default
+        position_value = position['entry_price'] * position['quantity']
+        exit_value_gross = exit_price * position['quantity']
+
+        # Comisión de entrada (sobre valor de entrada)
+        entry_commission = position_value * commission_rate
+        # Comisión de salida (sobre valor de salida)
+        exit_commission = exit_value_gross * commission_rate
+        # Total comisiones
+        total_commission = entry_commission + exit_commission
+
+        # P&L NETO (después de comisiones)
+        pnl = pnl_gross - total_commission
+
+        # Calcular porcentaje sobre el capital usado
+        pnl_pct = (pnl / position_value) * 100 if position_value > 0 else 0
+
+        # Log de comisiones para transparencia
+        logger.debug(
+            f"📊 P&L {pair}: Bruto=${pnl_gross:.2f}, Comisiones=${total_commission:.2f}, "
+            f"Neto=${pnl:.2f} ({pnl_pct:.2f}%)"
+        )
+        # ===== FIN COMISIONES =====
 
         # VALIDACIÓN CRÍTICA: Verificar que P&L es válido después del cálculo
         if math.isnan(pnl) or math.isinf(pnl):
