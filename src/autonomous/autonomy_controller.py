@@ -326,12 +326,24 @@ class AutonomyController:
             logger.info("🧠 Restaurando ML Training Buffer...")
 
             try:
-                if 'ml_training_buffer' in state:
+                if 'ml_training_buffer' in state and state['ml_training_buffer']:
                     buffer = state['ml_training_buffer']
-                    if hasattr(self, 'ml_integration') and self.ml_integration:
-                        # Código existente para restaurar ML buffer
-                        pass
-                    logger.info(f"  ✅ Training buffer restaurado: {len(buffer)} features")
+                    # Verificar que tengamos acceso al ml_system via market_monitor
+                    if hasattr(self, 'market_monitor') and self.market_monitor:
+                        if hasattr(self.market_monitor, 'ml_system') and self.market_monitor.ml_system:
+                            ml_system = self.market_monitor.ml_system
+                            ml_system.training_buffer = buffer
+                            # Crear mapa de features importadas para fallback
+                            for record in buffer:
+                                if 'trade_id' in record and 'features' in record:
+                                    ml_system.imported_features[record['trade_id']] = record['features']
+                            logger.info(f"  ✅ Training buffer restaurado: {len(buffer)} features")
+                        else:
+                            logger.warning("  ⚠️ ml_system no disponible para restaurar training buffer")
+                    else:
+                        logger.warning("  ⚠️ market_monitor no disponible para restaurar training buffer")
+                else:
+                    logger.debug("  ℹ️ No hay ml_training_buffer en el estado")
             except Exception as e:
                 logger.warning(f"⚠️ Error restaurando ML buffer: {e}")
 
