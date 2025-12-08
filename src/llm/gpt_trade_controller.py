@@ -318,7 +318,6 @@ Responde ÚNICAMENTE en JSON válido conforme al esquema."""
                     "position_size": {
                         "recommendation": "HALF",
                         "percentage": 50,
-                        "modifier": 0.5,
                         "reason": "Conservative fallback due to GPT error"
                     },
                     "leverage": {
@@ -747,7 +746,6 @@ Responde SOLO en JSON válido."""
                 "position_size": {
                     "recommendation": "HALF",
                     "percentage": 50,
-                    "modifier": 0.5,
                     "reason": "Default conservative sizing"
                 },
                 "leverage": {
