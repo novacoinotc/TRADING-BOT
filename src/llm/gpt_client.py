@@ -185,15 +185,18 @@ class GPTClient:
 
         Models that DON'T support custom temperature (only default 1.0):
         - o1, o1-mini, o1-preview (reasoning-only models)
+        - gpt-5-mini, gpt-5.1 (GPT-5 family) - confirmed via API error
 
         Models that DO support custom temperature (0.0-2.0):
-        - gpt-5-mini, gpt-5.1 (GPT-5 family)
         - gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
         """
-        # Only o1 reasoning models don't support temperature
+        # Reasoning models and GPT-5 don't support custom temperature
         if self._is_reasoning_model(model):
             return False
-        # GPT-5, GPT-4 and all other models support custom temperature
+        # GPT-5 models also don't support custom temperature
+        if self._is_gpt5_model(model):
+            return False
+        # GPT-4 and older models support custom temperature
         return True
 
     def _is_gpt5_model(self, model: str) -> bool:
@@ -257,16 +260,14 @@ class GPTClient:
             request_body["reasoning"] = {"effort": reasoning_effort}
 
         # Add JSON schema using text.format for /v1/responses
-        # CORRECT structure: text.format = {type: "json_schema", schema: {...}}
+        # CORRECT structure: text.format = {type, name, strict, schema}
         if json_schema:
             request_body["text"] = {
                 "format": {
                     "type": "json_schema",
-                    "schema": {
-                        "name": json_schema.get("name", "response"),
-                        "strict": json_schema.get("strict", True),
-                        "schema": json_schema.get("schema", json_schema)
-                    }
+                    "name": json_schema.get("name", "response"),
+                    "strict": json_schema.get("strict", True),
+                    "schema": json_schema.get("schema", json_schema)
                 }
             }
 
