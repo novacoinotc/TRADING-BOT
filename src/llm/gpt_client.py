@@ -202,14 +202,27 @@ class GPTClient:
         params = {
             "model": selected_model,
             "messages": messages,
-            "temperature": temperature if temperature is not None else self.temperature,
         }
+
+        # Reasoning models (o1, o1-mini, o1-preview) do NOT support custom temperature
+        # They only accept the default value (1). For these models, omit temperature entirely.
+        # GPT-5 and GPT-4o models DO support temperature (0.0-1.0)
+        reasoning_models = ['o1', 'o1-mini', 'o1-preview']
+        model_lower = selected_model.lower()
+
+        is_reasoning_model = any(rm == model_lower or model_lower.startswith(f"{rm}-") for rm in reasoning_models)
+
+        if not is_reasoning_model:
+            # Normal models support temperature
+            params["temperature"] = temperature if temperature is not None else self.temperature
+        else:
+            logger.debug(f"Reasoning model {selected_model} detected - omitting temperature parameter")
 
         # Use max_completion_tokens for newer models (gpt-4o, o1, etc.), max_tokens for legacy
         # OpenAI changed the parameter name for newer models
         tokens_value = max_tokens if max_tokens is not None else self.max_tokens
         newer_models = ['gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini', 'o1-preview', 'gpt-4-turbo', 'gpt-5', 'chatgpt-4o']
-        if any(model in selected_model.lower() for model in newer_models):
+        if any(model in model_lower for model in newer_models):
             params["max_completion_tokens"] = tokens_value
         else:
             params["max_tokens"] = tokens_value
