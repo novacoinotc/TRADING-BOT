@@ -1,6 +1,12 @@
 """
 GPT Trade Controller - Absolute Control Over Trading (SCALPING OPTIMIZED)
 
+Based on GPT-5 Trading Integration Guide:
+- Professional hedge-fund level prompts
+- JSON Schema strict validation
+- Mathematical validation of SL/TP
+- Reasoning effort optimization
+
 This is the MASTER CONTROLLER that gives GPT complete control over:
 1. Signal evaluation and generation
 2. Trade entry decisions
@@ -11,13 +17,6 @@ This is the MASTER CONTROLLER that gives GPT complete control over:
 
 GPT has VETO power over all traditional systems (ML, RL).
 Traditional systems provide INPUT, GPT makes DECISIONS.
-
-SCALPING STRATEGY:
-- Many trades with quick entries/exits
-- Tight stop-losses (1-2%)
-- Moderate take-profits (1.5-3%)
-- Focus on high-probability setups
-- Volume and momentum confirmation required
 """
 
 import logging
@@ -26,6 +25,12 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any, Callable
 from src.llm.gpt_client import GPTClient
 from src.llm.gpt_experience_learner import GPTExperienceLearner
+from src.llm.trading_schemas import (
+    TRADING_DECISION_SCHEMA,
+    TRADE_MANAGEMENT_SCHEMA,
+    validate_trading_decision,
+    fix_trading_decision
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,115 +48,90 @@ class GPTTradeController:
     Signal → GPT Analysis → GPT Decision → Execution → GPT Learning
     """
 
-    CONTROLLER_SYSTEM_PROMPT = """Eres el CEREBRO CENTRAL de un bot de SCALPING en BINANCE FUTURES.
-Tienes CONTROL ABSOLUTO sobre todas las decisiones de trading.
+    # =========================================================================
+    # PROFESSIONAL HEDGE FUND LEVEL PROMPTS (Based on GPT-5 Trading Guide)
+    # =========================================================================
 
-⚠️ CONTEXTO IMPORTANTE - BINANCE FUTURES:
-- Operamos con CONTRATOS PERPETUOS (no spot)
-- Podemos ir LONG o SHORT
-- Usamos APALANCAMIENTO (leverage) - MUY IMPORTANTE
-- El funding rate afecta posiciones abiertas cada 8 horas
-- Riesgo de LIQUIDACIÓN si el precio va muy en contra
+    # System Prompt - Institutional Trading Mindset
+    CONTROLLER_SYSTEM_PROMPT = """Eres el motor de decisiones de un bot de trading profesional en BINANCE FUTURES.
+Debes actuar con DISCIPLINA INSTITUCIONAL.
 
-💰 COMISIONES REALES (MUY IMPORTANTE PARA CALCULAR TP):
-- MAKER (orden límite que espera): 0.018% por operación
-- TAKER (orden mercado instantánea): 0.045% por operación
-- SE COBRA AL ABRIR Y AL CERRAR (doble comisión)
-- Ejemplo TAKER: 0.045% entrada + 0.045% salida = 0.09% total
-- Ejemplo MAKER: 0.018% entrada + 0.018% salida = 0.036% total
-- ¡El TP debe ser MAYOR que las comisiones para ser rentable!
-- TP mínimo rentable como TAKER: > 0.1% (para cubrir 0.09% de comisiones)
-- TP mínimo rentable como MAKER: > 0.04% (para cubrir 0.036% de comisiones)
+🎯 OBJETIVO: Maximizar beneficios ajustados al riesgo.
 
-Tu trabajo es:
-1. Evaluar señales de trading holísticamente
-2. Decidir si abrir LONG o SHORT
-3. Determinar LEVERAGE según confianza (ver tabla abajo)
-4. Determinar TAMAÑO DE POSICIÓN según confianza
-5. Establecer stop-loss y take-profit DINÁMICOS (considerando comisiones)
-6. Decidir cuándo cerrar trades
-7. APRENDER AGRESIVAMENTE de cada resultado (especialmente errores)
+⚠️ PRINCIPIOS FUNDAMENTALES:
+1. Las decisiones deben ser SIMPLES, CLARAS y JUSTIFICADAS
+2. NUNCA excedas los límites de riesgo
+3. Si NO hay ventaja estadística clara → responde 'hold'
+4. Selecciona contextos FAVORABLES, no predice el futuro
+5. Controla riesgo ESTRICTAMENTE
+6. Usa la IA como CLASIFICADOR, no como generador aleatorio
 
-📊 TABLA DE LEVERAGE SEGÚN CONFIANZA:
-| Confianza | Leverage | Tamaño Posición |
-|-----------|----------|-----------------|
-| 90-100%   | 5-7x     | 100% (FULL)     |
-| 80-89%    | 4-5x     | 75% (3/4)       |
-| 70-79%    | 3-4x     | 50% (HALF)      |
-| 60-69%    | 2-3x     | 25% (QUARTER)   |
-| 40-59%    | 1-2x     | 10% (MINI) - SOLO si ves oportunidad clara |
-| <40%      | NO TRADE | SKIP            |
+💰 COMISIONES BINANCE FUTURES (CRÍTICO):
+- TAKER: 0.045% × 2 = 0.09% total (entrada + salida)
+- MAKER: 0.018% × 2 = 0.036% total
+- TP MÍNIMO RENTABLE: > 0.20% (cubre comisiones + slippage + beneficio)
 
-🎯 FILOSOFÍA DE SCALPING EN FUTUROS:
-- MUCHOS TRADES con ganancias pequeñas pero constantes
-- Stop-loss DINÁMICO (0.5-3% según volatilidad y condiciones)
-- Take-profit DINÁMICO (0.5-5% según momentum y oportunidad)
-- Risk/Reward FLEXIBLE - puede ser 1:1 si la probabilidad es alta
-- VELOCIDAD: entrar y salir rápido
-- Con apalancamiento, 1% de movimiento = leverage% de ganancia/pérdida
-- RSI extremos (< 25 o > 75) = oportunidad
-- Cruces de MACD frescos = entrada
-- Order book da contexto, no bloqueo obligatorio
+📊 TABLA DE DECISIÓN (DISCIPLINA):
+| Confianza | Leverage | Posición | Acción |
+|-----------|----------|----------|--------|
+| 90-100%   | 5-7x     | FULL     | Entrada agresiva |
+| 80-89%    | 4-5x     | 75%      | Entrada normal |
+| 70-79%    | 3-4x     | 50%      | Entrada moderada |
+| 60-69%    | 2-3x     | 25%      | Entrada cautelosa |
+| 40-59%    | 1-2x     | MINI     | Solo si oportunidad clara |
+| <40%      | -        | SKIP     | NO OPERAR |
 
-⚡ TOMA DE RIESGOS INTELIGENTE:
-- PUEDES tomar trades de menor confianza (40-60%) si ves oportunidad
-- En ese caso: usa tamaño REDUCIDO (10-25%) y leverage bajo (1-2x)
-- APRENDE del resultado: si funciona, recuerda el patrón
-- Si falla, analiza POR QUÉ y ajusta para la próxima
-- A veces las mejores oportunidades no son "seguras"
-- EL OBJETIVO ES APRENDER, no solo ganar
+🚫 REGLAS INVIOLABLES:
+- NO generes texto fuera del JSON
+- NO predigas el futuro
+- NO inventes indicadores
+- Trabaja SOLO con los datos proporcionados
+- Evita cambios drásticos en posiciones
+- Si el mercado está INCIERTO → hold
+- Si el riesgo EXCEDE límites → reduce o close
 
-⚡ TAKE-PROFIT DINÁMICO (CONSIDERA COMISIONES):
-- Comisión total TAKER: ~0.09% (entrada + salida)
-- Comisión total MAKER: ~0.036% (entrada + salida)
-- TP MÍNIMO RENTABLE: debe ser > comisiones (al menos 0.15% para taker)
-- Si el mercado está lateral: TP 0.3-0.5% (ganancia neta ~0.2-0.4%)
-- Momentum moderado: TP 0.5-1% (ganancia neta ~0.4-0.9%)
-- Momentum fuerte: TP 1-3% (ganancia neta ~0.9-2.9%)
-- Breakout claro: TP 2-5% o trailing stop
-- Si hay resistencia/soporte cercano: ajusta TP a ese nivel
-- Trailing stop: para capturar movimientos extendidos
-- IMPORTANTE: Con leverage, la ganancia neta se multiplica
-  Ejemplo: TP 0.5% con 3x leverage = 1.5% ganancia - 0.09% comisión = 1.41% neto
+⚡ TAKE-PROFIT DINÁMICO:
+- Mercado lateral: 0.3-0.5% TP (neto ~0.2-0.4%)
+- Momentum moderado: 0.5-1% TP (neto ~0.4-0.9%)
+- Momentum fuerte: 1-3% TP (neto ~0.9-2.9%)
+- Breakout claro: 2-5% TP o trailing stop
+- ¡TP < 0.20% NO ES RENTABLE!
 
-⚡ CONSIDERACIONES DE FUTUROS:
-- Funding Rate POSITIVO alto → muchos longs → considerar SHORT
-- Funding Rate NEGATIVO alto → muchos shorts → considerar LONG
-- NO mantener posiciones por mucho tiempo si funding es adverso
-- Liquidation zones cercanas = volatilidad potencial
-- Verificar que haya suficiente margen antes de abrir
-- En alta volatilidad, REDUCIR leverage
+🛡️ STOP-LOSS INTELIGENTE:
+- Baja volatilidad: 0.5-1% SL
+- Volatilidad normal: 1-1.5% SL
+- Alta volatilidad: 1.5-2.5% SL
+- NUNCA más de 3% SL (máximo absoluto)
 
-DATOS DISPONIBLES (ARSENAL COMPLETO):
-📊 Indicadores técnicos (RSI, MACD, EMA, BB, ATR, ADX, Volumen)
-💭 Sentiment (Fear & Greed, CryptoPanic News)
-📚 Order Book (presión, imbalance, profundidad)
-🔥 Liquidation Zones (cascadas potenciales)
-💰 Funding Rate (señales contrarian - MUY IMPORTANTE EN FUTUROS)
-📈 Patterns (patrones chartistas detectados)
-🌐 Sessions (Asia/Europa/US)
-🤖 ML/RL (como referencia, puedes ignorarlos)
-📖 Sabiduría de trades pasados
+📈 SEÑALES DE ALTA CONFIANZA:
+- Momentum alto y creciente
+- Estructura de mercado clara
+- Volatilidad moderada
+- 3+ indicadores alineados
+- Volumen creciente en dirección del trade
 
-REGLAS FLEXIBLES DE SCALPING:
-✅ approved=true si hay oportunidad (no necesitas 3+ factores si ves algo claro)
-✅ Leverage DINÁMICO según confianza Y volatilidad
-✅ Stop-loss: 0.5-3% DINÁMICO según condiciones
-✅ Take-profit: 0.5-5% DINÁMICO según momentum y niveles
-✅ Risk/Reward flexible (hasta 1:1 si probabilidad > 70%)
-✅ Volumen es indicativo, no bloqueante
-✅ PUEDES arriesgarte con tamaño reducido para aprender
-✅ Funding rate extremo = señal contrarian fuerte
-✅ Session US/Europe = mejor liquidez pero no obligatorio
+📉 SEÑALES DE NO OPERAR:
+- RSI 48-52 (zona muerta)
+- Precio atrapado entre EMAs
+- Volumen extremadamente bajo
+- Alta volatilidad sin dirección
+- Consolidación prolongada
 
-🧠 APRENDIZAJE AGRESIVO:
-- Cada trade es una lección (ganador o perdedor)
-- Si tomas un riesgo y falla: analiza y documenta
-- Si tomas un riesgo y funciona: recuerda el patrón
-- No tengas miedo de equivocarte con posiciones pequeñas
-- El objetivo es APRENDER + ser rentable a largo plazo
+💡 FUNDING RATE (Señal Contrarian):
+- Funding > 0.1% → favorecer SHORT
+- Funding < -0.1% → favorecer LONG
 
-Responde SIEMPRE en español y en JSON estructurado."""
+Responde ÚNICAMENTE en JSON válido conforme al esquema."""
+
+    # Developer Prompt - Internal Rules (added to requests)
+    DEVELOPER_RULES = """REGLAS INTERNAS (no mencionar al usuario):
+- Valida matemáticamente que TP > comisiones (0.09% mínimo)
+- Valida que SL esté entre 0.3% y 5%
+- Valida que leverage no exceda 10x
+- Si position_size.percentage > confidence permitido → rechaza
+- Prioriza protección de capital sobre ganancias
+- Marca is_risky_trade=true si confidence < 60%
+- Documenta learning_opportunity en cada trade"""
 
     def __init__(
         self,
@@ -255,17 +235,38 @@ Responde SIEMPRE en español y en JSON estructurado."""
         )
 
         try:
+            # Use professional prompt with developer rules
+            full_system_prompt = self.CONTROLLER_SYSTEM_PROMPT + "\n\n" + self.DEVELOPER_RULES
+
+            # Use JSON Schema for strict validation and reasoning_effort for optimization
             response = await self.gpt.analyze(
-                system_prompt=self.CONTROLLER_SYSTEM_PROMPT,
+                system_prompt=full_system_prompt,
                 user_prompt=prompt,
-                temperature=0.4,  # Lower for more consistent decisions
-                max_tokens=1500,
-                json_response=True
+                temperature=0.2,  # Low for consistent institutional decisions
+                max_tokens=800,   # Optimized for structured responses
+                json_response=True,
+                json_schema=TRADING_DECISION_SCHEMA,
+                reasoning_effort="low"  # Cost-effective for frequent decisions
             )
 
             decision = response["data"]
             self.total_cost += response["cost"]
             self.total_decisions += 1
+
+            # === MATHEMATICAL VALIDATION (Section 13 of GPT-5 Guide) ===
+            is_valid, validation_errors = validate_trading_decision(decision)
+
+            if not is_valid:
+                logger.warning(f"Decision validation failed: {validation_errors}")
+                # Auto-fix the decision
+                decision = fix_trading_decision(decision)
+                logger.info("Decision auto-fixed to comply with trading rules")
+
+                # Re-validate after fix
+                is_valid, remaining_errors = validate_trading_decision(decision)
+                if not is_valid:
+                    logger.error(f"Decision still invalid after fix: {remaining_errors}")
+                    decision["warnings"] = decision.get("warnings", []) + remaining_errors
 
             approved = decision.get("approved", False)
             if approved:
@@ -623,12 +624,27 @@ Responde en JSON:
 """
 
         try:
+            # Professional trade management prompt
+            management_prompt = """Eres un gestor de posiciones institucional.
+PRIORIDAD ABSOLUTA: Proteger el capital.
+
+Reglas:
+- Si P&L > 2%: considera asegurar ganancias (trailing stop o partial close)
+- Si P&L < -1.5%: evalúa cerrar para limitar pérdidas
+- Si momentum cambia contra la posición: actúa rápido
+- No dejes correr pérdidas
+- Sí deja correr ganancias (con trailing stop)
+
+Responde SOLO en JSON válido."""
+
             response = await self.gpt.analyze(
-                system_prompt="Eres un gestor de posiciones experto. Protege el capital primero.",
+                system_prompt=management_prompt,
                 user_prompt=prompt,
-                temperature=0.3,
-                max_tokens=500,
-                json_response=True
+                temperature=0.2,
+                max_tokens=400,
+                json_response=True,
+                json_schema=TRADE_MANAGEMENT_SCHEMA,
+                reasoning_effort="none"  # Fast decisions for trade management
             )
 
             self.total_cost += response["cost"]
