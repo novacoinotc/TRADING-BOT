@@ -159,6 +159,28 @@ class AutonomyController:
         else:
             return 20
 
+    def _gpt_size_to_multiplier(self, size_recommendation: str) -> float:
+        """
+        Convierte la recomendación de tamaño de GPT a un multiplicador
+
+        GPT recomienda: FULL, THREE_QUARTER, HALF, QUARTER, SKIP
+        Retorna multiplicador para position sizing
+
+        Args:
+            size_recommendation: Recomendación de GPT (FULL/THREE_QUARTER/HALF/QUARTER/SKIP)
+
+        Returns:
+            Multiplicador (0.0 - 1.0)
+        """
+        size_map = {
+            'FULL': 1.0,
+            'THREE_QUARTER': 0.75,
+            'HALF': 0.5,
+            'QUARTER': 0.25,
+            'SKIP': 0.0,
+        }
+        return size_map.get(size_recommendation.upper(), 0.5)  # Default HALF si no reconoce
+
     async def _restore_from_state(self, state: Dict, force: bool = False):
         """
         Restaura estado completo desde archivo de inteligencia
@@ -343,7 +365,12 @@ class AutonomyController:
         portfolio_metrics: Dict
     ) -> Dict:
         """
-        Evalúa si abrir un trade usando RL Agent ANTES de ejecutarlo
+        Evalúa si abrir un trade usando GPT (control absoluto) + RL Agent (advisory)
+
+        FLUJO DE DECISIÓN:
+        1. RL Agent proporciona recomendación (advisory)
+        2. GPT Trade Controller toma la DECISIÓN FINAL (absolute control)
+        3. Se usan leverage, position size, SL/TP de GPT
 
         Args:
             pair: Par de trading
@@ -352,7 +379,7 @@ class AutonomyController:
             portfolio_metrics: Métricas del portfolio
 
         Returns:
-            Dict con decisión del RL Agent
+            Dict con decisión (GPT si disponible, RL como fallback)
         """
         if not self.active:
             # Si autonomy no está activo, permitir el trade
@@ -443,17 +470,140 @@ class AutonomyController:
             # Calcular max leverage permitido
             max_leverage = self._calculate_max_leverage()
 
-            # RL Agent decide si abrir trade (pasando max_leverage)
-            decision = self.rl_agent.decide_trade_action(market_data, max_leverage=max_leverage)
+            # RL Agent proporciona recomendación (ADVISORY - GPT puede ignorarla)
+            rl_decision = self.rl_agent.decide_trade_action(market_data, max_leverage=max_leverage)
 
             logger.info(
-                f"🤖 RL Evaluation para {pair}: "
-                f"{decision['chosen_action']} | "
-                f"Trade: {'✅' if decision['should_trade'] else '❌'} | "
-                f"Size: {decision['position_size_multiplier']:.1f}x"
+                f"🤖 RL Advisory para {pair}: "
+                f"{rl_decision['chosen_action']} | "
+                f"Trade: {'✅' if rl_decision['should_trade'] else '❌'} | "
+                f"Size: {rl_decision['position_size_multiplier']:.1f}x"
             )
 
-            return decision
+            # ========================================
+            # GPT TRADE CONTROLLER - DECISIÓN FINAL
+            # ========================================
+            # GPT tiene CONTROL ABSOLUTO - puede aprobar, rechazar o modificar
+            # la decisión del RL Agent
+
+            if hasattr(self, 'gpt_brain') and self.gpt_brain:
+                try:
+                    # Obtener lista de posiciones abiertas
+                    open_positions = []
+                    if hasattr(self, 'portfolio') and self.portfolio:
+                        open_positions = [p.get('pair') for p in self.portfolio.get_open_positions()]
+
+                    # Preparar datos para GPT
+                    indicators = {
+                        'current_price': market_state.get('current_price', 0),
+                        'rsi': market_state.get('rsi', 50),
+                        'macd': market_state.get('macd', 0),
+                        'macd_signal': market_state.get('macd_signal', 0),
+                        'macd_histogram': market_state.get('macd_histogram', 0),
+                        'ema_9': market_state.get('ema_9', 0),
+                        'ema_21': market_state.get('ema_21', 0),
+                        'ema_50': market_state.get('ema_50', 0),
+                        'atr': market_state.get('atr', 0),
+                        'adx': market_state.get('adx', 0),
+                        'volume_ratio': market_state.get('volume_ratio', 1),
+                        'bb_upper': market_state.get('bb_upper', 0),
+                        'bb_lower': market_state.get('bb_lower', 0),
+                        'bb_middle': market_state.get('bb_middle', 0),
+                    }
+
+                    sentiment_data = {
+                        'fear_greed_index': market_state.get('fear_greed', 50) / 100,
+                        'fear_greed_label': market_state.get('fear_greed_label', 'Neutral'),
+                        'news_sentiment_overall': market_state.get('news_sentiment', 0.5),
+                        'high_impact_news_count': market_state.get('high_impact_news', 0),
+                    }
+
+                    orderbook_data = {
+                        'market_pressure': market_state.get('market_pressure', 'NEUTRAL'),
+                        'imbalance': market_state.get('orderbook_imbalance', 0),
+                        'depth_score': market_state.get('orderbook_depth_score', 50),
+                    }
+
+                    regime_data = {
+                        'regime': market_state.get('regime', 'SIDEWAYS'),
+                        'regime_strength': market_state.get('regime_strength', 'MEDIUM'),
+                        'volatility': market_state.get('volatility_regime', 'NORMAL'),
+                    }
+
+                    # RL recommendation como input para GPT
+                    rl_recommendation = {
+                        'action': rl_decision.get('chosen_action', 'HOLD'),
+                        'q_value': rl_decision.get('q_value', 0),
+                        'is_exploration': rl_decision.get('is_exploration', False),
+                    }
+
+                    # GPT toma la DECISIÓN FINAL
+                    gpt_result = await self.gpt_brain.trade_controller.evaluate_signal(
+                        pair=pair,
+                        signal=signal,
+                        indicators=indicators,
+                        sentiment_data=sentiment_data,
+                        orderbook_data=orderbook_data,
+                        regime_data=regime_data,
+                        ml_prediction=None,  # ML prediction si está disponible
+                        rl_recommendation=rl_recommendation,
+                        portfolio=portfolio_metrics,
+                        open_positions=open_positions
+                    )
+
+                    if gpt_result.get('success'):
+                        gpt_decision = gpt_result.get('decision', {})
+                        approved = gpt_decision.get('approved', False)
+
+                        # Construir decisión final basada en GPT
+                        final_decision = {
+                            'should_trade': approved,
+                            'action': 'OPEN' if approved else 'SKIP',
+                            'chosen_action': 'GPT_APPROVED' if approved else 'GPT_REJECTED',
+
+                            # Position sizing de GPT
+                            'position_size_multiplier': self._gpt_size_to_multiplier(
+                                gpt_decision.get('position_size', {}).get('recommendation', 'HALF')
+                            ),
+
+                            # Leverage de GPT
+                            'leverage': gpt_decision.get('leverage', {}).get('recommended', 3),
+                            'max_leverage': gpt_decision.get('leverage', {}).get('max_safe', 5),
+
+                            # Risk management de GPT
+                            'stop_loss_pct': gpt_decision.get('risk_management', {}).get('stop_loss_pct', 1.5),
+                            'take_profit_pct': gpt_decision.get('risk_management', {}).get('take_profit_pct', 2.5),
+                            'trailing_stop': gpt_decision.get('risk_management', {}).get('trailing_stop', True),
+
+                            # Metadata
+                            'confidence': gpt_decision.get('confidence', 0),
+                            'direction': gpt_decision.get('direction', 'LONG'),
+                            'reasoning': gpt_decision.get('reasoning', ''),
+                            'source': 'GPT_ABSOLUTE_CONTROL',
+
+                            # RL info (para referencia)
+                            'rl_recommendation': rl_decision.get('chosen_action'),
+                            'rl_overridden': rl_decision.get('should_trade') != approved,
+                        }
+
+                        # Log decisión de GPT
+                        override_msg = " (RL OVERRIDE)" if final_decision['rl_overridden'] else ""
+                        logger.info(
+                            f"🧠 GPT DECISION para {pair}: "
+                            f"{'✅ APPROVED' if approved else '❌ REJECTED'}{override_msg} | "
+                            f"Confidence: {final_decision['confidence']}% | "
+                            f"Leverage: {final_decision['leverage']}x | "
+                            f"Size: {final_decision['position_size_multiplier']:.0%}"
+                        )
+
+                        return final_decision
+
+                except Exception as e:
+                    logger.warning(f"⚠️ GPT evaluation failed, using RL fallback: {e}")
+                    # Fallback a RL si GPT falla
+
+            # Si GPT no está disponible o falló, usar RL decision
+            return rl_decision
 
         except Exception as e:
             logger.error(f"❌ Error en evaluate_trade_opportunity: {e}", exc_info=True)
