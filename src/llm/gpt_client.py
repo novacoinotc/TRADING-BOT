@@ -350,6 +350,12 @@ class GPTClient:
                     except (IndexError, KeyError, TypeError) as e:
                         logger.warning(f"Could not extract content from legacy format: {e}")
 
+                # Validate content is not empty
+                if not content or content.strip() == "":
+                    logger.error(f"❌ /v1/responses returned empty content. Data keys: {data.keys()}")
+                    logger.error(f"   Output: {output}")
+                    raise Exception("GPT /v1/responses returned empty content")
+
                 usage = data.get("usage", {})
                 prompt_tokens = usage.get("input_tokens", usage.get("prompt_tokens", 0))
                 completion_tokens = usage.get("output_tokens", usage.get("completion_tokens", 0))
@@ -502,6 +508,12 @@ class GPTClient:
                 response = await self.client.chat.completions.create(**params)
 
                 content = response.choices[0].message.content
+
+                # Validate content is not None/empty
+                if content is None or content.strip() == "":
+                    logger.error(f"❌ GPT returned empty/None content. Response: {response}")
+                    raise Exception("GPT returned empty response content")
+
                 usage = response.usage
 
                 self.total_prompt_tokens += usage.prompt_tokens
