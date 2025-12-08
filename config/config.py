@@ -380,18 +380,18 @@ ENABLE_GPT_BRAIN = os.getenv('ENABLE_GPT_BRAIN', 'true').lower() == 'true'
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 
 # ============================================================================
-# GPT MODEL SELECTION - Cost Optimization Strategy
+# GPT MODEL SELECTION - Cost Optimization Strategy (GPT-5)
 # ============================================================================
 # Modelo FRECUENTE (95% de llamadas) - Para decisiones rápidas de trading
-# gpt-4o-mini es económico y rápido para decisiones frecuentes
-GPT_MODEL_FREQUENT = os.getenv('GPT_MODEL_FREQUENT', 'gpt-4o-mini')
+# gpt-5-mini es económico y rápido para decisiones frecuentes
+GPT_MODEL_FREQUENT = os.getenv('GPT_MODEL_FREQUENT', 'gpt-5-mini')
 
 # Modelo PREMIUM (5% de llamadas) - Para análisis profundo y crítico
-# gpt-4o es más potente para análisis complejos
-GPT_MODEL_PREMIUM = os.getenv('GPT_MODEL_PREMIUM', 'gpt-4o')
+# gpt-5.1 es más potente para análisis complejos y críticos
+GPT_MODEL_PREMIUM = os.getenv('GPT_MODEL_PREMIUM', 'gpt-5.1')
 
-# Modelo por defecto (si no se especifica en .env, usa gpt-4o-mini)
-GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o-mini')
+# Modelo por defecto
+GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-5-mini')
 
 # Cuándo usar modelo PREMIUM automáticamente:
 GPT_USE_PREMIUM_FOR_LOSING_STREAK = os.getenv('GPT_USE_PREMIUM_FOR_LOSING_STREAK', 'true').lower() == 'true'

@@ -83,26 +83,28 @@ class GPTClient:
 
         # Model pricing (per 1M tokens) - Updated Dec 2024
         self._pricing = {
-            # GPT-4 Models (Primary - use these)
+            # GPT-5 Models (Latest - recommended for trading)
+            "gpt-5-mini": {"input": 0.20, "output": 0.80},
+            "gpt-5.1": {"input": 5.00, "output": 15.00},
+            # GPT-4 Models (Legacy)
             "gpt-4o": {"input": 2.50, "output": 10.00},
             "gpt-4o-mini": {"input": 0.15, "output": 0.60},
             "gpt-4-turbo": {"input": 10.00, "output": 30.00},
             "gpt-4": {"input": 30.00, "output": 60.00},
             "gpt-3.5-turbo": {"input": 0.50, "output": 1.50},
-            # Reasoning models (NO temperature support!)
+            # Reasoning models (NO temperature support - only default 1.0!)
             "o1": {"input": 15.00, "output": 60.00},
             "o1-mini": {"input": 3.00, "output": 12.00},
             "o1-preview": {"input": 15.00, "output": 60.00},
         }
 
         # Model routing: frequent (cheap) vs premium (powerful)
-        # Use gpt-4o-mini for frequent calls (cheap), gpt-4o for premium (smart)
+        # gpt-5-mini for 95% of calls (economical), gpt-5.1 for critical analysis
         self.model_frequent = model
-        self.model_premium = "gpt-4o"  # Use gpt-4o as premium (exists and is powerful)
+        self.model_premium = "gpt-5.1"
 
-        # Endpoint preference - use standard /v1/chat/completions
-        # The /v1/responses endpoint is not yet available in OpenAI API
-        self.use_responses_endpoint = False
+        # Endpoint preference - use /v1/responses for GPT-5 models
+        self.use_responses_endpoint = True
 
         logger.info(f"GPT Client initialized with model: {model} (temperature={temperature})")
 
@@ -130,8 +132,8 @@ class GPTClient:
                 pricing = self._pricing[model_key]
                 break
         if not pricing:
-            # Default to gpt-4o-mini pricing as fallback
-            pricing = self._pricing.get("gpt-4o-mini", {"input": 0.15, "output": 0.60})
+            # Default to gpt-5-mini pricing as fallback
+            pricing = self._pricing.get("gpt-5-mini", {"input": 0.20, "output": 0.80})
 
         input_cost = (prompt_tokens / 1_000_000) * pricing["input"]
         output_cost = (completion_tokens / 1_000_000) * pricing["output"]
@@ -162,15 +164,31 @@ class GPTClient:
         return True
 
     def _is_reasoning_model(self, model: str) -> bool:
-        """Check if model is a reasoning model (o1 family)"""
+        """Check if model is a reasoning model (o1 family) - these only support temperature=1.0"""
         reasoning_models = ['o1', 'o1-mini', 'o1-preview']
         model_lower = model.lower()
         return any(rm == model_lower or model_lower.startswith(f"{rm}-") for rm in reasoning_models)
 
+    def _supports_temperature(self, model: str) -> bool:
+        """
+        Check if model supports custom temperature values.
+
+        Models that DON'T support custom temperature (only default 1.0):
+        - o1, o1-mini, o1-preview (reasoning models)
+
+        Models that DO support custom temperature (0.0-2.0):
+        - gpt-5-mini, gpt-5.1, gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
+        """
+        # Reasoning models only support default temperature (1.0)
+        if self._is_reasoning_model(model):
+            return False
+        # All other models (GPT-5, GPT-4, etc.) support custom temperature
+        return True
+
     def _is_gpt5_model(self, model: str) -> bool:
-        """Check if model is GPT-5 family (not yet available)"""
-        # GPT-5 is not yet released - this returns False for now
-        return False
+        """Check if model is GPT-5 family (supports /v1/responses endpoint)"""
+        model_lower = model.lower()
+        return 'gpt-5' in model_lower or 'gpt5' in model_lower
 
     def set_models(self, frequent: str, premium: str):
         """Configure model routing"""
@@ -395,19 +413,21 @@ class GPTClient:
         }
 
         model_lower = selected_model.lower()
-        is_reasoning = self._is_reasoning_model(selected_model)
+        supports_temp = self._supports_temperature(selected_model)
 
         # Log the model being used for debugging
-        logger.info(f"🤖 GPT Request: model={selected_model}, is_reasoning={is_reasoning}")
+        logger.info(f"🤖 GPT Request: model={selected_model}, supports_temperature={supports_temp}")
 
-        # Temperature handling - CRITICAL: reasoning models do NOT support temperature
-        if not is_reasoning:
+        # Temperature handling - CRITICAL: some models only support default (1.0)
+        if supports_temp:
+            # GPT-5, GPT-4 models support custom temperature (0.0-2.0)
             temp_value = temperature if temperature is not None else self.temperature
             params["temperature"] = temp_value
-            logger.debug(f"Using temperature={temp_value}")
+            logger.debug(f"✅ Using temperature={temp_value} (model supports custom temperature)")
         else:
-            # NEVER send temperature to reasoning models (o1, o1-mini, o1-preview)
-            logger.warning(f"⚠️ Reasoning model {selected_model} detected - OMITTING temperature parameter")
+            # Reasoning models (o1, o1-mini, o1-preview) only support default temperature (1.0)
+            # Do NOT send temperature parameter - API will reject any value except default
+            logger.warning(f"⚠️ Model {selected_model} only supports default temperature - OMITTING parameter")
 
         # Token parameter
         tokens_value = max_tokens if max_tokens is not None else self.max_tokens
