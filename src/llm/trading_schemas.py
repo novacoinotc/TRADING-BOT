@@ -32,7 +32,7 @@ TRADING_DECISION_SCHEMA = {
                 "description": "Brief explanation of the decision"
             },
             "rejection_reason": {
-                "type": ["string", "null"],
+                "anyOf": [{"type": "string"}, {"type": "null"}],
                 "description": "Reason if trade is rejected"
             },
             "is_risky_trade": {
@@ -40,7 +40,7 @@ TRADING_DECISION_SCHEMA = {
                 "description": "Whether this is a risky/learning trade"
             },
             "learning_opportunity": {
-                "type": ["string", "null"],
+                "anyOf": [{"type": "string"}, {"type": "null"}],
                 "description": "What to learn from this trade"
             },
             "position_size": {
@@ -137,7 +137,7 @@ TRADING_DECISION_SCHEMA = {
                         "enum": ["IMMEDIATE", "WAIT", "SKIP"]
                     },
                     "wait_for": {
-                        "type": ["string", "null"]
+                        "anyOf": [{"type": "string"}, {"type": "null"}]
                     }
                 },
                 "required": ["urgency", "wait_for"],
@@ -153,7 +153,7 @@ TRADING_DECISION_SCHEMA = {
                         "type": "boolean"
                     },
                     "override_reason": {
-                        "type": ["string", "null"]
+                        "anyOf": [{"type": "string"}, {"type": "null"}]
                     }
                 },
                 "required": ["ml", "rl", "override_reason"],
@@ -166,7 +166,7 @@ TRADING_DECISION_SCHEMA = {
                 }
             },
             "alternative_action": {
-                "type": ["string", "null"]
+                "anyOf": [{"type": "string"}, {"type": "null"}]
             }
         },
         "required": [
@@ -205,13 +205,13 @@ TRADE_MANAGEMENT_SCHEMA = {
                 "type": "string"
             },
             "new_stop_loss": {
-                "type": ["number", "null"]
+                "anyOf": [{"type": "number"}, {"type": "null"}]
             },
             "new_take_profit": {
-                "type": ["number", "null"]
+                "anyOf": [{"type": "number"}, {"type": "null"}]
             },
             "close_percentage": {
-                "type": ["integer", "null"],
+                "anyOf": [{"type": "integer"}, {"type": "null"}],
                 "description": "Percentage to close if PARTIAL_CLOSE"
             },
             "urgency": {

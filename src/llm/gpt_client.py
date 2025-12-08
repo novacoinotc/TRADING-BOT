@@ -256,15 +256,17 @@ class GPTClient:
         if self._is_gpt5_model(selected_model) or self._is_reasoning_model(selected_model):
             request_body["reasoning"] = {"effort": reasoning_effort}
 
-        # Add JSON schema using text.format (NOT response_format for /v1/responses)
-        # Structure: text.format = "json_schema" (string), text.schema = {...}
+        # Add JSON schema using text.format for /v1/responses
+        # CORRECT structure: text.format = {type: "json_schema", schema: {...}}
         if json_schema:
             request_body["text"] = {
-                "format": "json_schema",
-                "schema": {
-                    "name": json_schema.get("name", "response"),
-                    "schema": json_schema.get("schema", json_schema),
-                    "strict": json_schema.get("strict", True)
+                "format": {
+                    "type": "json_schema",
+                    "schema": {
+                        "name": json_schema.get("name", "response"),
+                        "strict": json_schema.get("strict", True),
+                        "schema": json_schema.get("schema", json_schema)
+                    }
                 }
             }
 
@@ -304,26 +306,48 @@ class GPTClient:
                         continue
 
                     if response.status_code != 200:
-                        error_data = response.json() if response.content else {}
-                        error_msg = error_data.get("error", {}).get("message", response.text)
+                        try:
+                            error_data = response.json() if response.content else {}
+                        except json.JSONDecodeError:
+                            error_data = {}
+                        error_msg = error_data.get("error", {}).get("message", response.text[:500])
                         raise Exception(f"API error {response.status_code}: {error_msg}")
 
-                    data = response.json()
+                    # Parse JSON response with error handling
+                    try:
+                        data = response.json()
+                    except json.JSONDecodeError as e:
+                        logger.error(f"Invalid JSON in /v1/responses: {e}")
+                        logger.error(f"Response content: {response.text[:500]}")
+                        # Fallback to chat/completions
+                        return await self.chat(
+                            messages=messages,
+                            temperature=temperature,
+                            max_tokens=max_tokens,
+                            json_mode=json_schema is not None,
+                            use_premium=use_premium
+                        )
 
                 # Extract response content
                 # /v1/responses format may differ from chat completions
                 output = data.get("output", [])
                 content = ""
-                for item in output:
-                    if item.get("type") == "message":
-                        for content_item in item.get("content", []):
-                            if content_item.get("type") == "text":
-                                content = content_item.get("text", "")
+                if output:
+                    for item in output:
+                        if item.get("type") == "message":
+                            for content_item in item.get("content", []):
+                                if content_item.get("type") == "text":
+                                    content = content_item.get("text", "")
+                                    break
+                            if content:
                                 break
 
                 # If no content found in new format, try legacy format
                 if not content and "choices" in data:
-                    content = data["choices"][0]["message"]["content"]
+                    try:
+                        content = data["choices"][0]["message"]["content"]
+                    except (IndexError, KeyError, TypeError) as e:
+                        logger.warning(f"Could not extract content from legacy format: {e}")
 
                 usage = data.get("usage", {})
                 prompt_tokens = usage.get("input_tokens", usage.get("prompt_tokens", 0))
