@@ -43,7 +43,7 @@ class GPTClient:
         api_key: str,
         model: str = "gpt-5-mini",
         temperature: float = 0.2,
-        max_tokens: int = 500,
+        max_tokens: int = 3000,
         timeout: float = 60.0
     ):
         """
@@ -329,6 +329,15 @@ class GPTClient:
                             use_premium=use_premium
                         )
 
+                # Check response status - handle incomplete/truncated responses
+                response_status = data.get("status", "completed")
+                if response_status == "incomplete":
+                    incomplete_reason = data.get("incomplete_details", {}).get("reason", "unknown")
+                    logger.warning(f"⚠️ /v1/responses status=incomplete, reason={incomplete_reason}")
+                    # If max_tokens was the issue, we may need to handle partial content or retry
+                    if incomplete_reason == "max_output_tokens":
+                        logger.error(f"❌ Response truncated due to max_output_tokens limit")
+
                 # Extract response content
                 # /v1/responses format may differ from chat completions
                 output = data.get("output", [])
@@ -337,7 +346,7 @@ class GPTClient:
                     for item in output:
                         if item.get("type") == "message":
                             for content_item in item.get("content", []):
-                                if content_item.get("type") == "text":
+                                if content_item.get("type") == "output_text" or content_item.get("type") == "text":
                                     content = content_item.get("text", "")
                                     break
                             if content:
@@ -354,7 +363,12 @@ class GPTClient:
                 if not content or content.strip() == "":
                     logger.error(f"❌ /v1/responses returned empty content. Data keys: {data.keys()}")
                     logger.error(f"   Output: {output}")
-                    raise Exception("GPT /v1/responses returned empty content")
+                    logger.error(f"   Status: {response_status}")
+                    raise Exception(f"GPT /v1/responses returned empty content (status={response_status})")
+
+                # If response was incomplete but we got partial content, log warning
+                if response_status == "incomplete" and content:
+                    logger.warning(f"⚠️ Using partial content from incomplete response (length={len(content)})")
 
                 usage = data.get("usage", {})
                 prompt_tokens = usage.get("input_tokens", usage.get("prompt_tokens", 0))
@@ -507,12 +521,18 @@ class GPTClient:
                 logger.debug(f"📤 GPT Request attempt {attempt + 1}: model={selected_model}, params_keys={list(params.keys())}")
                 response = await self.client.chat.completions.create(**params)
 
+                # Check finish_reason for truncation
+                finish_reason = response.choices[0].finish_reason
+                if finish_reason == "length":
+                    logger.warning(f"⚠️ Response truncated (finish_reason=length) - max_tokens may be too low")
+
                 content = response.choices[0].message.content
 
                 # Validate content is not None/empty
                 if content is None or content.strip() == "":
-                    logger.error(f"❌ GPT returned empty/None content. Response: {response}")
-                    raise Exception("GPT returned empty response content")
+                    logger.error(f"❌ GPT returned empty/None content. finish_reason={finish_reason}")
+                    logger.error(f"   Response: {response}")
+                    raise Exception(f"GPT returned empty response content (finish_reason={finish_reason})")
 
                 usage = response.usage
 
