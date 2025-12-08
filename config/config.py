@@ -410,14 +410,19 @@ GPT_AGGRESSIVE_LEARNING = os.getenv('GPT_AGGRESSIVE_LEARNING', 'true').lower() =
 GPT_LEARN_FROM_EVERY_TRADE = os.getenv('GPT_LEARN_FROM_EVERY_TRADE', 'true').lower() == 'true'
 
 # ============================================================================
-# GPT DYNAMIC TP/SL - Sin mínimos fijos
-# ============================================================================
-# GPT decide TP/SL según condiciones (puede ser menor que 1.5%)
+# GPT DYNAMIC TP/SL - Considera comisiones de Binance Futures
+# Comisiones reales: MAKER 0.018%, TAKER 0.045% (por operación)
+# Total round-trip: MAKER ~0.036%, TAKER ~0.09%
+# TP debe ser > comisiones para ser rentable
 GPT_DYNAMIC_TP_ENABLED = os.getenv('GPT_DYNAMIC_TP_ENABLED', 'true').lower() == 'true'
-GPT_MIN_TP_PCT = float(os.getenv('GPT_MIN_TP_PCT', '0.5'))  # Mínimo absoluto 0.5%
+GPT_MIN_TP_PCT = float(os.getenv('GPT_MIN_TP_PCT', '0.15'))  # Mínimo 0.15% (cubre comisiones taker)
 GPT_MAX_TP_PCT = float(os.getenv('GPT_MAX_TP_PCT', '10.0'))  # Máximo 10%
 GPT_MIN_SL_PCT = float(os.getenv('GPT_MIN_SL_PCT', '0.3'))  # Mínimo absoluto 0.3%
 GPT_MAX_SL_PCT = float(os.getenv('GPT_MAX_SL_PCT', '5.0'))  # Máximo 5%
+
+# Comisiones de Binance Futures (para cálculos internos)
+BINANCE_MAKER_FEE_PCT = float(os.getenv('BINANCE_MAKER_FEE_PCT', '0.018'))
+BINANCE_TAKER_FEE_PCT = float(os.getenv('BINANCE_TAKER_FEE_PCT', '0.045'))
 
 # GPT Behavior Settings
 GPT_TEMPERATURE = float(os.getenv('GPT_TEMPERATURE', '0.7'))  # 0.0-1.0 (creativity)

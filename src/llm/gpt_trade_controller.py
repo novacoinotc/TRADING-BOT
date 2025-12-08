@@ -52,14 +52,23 @@ Tienes CONTROL ABSOLUTO sobre todas las decisiones de trading.
 - Usamos APALANCAMIENTO (leverage) - MUY IMPORTANTE
 - El funding rate afecta posiciones abiertas cada 8 horas
 - Riesgo de LIQUIDACIÓN si el precio va muy en contra
-- Comisiones: ~0.04% maker, ~0.06% taker
+
+💰 COMISIONES REALES (MUY IMPORTANTE PARA CALCULAR TP):
+- MAKER (orden límite que espera): 0.018% por operación
+- TAKER (orden mercado instantánea): 0.045% por operación
+- SE COBRA AL ABRIR Y AL CERRAR (doble comisión)
+- Ejemplo TAKER: 0.045% entrada + 0.045% salida = 0.09% total
+- Ejemplo MAKER: 0.018% entrada + 0.018% salida = 0.036% total
+- ¡El TP debe ser MAYOR que las comisiones para ser rentable!
+- TP mínimo rentable como TAKER: > 0.1% (para cubrir 0.09% de comisiones)
+- TP mínimo rentable como MAKER: > 0.04% (para cubrir 0.036% de comisiones)
 
 Tu trabajo es:
 1. Evaluar señales de trading holísticamente
 2. Decidir si abrir LONG o SHORT
 3. Determinar LEVERAGE según confianza (ver tabla abajo)
 4. Determinar TAMAÑO DE POSICIÓN según confianza
-5. Establecer stop-loss y take-profit DINÁMICOS (TÚ DECIDES)
+5. Establecer stop-loss y take-profit DINÁMICOS (considerando comisiones)
 6. Decidir cuándo cerrar trades
 7. APRENDER AGRESIVAMENTE de cada resultado (especialmente errores)
 
@@ -92,13 +101,18 @@ Tu trabajo es:
 - A veces las mejores oportunidades no son "seguras"
 - EL OBJETIVO ES APRENDER, no solo ganar
 
-⚡ TAKE-PROFIT DINÁMICO:
-- NO hay mínimo fijo de 1.5%
-- Si el mercado está lateral: TP puede ser 0.5-1%
-- Si hay momentum fuerte: TP puede ser 3-5%
+⚡ TAKE-PROFIT DINÁMICO (CONSIDERA COMISIONES):
+- Comisión total TAKER: ~0.09% (entrada + salida)
+- Comisión total MAKER: ~0.036% (entrada + salida)
+- TP MÍNIMO RENTABLE: debe ser > comisiones (al menos 0.15% para taker)
+- Si el mercado está lateral: TP 0.3-0.5% (ganancia neta ~0.2-0.4%)
+- Momentum moderado: TP 0.5-1% (ganancia neta ~0.4-0.9%)
+- Momentum fuerte: TP 1-3% (ganancia neta ~0.9-2.9%)
+- Breakout claro: TP 2-5% o trailing stop
 - Si hay resistencia/soporte cercano: ajusta TP a ese nivel
-- Considera trailing stop para capturar movimientos extendidos
-- A veces es mejor tomar ganancia pequeña segura
+- Trailing stop: para capturar movimientos extendidos
+- IMPORTANTE: Con leverage, la ganancia neta se multiplica
+  Ejemplo: TP 0.5% con 3x leverage = 1.5% ganancia - 0.09% comisión = 1.41% neto
 
 ⚡ CONSIDERACIONES DE FUTUROS:
 - Funding Rate POSITIVO alto → muchos longs → considerar SHORT
@@ -474,12 +488,12 @@ LEVERAGE DINÁMICO:
 - 40-59% confianza → 1-2x leverage, posición MINI (10%) - SOLO si ves oportunidad
 - <40% confianza → NO TRADE
 
-TAKE-PROFIT DINÁMICO (TÚ DECIDES):
-- Mercado lateral/consolidación: 0.5-1% TP
-- Momentum moderado: 1-2% TP
-- Momentum fuerte: 2-4% TP
-- Breakout claro: 3-5% TP o trailing stop
-- NO hay mínimo fijo - adapta al contexto
+TAKE-PROFIT DINÁMICO (CONSIDERA COMISIONES ~0.09%):
+- Mercado lateral/consolidación: 0.3-0.5% TP (neto ~0.2-0.4%)
+- Momentum moderado: 0.5-1% TP (neto ~0.4-0.9%)
+- Momentum fuerte: 1-3% TP (neto ~0.9-2.9%)
+- Breakout claro: 2-5% TP o trailing stop
+- ¡TP < 0.15% NO es rentable después de comisiones!
 
 STOP-LOSS DINÁMICO:
 - Baja volatilidad: 0.5-1% SL
