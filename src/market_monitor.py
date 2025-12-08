@@ -841,7 +841,11 @@ class MarketMonitor:
                             if rl_decision:
                                 analysis['rl_decision'] = rl_decision
                     else:
-                        logger.info(f"🤖 RL Agent bloqueó trade en {pair}: {rl_decision.get('chosen_action', 'SKIP')}")
+                        # rl_decision puede ser None si fue bloqueado por filtro anti-tendencia
+                        if rl_decision:
+                            logger.info(f"🤖 RL Agent bloqueó trade en {pair}: {rl_decision.get('chosen_action', 'SKIP')}")
+                        else:
+                            logger.debug(f"Trade en {pair} no ejecutado (bloqueado por filtros previos)")
 
                 # Update existing positions
                 if self.enable_paper_trading and self.ml_system:
@@ -1086,7 +1090,11 @@ class MarketMonitor:
                                     if rl_flash_decision:
                                         flash_analysis['rl_decision'] = rl_flash_decision
                             else:
-                                logger.info(f"🤖 RL Agent bloqueó flash trade en {pair}: {rl_flash_decision.get('chosen_action', 'SKIP')}")
+                                # rl_flash_decision puede ser None si fue bloqueado por filtros previos
+                                if rl_flash_decision:
+                                    logger.info(f"🤖 RL Agent bloqueó flash trade en {pair}: {rl_flash_decision.get('chosen_action', 'SKIP')}")
+                                else:
+                                    logger.debug(f"Flash trade en {pair} no ejecutado (bloqueado por filtros previos)")
 
                         # Send flash signal notification if threshold met (5+ points)
                         if flash_signals.get('action', 'HOLD') != 'HOLD':
