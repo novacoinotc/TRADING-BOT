@@ -163,11 +163,11 @@ class AutonomyController:
         """
         Convierte la recomendación de tamaño de GPT a un multiplicador
 
-        GPT recomienda: FULL, THREE_QUARTER, HALF, QUARTER, SKIP
+        GPT recomienda: FULL, THREE_QUARTER, HALF, QUARTER, MINI, SKIP
         Retorna multiplicador para position sizing
 
         Args:
-            size_recommendation: Recomendación de GPT (FULL/THREE_QUARTER/HALF/QUARTER/SKIP)
+            size_recommendation: Recomendación de GPT (FULL/THREE_QUARTER/HALF/QUARTER/MINI/SKIP)
 
         Returns:
             Multiplicador (0.0 - 1.0)
@@ -177,6 +177,7 @@ class AutonomyController:
             'THREE_QUARTER': 0.75,
             'HALF': 0.5,
             'QUARTER': 0.25,
+            'MINI': 0.10,  # Para trades de riesgo/aprendizaje
             'SKIP': 0.0,
         }
         return size_map.get(size_recommendation.upper(), 0.5)  # Default HALF si no reconoce
