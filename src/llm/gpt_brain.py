@@ -67,13 +67,24 @@ class GPTBrain:
         self.api_key = api_key
         self.model = model
 
-        # Initialize GPT Client
+        # Initialize GPT Client with config values (not hardcoded!)
+        # GPT-5 models support temperature 0.0-2.0, recommended 0.2 for trading
+        gpt_temperature = getattr(config, 'GPT_TEMPERATURE', 0.2) if config else 0.2
+        gpt_max_tokens = getattr(config, 'GPT_MAX_TOKENS', 500) if config else 500
+
         self.gpt_client = GPTClient(
             api_key=api_key,
             model=model,
-            temperature=0.7,
-            max_tokens=2000
+            temperature=gpt_temperature,
+            max_tokens=gpt_max_tokens
         )
+
+        # Configure model routing from config (GPT_MODEL_FREQUENT and GPT_MODEL_PREMIUM)
+        if config:
+            model_frequent = getattr(config, 'GPT_MODEL_FREQUENT', model)
+            model_premium = getattr(config, 'GPT_MODEL_PREMIUM', 'gpt-5.1')
+            self.gpt_client.set_models(frequent=model_frequent, premium=model_premium)
+            logger.info(f"🤖 GPT Models configured: frequent={model_frequent}, premium={model_premium}, temp={gpt_temperature}")
 
         # Initialize all components
         self.meta_reasoner = GPTMetaReasoner(self.gpt_client)

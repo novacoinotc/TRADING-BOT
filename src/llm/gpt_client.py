@@ -164,25 +164,36 @@ class GPTClient:
         return True
 
     def _is_reasoning_model(self, model: str) -> bool:
-        """Check if model is a reasoning model (o1 family) - these only support temperature=1.0"""
-        reasoning_models = ['o1', 'o1-mini', 'o1-preview']
+        """
+        Check if model is a reasoning-only model - these only support temperature=1.0
+
+        Reasoning-only models (NO temperature support):
+        - o1, o1-mini, o1-preview
+
+        Models that DO support temperature:
+        - gpt-5-mini, gpt-5.1 (GPT-5 family - supports 0.0-2.0)
+        - gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
+        """
         model_lower = model.lower()
-        return any(rm == model_lower or model_lower.startswith(f"{rm}-") for rm in reasoning_models)
+        # O1 family ONLY - these don't support temperature
+        o1_models = ['o1', 'o1-mini', 'o1-preview']
+        return any(rm == model_lower or model_lower.startswith(f"{rm}-") for rm in o1_models)
 
     def _supports_temperature(self, model: str) -> bool:
         """
         Check if model supports custom temperature values.
 
         Models that DON'T support custom temperature (only default 1.0):
-        - o1, o1-mini, o1-preview (reasoning models)
+        - o1, o1-mini, o1-preview (reasoning-only models)
 
         Models that DO support custom temperature (0.0-2.0):
-        - gpt-5-mini, gpt-5.1, gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
+        - gpt-5-mini, gpt-5.1 (GPT-5 family)
+        - gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
         """
-        # Reasoning models only support default temperature (1.0)
+        # Only o1 reasoning models don't support temperature
         if self._is_reasoning_model(model):
             return False
-        # All other models (GPT-5, GPT-4, etc.) support custom temperature
+        # GPT-5, GPT-4 and all other models support custom temperature
         return True
 
     def _is_gpt5_model(self, model: str) -> bool:
@@ -292,7 +303,7 @@ class GPTClient:
                     if response.status_code != 200:
                         error_data = response.json() if response.content else {}
                         error_msg = error_data.get("error", {}).get("message", response.text)
-                        raise APIError(f"API error {response.status_code}: {error_msg}")
+                        raise Exception(f"API error {response.status_code}: {error_msg}")
 
                     data = response.json()
 
@@ -448,15 +459,18 @@ class GPTClient:
             params["response_format"] = {"type": "json_object"}
 
         # Add reasoning_effort for chat/completions if supported
+        is_reasoning = self._is_reasoning_model(selected_model)
         if reasoning_effort and (self._is_gpt5_model(selected_model) or is_reasoning):
             params["reasoning_effort"] = reasoning_effort
 
-        # Retry logic
+        # Retry logic with intelligent temperature handling
         max_retries = 3
         base_delay = 1.0
+        temperature_retry_done = False
 
         for attempt in range(max_retries):
             try:
+                logger.debug(f"📤 GPT Request attempt {attempt + 1}: model={selected_model}, params_keys={list(params.keys())}")
                 response = await self.client.chat.completions.create(**params)
 
                 content = response.choices[0].message.content
@@ -501,11 +515,31 @@ class GPTClient:
                 await asyncio.sleep(delay)
 
             except APIError as e:
+                error_str = str(e)
                 logger.error(f"OpenAI API error: {e}")
+
+                # Handle temperature not supported error - retry without temperature
+                if "temperature" in error_str.lower() and "unsupported" in error_str.lower():
+                    if not temperature_retry_done and "temperature" in params:
+                        logger.warning(f"⚠️ Model {selected_model} rejected temperature parameter - retrying WITHOUT temperature")
+                        del params["temperature"]
+                        temperature_retry_done = True
+                        continue  # Retry immediately without temperature
+                    else:
+                        logger.error(f"Temperature retry already done, raising error")
                 raise
 
             except Exception as e:
+                error_str = str(e)
                 logger.error(f"Unexpected error in GPT request: {e}")
+
+                # Also catch temperature errors from generic exceptions
+                if "temperature" in error_str.lower() and "unsupported" in error_str.lower():
+                    if not temperature_retry_done and "temperature" in params:
+                        logger.warning(f"⚠️ Model {selected_model} rejected temperature - retrying WITHOUT temperature")
+                        del params["temperature"]
+                        temperature_retry_done = True
+                        continue  # Retry immediately without temperature
                 raise
 
         raise Exception(f"Failed after {max_retries} retries")
