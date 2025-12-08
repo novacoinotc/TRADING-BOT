@@ -463,8 +463,21 @@ class MarketMonitor:
             analysis = self.analyzer.analyze_multi_timeframe(dfs)
 
             if analysis:
-                current_price = analysis['indicators']['current_price']
-                signals = analysis['signals']
+                # Protección contra None en analysis['indicators']
+                analysis_indicators = analysis.get('indicators')
+                if not analysis_indicators:
+                    logger.warning(f"⚠️ analysis['indicators'] is None for {pair}, skipping")
+                    return
+
+                current_price = analysis_indicators.get('current_price', 0)
+                if not current_price or current_price <= 0:
+                    logger.warning(f"⚠️ current_price inválido para {pair}: {current_price}")
+                    return
+
+                signals = analysis.get('signals')
+                if not signals:
+                    logger.warning(f"⚠️ analysis['signals'] is None for {pair}, skipping")
+                    return
 
                 # Store current price for tracking
                 self.current_prices[pair] = current_price
@@ -476,16 +489,20 @@ class MarketMonitor:
                     regime_data['current_price'] = current_price
 
                 logger.info(
-                    f"{pair}: {signals['action']} "
+                    f"{pair}: {signals.get('action', 'HOLD')} "
                     f"(Score: {signals.get('score', 0):.1f}/{signals.get('max_score', 10)}) "
                     f"@ ${current_price:.2f}"
                 )
 
-                # Log regime and orderbook info
+                # Log regime and orderbook info (con protección contra None)
                 if regime_data:
-                    logger.info(f"  Regime: {regime_data['regime']} ({regime_data['regime_strength']})")
+                    regime_val = regime_data.get('regime', 'UNKNOWN') or 'UNKNOWN'
+                    regime_str = regime_data.get('regime_strength', 'UNKNOWN') or 'UNKNOWN'
+                    logger.info(f"  Regime: {regime_val} ({regime_str})")
                 if orderbook_analysis:
-                    logger.info(f"  Order Book: {orderbook_analysis['market_pressure']} (imbalance={orderbook_analysis['imbalance']:.2f})")
+                    pressure = orderbook_analysis.get('market_pressure', 'NEUTRAL') or 'NEUTRAL'
+                    imbalance = orderbook_analysis.get('imbalance', 0) or 0
+                    logger.info(f"  Order Book: {pressure} (imbalance={imbalance:.2f})")
 
                 # ===== ARSENAL AVANZADO: ANÁLISIS COMPLETO (SIEMPRE) =====
                 # Ejecutar análisis del arsenal SIEMPRE (no solo en BUY/SELL) para logging
@@ -578,7 +595,7 @@ class MarketMonitor:
 
                 # ===== ARSENAL AVANZADO: ENRICH SIGNAL =====
                 # Aplicar Feature Aggregator ANTES de sentiment (para combinar TODOS los módulos)
-                if signals['action'] != 'HOLD':
+                if signals.get('action', 'HOLD') != 'HOLD':
                     try:
                         # Obtener orderbook raw para arsenal
                         orderbook_raw = None
@@ -619,7 +636,7 @@ class MarketMonitor:
                 # ===== FIN ARSENAL AVANZADO =====
 
                 # APPLY SENTIMENT ANALYSIS TO SIGNALS
-                if self.sentiment_system and signals['action'] != 'HOLD':
+                if self.sentiment_system and signals.get('action', 'HOLD') != 'HOLD':
                     # Check if trade should be blocked by sentiment
                     if self.sentiment_system.should_block_trade(pair, signals):
                         logger.warning(f"🚫 Trade bloqueado por sentiment analysis extremo para {pair}")
@@ -638,7 +655,7 @@ class MarketMonitor:
                     analysis['regime_data'] = regime_data
 
                 # Execute paper trade if enabled
-                if self.enable_paper_trading and self.ml_system and signals['action'] != 'HOLD':
+                if self.enable_paper_trading and self.ml_system and signals.get('action', 'HOLD') != 'HOLD':
                     # CONSULTAR AL RL AGENT ANTES DE ABRIR TRADE
                     should_execute_trade = True
                     rl_decision = None
@@ -648,7 +665,7 @@ class MarketMonitor:
                     if regime_data:
                         regime = regime_data.get('regime', 'SIDEWAYS')
                         regime_strength = regime_data.get('regime_strength', 'WEAK')
-                        action = signals['action']
+                        action = signals.get('action', 'HOLD')
 
                         # BUY en BEAR STRONG/MODERATE = bloqueado
                         if action == 'BUY' and regime == 'BEAR' and regime_strength in ['STRONG', 'MODERATE']:
@@ -691,13 +708,15 @@ class MarketMonitor:
                             logger.warning(f"No se pudieron obtener features del arsenal: {e}")
 
                         # Construir market state para RL Agent - INTEGRACIÓN COMPLETA DE 24 SERVICIOS
+                        # Protección contra None en analysis['indicators']
+                        indicators = analysis.get('indicators') or {}
                         market_state = {
                             # Indicadores técnicos básicos
-                            'rsi': analysis['indicators'].get('rsi', 50),
-                            'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
-                            'regime_strength': regime_data.get('regime_strength', 'MEDIUM') if regime_data else 'MEDIUM',
+                            'rsi': indicators.get('rsi', 50) or 50,
+                            'regime': (regime_data.get('regime') or 'SIDEWAYS') if regime_data else 'SIDEWAYS',
+                            'regime_strength': (regime_data.get('regime_strength') or 'MEDIUM') if regime_data else 'MEDIUM',
                             'orderbook': orderbook_status,
-                            'volatility': 'high' if analysis['indicators'].get('atr', 0) > current_price * 0.02 else 'medium',
+                            'volatility': 'high' if (indicators.get('atr', 0) or 0) > current_price * 0.02 else 'medium',
 
                             # 3. CryptoPanic GROWTH API (sentiment_data)
                             'cryptopanic_sentiment': sentiment_data.get('sentiment', 'neutral') if sentiment_data else 'neutral',
@@ -804,7 +823,7 @@ class MarketMonitor:
                         trade_result = self.ml_system.process_signal(
                             pair=pair,
                             signal=signals,
-                            indicators=analysis['indicators'],
+                            indicators=analysis.get('indicators') or {},
                             current_price=current_price,
                             mtf_indicators=analysis.get('mtf_indicators'),
                             sentiment_features=combined_sentiment_features,  # ARSENAL + Sentiment combined
@@ -841,7 +860,7 @@ class MarketMonitor:
                             )
 
                 # Send signal notification if strong enough (score >= 7)
-                if signals['action'] != 'HOLD':
+                if signals.get('action', 'HOLD') != 'HOLD':
                     await self.notifier.send_signal(pair, analysis)
                 else:
                     logger.debug(f"{pair}: No strong conservative signal detected")
@@ -855,11 +874,20 @@ class MarketMonitor:
                     flash_analysis = self.flash_analyzer.analyze_flash(flash_df)
 
                     if flash_analysis:
-                        flash_signals = flash_analysis['signals']
-                        flash_price = flash_analysis['indicators']['current_price']
+                        # Protección contra None en flash_analysis
+                        flash_signals = flash_analysis.get('signals')
+                        flash_indicators_dict = flash_analysis.get('indicators')
+
+                        # Skip si no hay datos válidos
+                        if not flash_signals or not flash_indicators_dict:
+                            logger.debug(f"flash_analysis incomplete for {pair}, skipping flash")
+                            flash_signals = {'action': 'HOLD', 'score': 0, 'max_score': 10}  # Default to prevent errors
+                            flash_price = current_price  # Use main analysis price
+                        else:
+                            flash_price = flash_indicators_dict.get('current_price', 0) or current_price
 
                         logger.info(
-                            f"{pair} FLASH: {flash_signals['action']} "
+                            f"{pair} FLASH: {flash_signals.get('action', 'HOLD')} "
                             f"(Score: {flash_signals.get('score', 0):.1f}/{flash_signals.get('max_score', 10)}) "
                             f"@ ${flash_price:.2f}"
                         )
@@ -892,7 +920,7 @@ class MarketMonitor:
                         # ===== FIN ANÁLISIS FLASH =====
 
                         # ===== ARSENAL AVANZADO: ENRICH FLASH SIGNAL =====
-                        if flash_signals['action'] != 'HOLD':
+                        if flash_signals.get('action', 'HOLD') != 'HOLD':
                             try:
                                 # Obtener orderbook raw para arsenal (reusar si ya se obtuvo)
                                 orderbook_raw_flash = None
@@ -933,7 +961,7 @@ class MarketMonitor:
                         # ===== FIN ARSENAL FLASH =====
 
                         # APPLY SENTIMENT TO FLASH SIGNALS
-                        if self.sentiment_system and flash_signals['action'] != 'HOLD':
+                        if self.sentiment_system and flash_signals.get('action', 'HOLD') != 'HOLD':
                             # Check if should block
                             if self.sentiment_system.should_block_trade(pair, flash_signals):
                                 logger.warning(f"🚫 Flash trade bloqueado por sentiment para {pair}")
@@ -951,7 +979,7 @@ class MarketMonitor:
                             flash_analysis['regime_data'] = regime_data
 
                         # Execute paper trade for flash signal if enabled
-                        if self.enable_paper_trading and self.ml_system and flash_signals['action'] != 'HOLD':
+                        if self.enable_paper_trading and self.ml_system and flash_signals.get('action', 'HOLD') != 'HOLD':
                             # CONSULTAR AL RL AGENT ANTES DE ABRIR FLASH TRADE
                             should_execute_flash = True
                             rl_flash_decision = None
@@ -959,9 +987,9 @@ class MarketMonitor:
                             # ===== FILTRO ANTI-CONTRATENDENCIA =====
                             # Evitar BUY en mercado BEAR fuerte, evitar SELL en mercado BULL fuerte
                             if regime_data:
-                                regime = regime_data.get('regime', 'SIDEWAYS')
-                                regime_strength = regime_data.get('regime_strength', 'WEAK')
-                                action = flash_signals['action']
+                                regime = regime_data.get('regime', 'SIDEWAYS') or 'SIDEWAYS'
+                                regime_strength = regime_data.get('regime_strength', 'WEAK') or 'WEAK'
+                                action = flash_signals.get('action', 'HOLD')
 
                                 # BUY en BEAR STRONG/MODERATE = bloqueado
                                 if action == 'BUY' and regime == 'BEAR' and regime_strength in ['STRONG', 'MODERATE']:
@@ -984,13 +1012,14 @@ class MarketMonitor:
                                     elif pressure == 'SELL_PRESSURE':
                                         orderbook_status_flash = 'SELL_PRESSURE'
 
-                                # Construir market state para RL Agent
+                                # Construir market state para RL Agent (con protección contra None)
+                                flash_indicators = flash_analysis.get('indicators') or {}
                                 market_state_flash = {
-                                    'rsi': flash_analysis['indicators'].get('rsi', 50),
-                                    'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
-                                    'regime_strength': regime_data.get('regime_strength', 'MEDIUM') if regime_data else 'MEDIUM',
+                                    'rsi': flash_indicators.get('rsi', 50) or 50,
+                                    'regime': (regime_data.get('regime') or 'SIDEWAYS') if regime_data else 'SIDEWAYS',
+                                    'regime_strength': (regime_data.get('regime_strength') or 'MEDIUM') if regime_data else 'MEDIUM',
                                     'orderbook': orderbook_status_flash,
-                                    'volatility': 'high' if flash_analysis['indicators'].get('atr', 0) > flash_price * 0.02 else 'medium'
+                                    'volatility': 'high' if (flash_indicators.get('atr', 0) or 0) > flash_price * 0.02 else 'medium'
                                 }
 
                                 # Obtener portfolio metrics
@@ -1039,7 +1068,7 @@ class MarketMonitor:
                                 flash_trade_result = self.ml_system.process_signal(
                                     pair=pair,
                                     signal=flash_signals,
-                                    indicators=flash_analysis['indicators'],
+                                    indicators=flash_analysis.get('indicators') or {},
                                     current_price=flash_price,
                                     mtf_indicators=None,  # Flash signals don't use MTF
                                     sentiment_features=combined_flash_features,  # ARSENAL + Sentiment combined
@@ -1060,7 +1089,7 @@ class MarketMonitor:
                                 logger.info(f"🤖 RL Agent bloqueó flash trade en {pair}: {rl_flash_decision.get('chosen_action', 'SKIP')}")
 
                         # Send flash signal notification if threshold met (5+ points)
-                        if flash_signals['action'] != 'HOLD':
+                        if flash_signals.get('action', 'HOLD') != 'HOLD':
                             await self.notifier.send_signal(pair, flash_analysis)
                         else:
                             logger.debug(f"{pair}: No flash signal detected")
@@ -1227,14 +1256,14 @@ class MarketMonitor:
                 elif pressure == 'SELL_PRESSURE':
                     orderbook_status_outcome = 'SELL_PRESSURE'
 
-            # Construir estado de mercado para el RL Agent (formato actualizado)
+            # Construir estado de mercado para el RL Agent (formato actualizado, con protección contra None)
             market_state = {
                 # Nuevo formato requerido por RL Agent
-                'rsi': indicators.get('rsi', 50),
-                'regime': regime_data['regime'] if regime_data else 'SIDEWAYS',
-                'regime_strength': regime_data.get('regime_strength', 'MEDIUM') if regime_data else 'MEDIUM',
+                'rsi': (indicators.get('rsi', 50) if indicators else 50) or 50,
+                'regime': (regime_data.get('regime') or 'SIDEWAYS') if regime_data else 'SIDEWAYS',
+                'regime_strength': (regime_data.get('regime_strength') or 'MEDIUM') if regime_data else 'MEDIUM',
                 'orderbook': orderbook_status_outcome,
-                'volatility': 'high' if indicators.get('atr', 0) > indicators.get('current_price', 1) * 0.02 else 'medium',
+                'volatility': 'high' if (indicators.get('atr', 0) if indicators else 0) or 0 > (indicators.get('current_price', 1) if indicators else 1) or 1 * 0.02 else 'medium',
 
                 # Campos adicionales para contexto (no usados en state representation)
                 'sentiment_features': sentiment_data if sentiment_data else {},
