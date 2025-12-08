@@ -91,7 +91,7 @@ Always respond in Spanish."""
             response = await self.gpt.analyze(
                 system_prompt=self.SYSTEM_PROMPT,
                 user_prompt=prompt,
-                temperature=0.7,
+                temperature=0.3,  # Low temperature for consistent analysis
                 max_tokens=2500,
                 json_response=True
             )

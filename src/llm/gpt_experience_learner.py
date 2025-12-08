@@ -215,7 +215,7 @@ Responde en español con JSON estructurado."""
             response = await self.gpt.analyze(
                 system_prompt=self.LEARNER_SYSTEM_PROMPT,
                 user_prompt=prompt,
-                temperature=0.6,
+                temperature=0.4,  # Moderate temperature for learning insights
                 max_tokens=2000,
                 json_response=True
             )

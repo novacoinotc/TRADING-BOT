@@ -130,7 +130,7 @@ Responde siempre en español con formato JSON estructurado."""
             response = await self.gpt.analyze(
                 system_prompt=self.SYSTEM_PROMPT,
                 user_prompt=prompt,
-                temperature=0.5,
+                temperature=0.3,  # Low temperature for consistent strategy decisions
                 max_tokens=2000,
                 json_response=True
             )

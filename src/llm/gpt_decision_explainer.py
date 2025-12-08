@@ -313,7 +313,7 @@ Escribe un resumen de 4-6 oraciones sobre el dia, incluyendo:
             response = await self.gpt.analyze(
                 system_prompt=self.SYSTEM_PROMPT,
                 user_prompt=prompt,
-                temperature=0.7,
+                temperature=0.5,  # Moderate temperature for explanations
                 max_tokens=400
             )
             return response["content"]
