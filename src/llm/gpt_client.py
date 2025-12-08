@@ -244,25 +244,27 @@ class GPTClient:
 
         # Build request body for /v1/responses
         # Note: This endpoint uses 'input' instead of 'messages'
+        # IMPORTANT: /v1/responses does NOT support temperature - only default (1)
         request_body = {
             "model": selected_model,
             "input": messages,
             "max_output_tokens": max_tokens or self.max_tokens,
         }
-
-        # Add temperature (if model supports it)
-        if not self._is_reasoning_model(selected_model):
-            request_body["temperature"] = temperature if temperature is not None else self.temperature
+        # NOTE: Do NOT add temperature for /v1/responses - it only supports default (1)
 
         # Add reasoning effort for GPT-5 models
         if self._is_gpt5_model(selected_model) or self._is_reasoning_model(selected_model):
             request_body["reasoning"] = {"effort": reasoning_effort}
 
-        # Add JSON schema if provided
+        # Add JSON schema using text.format (NOT response_format for /v1/responses)
         if json_schema:
-            request_body["response_format"] = {
-                "type": "json_schema",
-                "json_schema": json_schema
+            request_body["text"] = {
+                "format": {
+                    "type": "json_schema",
+                    "name": json_schema.get("name", "response"),
+                    "schema": json_schema.get("schema", json_schema),
+                    "strict": json_schema.get("strict", True)
+                }
             }
 
         # Make HTTP request directly (openai library may not support this endpoint yet)

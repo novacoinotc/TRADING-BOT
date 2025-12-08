@@ -107,7 +107,7 @@ TRADING_DECISION_SCHEMA = {
                         "description": "Justification for TP level"
                     }
                 },
-                "required": ["stop_loss_pct", "take_profit_pct", "trailing_stop", "risk_reward_ratio", "tp_reasoning"],
+                "required": ["stop_loss_pct", "take_profit_pct", "trailing_stop", "trailing_distance_pct", "risk_reward_ratio", "liquidation_buffer_pct", "tp_reasoning"],
                 "additionalProperties": False
             },
             "futures_considerations": {
@@ -140,7 +140,7 @@ TRADING_DECISION_SCHEMA = {
                         "type": ["string", "null"]
                     }
                 },
-                "required": ["urgency"],
+                "required": ["urgency", "wait_for"],
                 "additionalProperties": False
             },
             "overrides": {
@@ -156,7 +156,7 @@ TRADING_DECISION_SCHEMA = {
                         "type": ["string", "null"]
                     }
                 },
-                "required": ["ml", "rl"],
+                "required": ["ml", "rl", "override_reason"],
                 "additionalProperties": False
             },
             "warnings": {
@@ -174,13 +174,17 @@ TRADING_DECISION_SCHEMA = {
             "confidence",
             "direction",
             "reasoning",
+            "rejection_reason",
+            "is_risky_trade",
+            "learning_opportunity",
             "position_size",
             "leverage",
             "risk_management",
             "futures_considerations",
             "timing",
             "overrides",
-            "warnings"
+            "warnings",
+            "alternative_action"
         ],
         "additionalProperties": False
     }
@@ -218,7 +222,7 @@ TRADE_MANAGEMENT_SCHEMA = {
                 "type": "integer"
             }
         },
-        "required": ["action", "reason", "urgency", "confidence"],
+        "required": ["action", "reason", "new_stop_loss", "new_take_profit", "close_percentage", "urgency", "confidence"],
         "additionalProperties": False
     }
 }
