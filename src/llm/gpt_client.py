@@ -257,10 +257,11 @@ class GPTClient:
             request_body["reasoning"] = {"effort": reasoning_effort}
 
         # Add JSON schema using text.format (NOT response_format for /v1/responses)
+        # Structure: text.format = "json_schema" (string), text.schema = {...}
         if json_schema:
             request_body["text"] = {
-                "format": {
-                    "type": "json_schema",
+                "format": "json_schema",
+                "schema": {
                     "name": json_schema.get("name", "response"),
                     "schema": json_schema.get("schema", json_schema),
                     "strict": json_schema.get("strict", True)
