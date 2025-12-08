@@ -85,12 +85,18 @@ class MLIntegration:
                 # Fallback a paper trading si live falla
                 logger.warning("Live trading init failed, falling back to PAPER mode")
                 self.paper_trader = PaperTrader(initial_balance=initial_balance)
+                # Configure telegram notifier for paper trading
+                if telegram_notifier and hasattr(self.paper_trader, 'set_telegram_notifier'):
+                    self.paper_trader.set_telegram_notifier(telegram_notifier)
                 self.trading_mode = 'PAPER'
         else:
             # Paper Trading (default)
             self.paper_trader = PaperTrader(initial_balance=initial_balance)
             self.trading_system = None
             self.trading_mode = 'PAPER'  # Forzar PAPER si no hay live disponible
+            # Configure telegram notifier for paper trading
+            if telegram_notifier and hasattr(self.paper_trader, 'set_telegram_notifier'):
+                self.paper_trader.set_telegram_notifier(telegram_notifier)
             logger.info("PAPER Trading Mode Activated")
 
         # Estado
