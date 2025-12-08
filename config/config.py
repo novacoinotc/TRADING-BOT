@@ -425,8 +425,11 @@ BINANCE_MAKER_FEE_PCT = float(os.getenv('BINANCE_MAKER_FEE_PCT', '0.018'))
 BINANCE_TAKER_FEE_PCT = float(os.getenv('BINANCE_TAKER_FEE_PCT', '0.045'))
 
 # GPT Behavior Settings
-GPT_TEMPERATURE = float(os.getenv('GPT_TEMPERATURE', '0.7'))  # 0.0-1.0 (creativity)
-GPT_MAX_TOKENS = int(os.getenv('GPT_MAX_TOKENS', '2000'))  # Max response length
+# NOTA: Según guía GPT-5 para trading, se recomienda temperature bajo (0.0-0.2)
+# para consistencia en decisiones. Valor 0.7 es demasiado alto para trading.
+# Modelos de reasoning (o1, o1-mini) NO soportan temperature - se omite automáticamente.
+GPT_TEMPERATURE = float(os.getenv('GPT_TEMPERATURE', '0.2'))  # 0.0-1.0 (trading: 0.0-0.2)
+GPT_MAX_TOKENS = int(os.getenv('GPT_MAX_TOKENS', '500'))  # Decisiones frecuentes: 200-500
 
 # GPT Features Toggle
 GPT_RISK_ASSESSMENT = os.getenv('GPT_RISK_ASSESSMENT', 'true').lower() == 'true'
