@@ -51,30 +51,38 @@ class TelegramNotifier:
         # Format message (pass full analysis to show trade decision)
         message = self._format_signal_message(pair, indicators, signals, sentiment_data, orderbook_data, regime_data, analysis)
 
-        # Send message
-        try:
-            await self.bot.send_message(
-                chat_id=self.chat_id,
-                text=message,
-                parse_mode='HTML'
-            )
-            logger.info(f"Signal sent for {pair}: {signals['action']}")
-
-            # Track signal for accuracy measurement
-            if self.tracker and config.TRACK_SIGNALS:
-                self.tracker.add_signal(
-                    pair=pair,
-                    action=signals['action'],
-                    price=indicators['current_price'],
-                    indicators=indicators,
-                    reasons=signals['reasons']
+        # Send message with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                await self.bot.send_message(
+                    chat_id=self.chat_id,
+                    text=message,
+                    parse_mode='HTML'
                 )
+                logger.info(f"Signal sent for {pair}: {signals['action']}")
 
-            # Update last signal
-            self.last_signals[pair] = signals['action']
+                # Track signal for accuracy measurement
+                if self.tracker and config.TRACK_SIGNALS:
+                    self.tracker.add_signal(
+                        pair=pair,
+                        action=signals['action'],
+                        price=indicators['current_price'],
+                        indicators=indicators,
+                        reasons=signals['reasons']
+                    )
 
-        except TelegramError as e:
-            logger.error(f"Failed to send Telegram message: {e}")
+                # Update last signal
+                self.last_signals[pair] = signals['action']
+                return  # Success
+
+            except TelegramError as e:
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                if attempt < max_retries - 1:
+                    logger.warning(f"Telegram send failed, retry {attempt + 1}/{max_retries} in {wait_time}s: {e}")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(f"Failed to send Telegram message after {max_retries} retries: {e}")
 
     def _should_send_signal(self, pair: str, signals: dict) -> bool:
         """
@@ -384,21 +392,29 @@ class TelegramNotifier:
 
         return message
 
-    async def send_status_message(self, message: str):
+    async def send_status_message(self, message: str, max_retries: int = 3):
         """
-        Send general status message
+        Send general status message with retry logic
 
         Args:
             message: Status message to send
+            max_retries: Maximum number of retry attempts
         """
-        try:
-            await self.bot.send_message(
-                chat_id=self.chat_id,
-                text=message,
-                parse_mode='HTML'
-            )
-        except TelegramError as e:
-            logger.error(f"Failed to send status message: {e}")
+        for attempt in range(max_retries):
+            try:
+                await self.bot.send_message(
+                    chat_id=self.chat_id,
+                    text=message,
+                    parse_mode='HTML'
+                )
+                return  # Success
+            except TelegramError as e:
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                if attempt < max_retries - 1:
+                    logger.warning(f"Telegram send failed, retry {attempt + 1}/{max_retries} in {wait_time}s: {e}")
+                    await asyncio.sleep(wait_time)
+                else:
+                    logger.error(f"Failed to send status message after {max_retries} retries: {e}")
 
     async def send_error_message(self, error: str):
         """

@@ -48,7 +48,7 @@ class GPTBrain:
     def __init__(
         self,
         api_key: str,
-        model: str = "gpt-4o",
+        model: str = "gpt-5-mini",
         param_update_callback: Optional[Callable[[str, Any], bool]] = None,
         notification_callback: Optional[Callable[[str], Any]] = None,
         config: Optional[Any] = None
@@ -58,7 +58,7 @@ class GPTBrain:
 
         Args:
             api_key: OpenAI API key
-            model: GPT model to use
+            model: GPT model to use (gpt-5-mini or gpt-5.1)
             param_update_callback: Callback to apply parameter changes
             notification_callback: Callback to send notifications (Telegram)
             config: Configuration object

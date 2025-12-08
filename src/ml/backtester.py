@@ -32,10 +32,19 @@ class Backtester:
     def __init__(
         self,
         initial_balance: float = 50000.0,
-        commission_rate: float = 0.001,  # 0.1% comisión
-        slippage_rate: float = 0.0005,   # 0.05% slippage
+        commission_rate: float = None,  # Uses config if not specified
+        slippage_rate: float = None,    # Uses config if not specified
         telegram_bot=None  # NUEVO: Para enviar notificaciones
     ):
+        # Comisiones reales de Binance Futures:
+        # TAKER: 0.045% por operación (entrada + salida = 0.09% round-trip)
+        # MAKER: 0.018% por operación (entrada + salida = 0.036% round-trip)
+        # Use config values if not specified (CRÍTICO: consistency with live trading)
+        if commission_rate is None:
+            commission_rate = getattr(config, 'BINANCE_TAKER_FEE_PCT', 0.045) / 100
+        if slippage_rate is None:
+            slippage_rate = getattr(config, 'SLIPPAGE_PCT', 0.05) / 100
+
         self.initial_balance = initial_balance
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate

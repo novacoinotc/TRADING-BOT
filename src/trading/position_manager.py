@@ -196,30 +196,31 @@ class PositionManager:
                 logger.info(f"🛑 Stop Loss alcanzado en {pair}: ${current_price:.2f} >= ${stop_loss:.2f}")
                 return self.portfolio.close_position(pair, current_price, reason='STOP_LOSS')
 
-        # Verificar Take Profit (usar TP más cercano alcanzado)
+        # Verificar Take Profit (SOLO 1 TP - Binance Futures solo soporta 1 TP por posición)
+        # ============================================================================
+        # IMPORTANTE: Binance Futures solo acepta 1 Take Profit por posición
+        # El formato es: take_profit = {'tp': precio_absoluto}
+        # NO usamos múltiples TPs (tp1, tp2, tp3) - eso era código legacy incorrecto
+        # ============================================================================
         if take_profit:
-            tp_levels = []
+            # Obtener el precio de TP único
+            tp_price = None
+            if isinstance(take_profit, dict):
+                tp_price = take_profit.get('tp')
+                # Fallback para legacy (usar tp1 si existe, pero esto NO debería ocurrir)
+                if not tp_price:
+                    tp_price = take_profit.get('tp1')
+            elif isinstance(take_profit, (int, float)):
+                tp_price = take_profit
 
-            # Support new scalping format (single 'tp')
-            if 'tp' in take_profit and take_profit['tp']:
-                tp_levels.append(('TP', take_profit['tp']))
-
-            # Support legacy format (tp1, tp2, tp3)
-            if 'tp1' in take_profit and take_profit['tp1']:
-                tp_levels.append(('TP1', take_profit['tp1']))
-            if 'tp2' in take_profit and take_profit['tp2']:
-                tp_levels.append(('TP2', take_profit['tp2']))
-            if 'tp3' in take_profit and take_profit['tp3']:
-                tp_levels.append(('TP3', take_profit['tp3']))
-
-            for tp_name, tp_price in tp_levels:
+            if tp_price and tp_price > 0:
                 if side == 'BUY' and current_price >= tp_price:
-                    logger.info(f"🎯 {tp_name} alcanzado en {pair}: ${current_price:.2f} >= ${tp_price:.2f}")
-                    return self.portfolio.close_position(pair, current_price, reason=tp_name)
+                    logger.info(f"🎯 Take Profit alcanzado en {pair}: ${current_price:.2f} >= ${tp_price:.2f}")
+                    return self.portfolio.close_position(pair, current_price, reason='TAKE_PROFIT')
 
                 elif side == 'SELL' and current_price <= tp_price:
-                    logger.info(f"🎯 {tp_name} alcanzado en {pair}: ${current_price:.2f} <= ${tp_price:.2f}")
-                    return self.portfolio.close_position(pair, current_price, reason=tp_name)
+                    logger.info(f"🎯 Take Profit alcanzado en {pair}: ${current_price:.2f} <= ${tp_price:.2f}")
+                    return self.portfolio.close_position(pair, current_price, reason='TAKE_PROFIT')
 
         return None
 

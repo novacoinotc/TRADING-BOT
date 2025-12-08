@@ -5,6 +5,7 @@ Ajusta tamaños de posición dinámicamente basado en performance
 import logging
 from typing import Dict
 from src.trading.portfolio import Portfolio
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,10 @@ class RiskManager:
     def __init__(
         self,
         portfolio: Portfolio,
-        base_position_size_pct: float = 4.0,  # OPTIMIZADO: 4% en lugar de 5% (más conservador)
-        max_drawdown_limit: float = 15.0,  # OPTIMIZADO: 15% en lugar de 20% (protección temprana)
-        max_positions: int = 8,  # OPTIMIZADO: 8 en lugar de 10 (mejor diversificación)
-        max_risk_per_trade_pct: float = 1.5  # OPTIMIZADO: 1.5% en lugar de 2% (más conservador)
+        base_position_size_pct: float = None,
+        max_drawdown_limit: float = None,
+        max_positions: int = None,
+        max_risk_per_trade_pct: float = None
     ):
         """
         Args:
@@ -34,6 +35,16 @@ class RiskManager:
             max_positions: Máximo número de posiciones simultáneas
             max_risk_per_trade_pct: Máximo riesgo por trade (% del equity)
         """
+        # Usar valores de config si no se especifican (CRÍTICO: consistencia con config.py)
+        if base_position_size_pct is None:
+            base_position_size_pct = getattr(config, 'BASE_POSITION_SIZE_PCT', 4.0)
+        if max_drawdown_limit is None:
+            max_drawdown_limit = getattr(config, 'MAX_DRAWDOWN_LIMIT', 10.0)
+        if max_positions is None:
+            max_positions = getattr(config, 'MAX_POSITIONS', 5)
+        if max_risk_per_trade_pct is None:
+            max_risk_per_trade_pct = getattr(config, 'MAX_RISK_PER_TRADE_PCT', 1.0)
+
         self.portfolio = portfolio
         self.base_position_size_pct = base_position_size_pct
         self.max_drawdown_limit = max_drawdown_limit

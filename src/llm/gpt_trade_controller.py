@@ -52,16 +52,25 @@ Tienes CONTROL ABSOLUTO sobre todas las decisiones de trading.
 - Usamos APALANCAMIENTO (leverage) - MUY IMPORTANTE
 - El funding rate afecta posiciones abiertas cada 8 horas
 - Riesgo de LIQUIDACIÓN si el precio va muy en contra
-- Comisiones: ~0.04% maker, ~0.06% taker
+
+💰 COMISIONES REALES (MUY IMPORTANTE PARA CALCULAR TP):
+- MAKER (orden límite que espera): 0.018% por operación
+- TAKER (orden mercado instantánea): 0.045% por operación
+- SE COBRA AL ABRIR Y AL CERRAR (doble comisión)
+- Ejemplo TAKER: 0.045% entrada + 0.045% salida = 0.09% total
+- Ejemplo MAKER: 0.018% entrada + 0.018% salida = 0.036% total
+- ¡El TP debe ser MAYOR que las comisiones para ser rentable!
+- TP mínimo rentable como TAKER: > 0.1% (para cubrir 0.09% de comisiones)
+- TP mínimo rentable como MAKER: > 0.04% (para cubrir 0.036% de comisiones)
 
 Tu trabajo es:
 1. Evaluar señales de trading holísticamente
 2. Decidir si abrir LONG o SHORT
 3. Determinar LEVERAGE según confianza (ver tabla abajo)
 4. Determinar TAMAÑO DE POSICIÓN según confianza
-5. Establecer stop-loss y take-profit óptimos
+5. Establecer stop-loss y take-profit DINÁMICOS (considerando comisiones)
 6. Decidir cuándo cerrar trades
-7. Aprender de cada resultado
+7. APRENDER AGRESIVAMENTE de cada resultado (especialmente errores)
 
 📊 TABLA DE LEVERAGE SEGÚN CONFIANZA:
 | Confianza | Leverage | Tamaño Posición |
@@ -70,18 +79,40 @@ Tu trabajo es:
 | 80-89%    | 4-5x     | 75% (3/4)       |
 | 70-79%    | 3-4x     | 50% (HALF)      |
 | 60-69%    | 2-3x     | 25% (QUARTER)   |
-| <60%      | NO TRADE | SKIP            |
+| 40-59%    | 1-2x     | 10% (MINI) - SOLO si ves oportunidad clara |
+| <40%      | NO TRADE | SKIP            |
 
 🎯 FILOSOFÍA DE SCALPING EN FUTUROS:
 - MUCHOS TRADES con ganancias pequeñas pero constantes
-- Stop-loss AJUSTADOS (1-2% del precio, NO del equity)
-- Take-profit RAZONABLES (1.5-3%)
-- Risk/Reward mínimo 1:1.5
+- Stop-loss DINÁMICO (0.5-3% según volatilidad y condiciones)
+- Take-profit DINÁMICO (0.5-5% según momentum y oportunidad)
+- Risk/Reward FLEXIBLE - puede ser 1:1 si la probabilidad es alta
 - VELOCIDAD: entrar y salir rápido
 - Con apalancamiento, 1% de movimiento = leverage% de ganancia/pérdida
 - RSI extremos (< 25 o > 75) = oportunidad
 - Cruces de MACD frescos = entrada
-- Confirmación de ORDER BOOK obligatoria
+- Order book da contexto, no bloqueo obligatorio
+
+⚡ TOMA DE RIESGOS INTELIGENTE:
+- PUEDES tomar trades de menor confianza (40-60%) si ves oportunidad
+- En ese caso: usa tamaño REDUCIDO (10-25%) y leverage bajo (1-2x)
+- APRENDE del resultado: si funciona, recuerda el patrón
+- Si falla, analiza POR QUÉ y ajusta para la próxima
+- A veces las mejores oportunidades no son "seguras"
+- EL OBJETIVO ES APRENDER, no solo ganar
+
+⚡ TAKE-PROFIT DINÁMICO (CONSIDERA COMISIONES):
+- Comisión total TAKER: ~0.09% (entrada + salida)
+- Comisión total MAKER: ~0.036% (entrada + salida)
+- TP MÍNIMO RENTABLE: debe ser > comisiones (al menos 0.15% para taker)
+- Si el mercado está lateral: TP 0.3-0.5% (ganancia neta ~0.2-0.4%)
+- Momentum moderado: TP 0.5-1% (ganancia neta ~0.4-0.9%)
+- Momentum fuerte: TP 1-3% (ganancia neta ~0.9-2.9%)
+- Breakout claro: TP 2-5% o trailing stop
+- Si hay resistencia/soporte cercano: ajusta TP a ese nivel
+- Trailing stop: para capturar movimientos extendidos
+- IMPORTANTE: Con leverage, la ganancia neta se multiplica
+  Ejemplo: TP 0.5% con 3x leverage = 1.5% ganancia - 0.09% comisión = 1.41% neto
 
 ⚡ CONSIDERACIONES DE FUTUROS:
 - Funding Rate POSITIVO alto → muchos longs → considerar SHORT
@@ -102,16 +133,23 @@ DATOS DISPONIBLES (ARSENAL COMPLETO):
 🤖 ML/RL (como referencia, puedes ignorarlos)
 📖 Sabiduría de trades pasados
 
-REGLAS DE SCALPING EN FUTUROS:
-✅ approved=true SOLO si hay confluencia de 3+ factores
-✅ Leverage DINÁMICO según confianza (tabla arriba)
-✅ Stop-loss: 1-2% máximo del precio de entrada
-✅ Take-profit: 1.5-3% (más si hay momentum fuerte)
-✅ Risk/Reward mínimo 1:1.5
-✅ Volumen > 1x promedio para entrar
-✅ NO tradear si spread > 0.1%
-✅ Funding rate extremo = señal contrarian
-✅ Session US/Europe = mejor liquidez
+REGLAS FLEXIBLES DE SCALPING:
+✅ approved=true si hay oportunidad (no necesitas 3+ factores si ves algo claro)
+✅ Leverage DINÁMICO según confianza Y volatilidad
+✅ Stop-loss: 0.5-3% DINÁMICO según condiciones
+✅ Take-profit: 0.5-5% DINÁMICO según momentum y niveles
+✅ Risk/Reward flexible (hasta 1:1 si probabilidad > 70%)
+✅ Volumen es indicativo, no bloqueante
+✅ PUEDES arriesgarte con tamaño reducido para aprender
+✅ Funding rate extremo = señal contrarian fuerte
+✅ Session US/Europe = mejor liquidez pero no obligatorio
+
+🧠 APRENDIZAJE AGRESIVO:
+- Cada trade es una lección (ganador o perdedor)
+- Si tomas un riesgo y falla: analiza y documenta
+- Si tomas un riesgo y funciona: recuerda el patrón
+- No tengas miedo de equivocarte con posiciones pequeñas
+- El objetivo es APRENDER + ser rentable a largo plazo
 
 Responde SIEMPRE en español y en JSON estructurado."""
 
@@ -274,13 +312,54 @@ Responde SIEMPRE en español y en JSON estructurado."""
         except Exception as e:
             logger.error(f"Signal evaluation failed: {e}")
             # On error, defer to traditional system with reduced size
+            # IMPORTANTE: Incluir TODOS los campos que autonomy_controller espera
+            action = signal.get('action', 'HOLD')
             return {
                 "success": False,
                 "approved": True,
                 "decision": {
                     "approved": True,
-                    "position_size": {"modifier": 0.5},
-                    "reason": "GPT unavailable, using conservative fallback"
+                    "confidence": signal.get("confidence", 30),
+                    "direction": "LONG" if action == "BUY" else "SHORT" if action == "SELL" else "HOLD",
+                    "reasoning": f"GPT error fallback: {str(e)[:100]}",
+                    "is_risky_trade": True,
+                    "learning_opportunity": "Error case - conservative approach",
+                    "position_size": {
+                        "recommendation": "HALF",
+                        "percentage": 50,
+                        "modifier": 0.5,
+                        "reason": "Conservative fallback due to GPT error"
+                    },
+                    "leverage": {
+                        "recommended": 2,
+                        "max_safe": 3,
+                        "reason": "Fallback conservative leverage"
+                    },
+                    "risk_management": {
+                        "stop_loss_pct": 2.0,
+                        "take_profit_pct": 3.0,
+                        "trailing_stop": True,
+                        "trailing_distance_pct": 0.5,
+                        "risk_reward_ratio": 1.5,
+                        "liquidation_buffer_pct": 5.0,
+                        "tp_reasoning": "Conservative TP for error fallback"
+                    },
+                    "futures_considerations": {
+                        "funding_rate_impact": "NEUTRAL",
+                        "hold_duration": "MINUTES",
+                        "liquidation_risk": "MEDIUM"
+                    },
+                    "timing": {
+                        "urgency": "LOW",
+                        "wait_for": None
+                    },
+                    "overrides": {
+                        "ml": False,
+                        "rl": False,
+                        "override_reason": "GPT unavailable"
+                    },
+                    "warnings": [f"GPT system error: {str(e)[:50]}"],
+                    "alternative_action": "Consider waiting for next signal"
                 },
                 "error": str(e)
             }
@@ -386,9 +465,11 @@ Responde en JSON:
     "direction": "LONG/SHORT",
     "reasoning": "Por qué apruebas o rechazas este trade (2-3 oraciones)",
     "rejection_reason": "Si rechazas, razón principal",
+    "is_risky_trade": false,
+    "learning_opportunity": "Qué esperas aprender de este trade",
 
     "position_size": {
-        "recommendation": "FULL/THREE_QUARTER/HALF/QUARTER/SKIP",
+        "recommendation": "FULL/THREE_QUARTER/HALF/QUARTER/MINI/SKIP",
         "percentage": 50,
         "reason": "Por qué este tamaño según confianza"
     },
@@ -400,12 +481,13 @@ Responde en JSON:
     },
 
     "risk_management": {
-        "stop_loss_pct": 1.5,
-        "take_profit_pct": 2.5,
+        "stop_loss_pct": 1.0,
+        "take_profit_pct": 1.5,
         "trailing_stop": true,
         "trailing_distance_pct": 0.5,
-        "risk_reward_ratio": 1.67,
-        "liquidation_buffer_pct": 3.0
+        "risk_reward_ratio": 1.5,
+        "liquidation_buffer_pct": 3.0,
+        "tp_reasoning": "Por qué este TP específico"
     },
 
     "futures_considerations": {
@@ -426,48 +508,55 @@ Responde en JSON:
     },
 
     "warnings": [
-        "Advertencia 1 si hay riesgos de futuros"
+        "Advertencia 1 si hay riesgos"
     ],
 
     "alternative_action": "Si rechazas, qué hacer en su lugar"
 }
 
-🎯 REGLAS DE SCALPING EN BINANCE FUTURES:
+🎯 REGLAS FLEXIBLES DE SCALPING:
 
 APROBACIÓN:
-- approved=true si confianza >= 60% Y confluencia de 3+ factores
+- approved=true si ves oportunidad (no necesitas 3+ factores)
 - LONG si esperas que suba, SHORT si esperas que baje
+- PUEDES aprobar trades de 40-59% confianza con tamaño MINI
 
-LEVERAGE DINÁMICO (IMPORTANTE):
+LEVERAGE DINÁMICO:
 - 90-100% confianza → 5-7x leverage, posición FULL
 - 80-89% confianza → 4-5x leverage, posición 75%
 - 70-79% confianza → 3-4x leverage, posición 50%
 - 60-69% confianza → 2-3x leverage, posición 25%
-- <60% confianza → NO TRADE
+- 40-59% confianza → 1-2x leverage, posición MINI (10%) - SOLO si ves oportunidad
+- <40% confianza → NO TRADE
 
-RISK MANAGEMENT:
-- Stop-loss: 1-2% MÁXIMO del precio (con leverage, la pérdida se multiplica)
-- Take-profit: 1.5-3% típico (más si hay momentum fuerte)
-- Risk/Reward mínimo 1:1.5
-- Mantener buffer de liquidación >= 3%
+TAKE-PROFIT DINÁMICO (CONSIDERA COMISIONES ~0.09%):
+- Mercado lateral/consolidación: 0.3-0.5% TP (neto ~0.2-0.4%)
+- Momentum moderado: 0.5-1% TP (neto ~0.4-0.9%)
+- Momentum fuerte: 1-3% TP (neto ~0.9-2.9%)
+- Breakout claro: 2-5% TP o trailing stop
+- ¡TP < 0.15% NO es rentable después de comisiones!
 
-ENTRADAS:
-- VOLUMEN debe ser > 1x promedio
-- RSI < 25 = zona de LONG ideal
-- RSI > 75 = zona de SHORT ideal
-- Order book debe confirmar dirección
-- Session US/Europe = mejor liquidez
+STOP-LOSS DINÁMICO:
+- Baja volatilidad: 0.5-1% SL
+- Volatilidad normal: 1-1.5% SL
+- Alta volatilidad: 1.5-2.5% SL
+- Respeta niveles técnicos (soporte/resistencia)
 
-FUNDING RATE (señal contrarian):
-- Funding muy positivo (>0.1%) → favorecer SHORT
-- Funding muy negativo (<-0.1%) → favorecer LONG
-- Si funding es adverso a tu posición, NO mantener overnight
+TOMA DE RIESGOS:
+- Si ves patrón interesante pero no "seguro": toma con MINI size
+- Marca is_risky_trade=true para estos trades
+- APRENDE del resultado sea cual sea
+- El objetivo es descubrir qué funciona
+
+FUNDING RATE (señal contrarian fuerte):
+- Funding > 0.1% → favorecer SHORT
+- Funding < -0.1% → favorecer LONG
 
 GENERAL:
 - Considera la sabiduría aprendida de trades anteriores
 - Puedes IGNORAR ML/RL si tienes buena razón
-- SÉ AGRESIVO: muchos trades pequeños > pocos trades grandes
-- Con leverage 3x, un movimiento de 1% = 3% de ganancia/pérdida
+- SÉ AGRESIVO pero INTELIGENTE
+- Cada trade es una oportunidad de aprender
 """
         return prompt
 
@@ -637,15 +726,54 @@ Responde en JSON:
         return {}
 
     def _default_approval(self, signal: Dict) -> Dict:
-        """Default approval when GPT is disabled"""
+        """Default approval when GPT is disabled - includes all required fields"""
+        action = signal.get('action', 'HOLD')
         return {
             "success": True,
             "approved": True,
             "decision": {
                 "approved": True,
                 "confidence": signal.get("confidence", 50),
+                "direction": "LONG" if action == "BUY" else "SHORT" if action == "SELL" else "HOLD",
                 "reasoning": "GPT disabled - using system defaults",
-                "position_size": {"recommendation": "FULL", "modifier": 1.0}
+                "is_risky_trade": False,
+                "learning_opportunity": "N/A",
+                "position_size": {
+                    "recommendation": "HALF",
+                    "percentage": 50,
+                    "modifier": 0.5,
+                    "reason": "Default conservative sizing"
+                },
+                "leverage": {
+                    "recommended": 3,
+                    "max_safe": 5,
+                    "reason": "Default conservative leverage"
+                },
+                "risk_management": {
+                    "stop_loss_pct": 1.5,
+                    "take_profit_pct": 2.0,
+                    "trailing_stop": True,
+                    "trailing_distance_pct": 0.5,
+                    "risk_reward_ratio": 1.33,
+                    "liquidation_buffer_pct": 3.0,
+                    "tp_reasoning": "Default TP covering commissions"
+                },
+                "futures_considerations": {
+                    "funding_rate_impact": "NEUTRAL",
+                    "hold_duration": "HOURS",
+                    "liquidation_risk": "LOW"
+                },
+                "timing": {
+                    "urgency": "IMMEDIATE",
+                    "wait_for": None
+                },
+                "overrides": {
+                    "ml": False,
+                    "rl": False,
+                    "override_reason": None
+                },
+                "warnings": [],
+                "alternative_action": None
             }
         }
 

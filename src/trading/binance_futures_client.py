@@ -203,16 +203,18 @@ class BinanceFuturesClient:
         method: str,
         endpoint: str,
         params: Optional[Dict] = None,
-        signed: bool = False
+        signed: bool = False,
+        max_retries: int = 4
     ) -> Dict:
         """
-        Realiza request a la API de Binance
+        Realiza request a la API de Binance con retry automático
 
         Args:
             method: HTTP method (GET, POST, DELETE)
             endpoint: API endpoint
             params: Parametros de la request
             signed: True si requiere firma
+            max_retries: Máximo de reintentos en caso de rate limit (429)
 
         Returns:
             Response JSON
@@ -221,54 +223,80 @@ class BinanceFuturesClient:
             BinanceAPIError: Si la API retorna error
         """
         url = f"{self.base_url}{endpoint}"
-        params = params or {}
+        original_params = params.copy() if params else {}
 
-        if signed:
-            params['timestamp'] = self._get_timestamp()
-            params['recvWindow'] = self.recv_window
-            params['signature'] = self._sign_request(params)
+        for attempt in range(max_retries):
+            # Re-generate timestamp and signature for each attempt (required for signed requests)
+            params = original_params.copy()
 
-        try:
-            if method == 'GET':
-                response = self.session.get(url, params=params, timeout=30)
-            elif method == 'POST':
-                response = self.session.post(url, data=params, timeout=30)
-            elif method == 'DELETE':
-                response = self.session.delete(url, params=params, timeout=30)
-            elif method == 'PUT':
-                response = self.session.put(url, data=params, timeout=30)
-            else:
-                raise ValueError(f"Unsupported HTTP method: {method}")
+            if signed:
+                params['timestamp'] = self._get_timestamp()
+                params['recvWindow'] = self.recv_window
+                params['signature'] = self._sign_request(params)
 
-            # Log rate limit info
-            used_weight = response.headers.get('X-MBX-USED-WEIGHT-1M', 'N/A')
-            order_count = response.headers.get('X-MBX-ORDER-COUNT-1M', 'N/A')
-            logger.debug(f"API Request: {method} {endpoint} | Weight: {used_weight} | Orders: {order_count}")
-
-            # Handle response
-            if response.status_code == 200:
-                return response.json()
-            else:
-                error_data = response.json() if response.text else {}
-                error_code = error_data.get('code', response.status_code)
-                error_msg = error_data.get('msg', response.text)
-
-                # Expected/benign errors - log as DEBUG instead of ERROR
-                benign_errors = {
-                    -4046,  # No need to change margin type
-                    -4059,  # No need to change position side
-                    -2011,  # Unknown order sent (already cancelled/filled)
-                }
-
-                if error_code in benign_errors:
-                    logger.debug(f"Binance API (expected): [{error_code}] {error_msg}")
+            try:
+                if method == 'GET':
+                    response = self.session.get(url, params=params, timeout=30)
+                elif method == 'POST':
+                    response = self.session.post(url, data=params, timeout=30)
+                elif method == 'DELETE':
+                    response = self.session.delete(url, params=params, timeout=30)
+                elif method == 'PUT':
+                    response = self.session.put(url, data=params, timeout=30)
                 else:
-                    logger.error(f"Binance API Error: [{error_code}] {error_msg}")
-                raise BinanceAPIError(error_code, error_msg)
+                    raise ValueError(f"Unsupported HTTP method: {method}")
 
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request failed: {e}")
-            raise BinanceConnectionError(str(e))
+                # Log rate limit info
+                used_weight = response.headers.get('X-MBX-USED-WEIGHT-1M', 'N/A')
+                order_count = response.headers.get('X-MBX-ORDER-COUNT-1M', 'N/A')
+                logger.debug(f"API Request: {method} {endpoint} | Weight: {used_weight} | Orders: {order_count}")
+
+                # Handle rate limit (429) with exponential backoff
+                if response.status_code == 429:
+                    retry_after = int(response.headers.get('Retry-After', 2 ** attempt))
+                    wait_time = min(retry_after, 2 ** attempt)  # Exponential backoff: 1s, 2s, 4s, 8s
+                    logger.warning(
+                        f"⚠️ Rate limit hit (429), retry {attempt + 1}/{max_retries} in {wait_time}s"
+                    )
+                    if attempt < max_retries - 1:
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        raise BinanceAPIError(429, "Rate limit exceeded after max retries")
+
+                # Handle response
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    error_data = response.json() if response.text else {}
+                    error_code = error_data.get('code', response.status_code)
+                    error_msg = error_data.get('msg', response.text)
+
+                    # Expected/benign errors - log as DEBUG instead of ERROR
+                    benign_errors = {
+                        -4046,  # No need to change margin type
+                        -4059,  # No need to change position side
+                        -2011,  # Unknown order sent (already cancelled/filled)
+                    }
+
+                    if error_code in benign_errors:
+                        logger.debug(f"Binance API (expected): [{error_code}] {error_msg}")
+                    else:
+                        logger.error(f"Binance API Error: [{error_code}] {error_msg}")
+                    raise BinanceAPIError(error_code, error_msg)
+
+            except requests.exceptions.RequestException as e:
+                # Retry on connection errors with exponential backoff
+                wait_time = 2 ** attempt
+                logger.warning(f"Connection error, retry {attempt + 1}/{max_retries} in {wait_time}s: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.error(f"Request failed after {max_retries} retries: {e}")
+                    raise BinanceConnectionError(str(e))
+
+        raise BinanceConnectionError(f"Request failed after {max_retries} retries")
 
     # ==================== MARKET DATA (Public) ====================
 

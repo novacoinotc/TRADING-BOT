@@ -244,6 +244,11 @@ class MarketMonitor:
             # UPDATE SENTIMENT DATA (every 15 minutes, cached)
             sentiment_data = None
             sentiment_features = None
+            # Inicializar variables que se usan en news block pero se definen después
+            # CRÍTICO: Evita NameError cuando se ejecutan news signals antes del análisis completo
+            orderbook_analysis = None
+            regime_data = None
+
             if self.sentiment_system:
                 base_currency = pair.split('/')[0]
                 self.sentiment_system.update(currencies=[base_currency])
@@ -376,6 +381,29 @@ class MarketMonitor:
                                             if should_execute_news and 'position_size_multiplier' in rl_news_decision:
                                                 news_signal['rl_position_multiplier'] = rl_news_decision['position_size_multiplier']
                                                 news_signal['rl_action'] = rl_news_decision.get('chosen_action', 'UNKNOWN')
+
+                                            # ===== CONVERTIR TP/SL DE GPT (porcentajes) A PRECIOS ABSOLUTOS =====
+                                            # CRÍTICO: Sin esto, los news trades no tendrían risk management
+                                            news_action = news_signal.get('action', 'HOLD')
+
+                                            # Take Profit (porcentaje -> precio)
+                                            news_tp_pct = rl_news_decision.get('take_profit_pct', 2.0)  # Default 2% para news
+                                            if news_tp_pct and news_tp_pct > 0:
+                                                if news_action == 'BUY':
+                                                    news_tp_price = news_price * (1 + news_tp_pct / 100)
+                                                else:  # SELL
+                                                    news_tp_price = news_price * (1 - news_tp_pct / 100)
+                                                news_signal['take_profit'] = {'tp': news_tp_price}
+
+                                            # Stop Loss (porcentaje -> precio)
+                                            news_sl_pct = rl_news_decision.get('stop_loss_pct', 1.5)  # Default 1.5% para news
+                                            if news_sl_pct and news_sl_pct > 0:
+                                                if news_action == 'BUY':
+                                                    news_sl_price = news_price * (1 - news_sl_pct / 100)
+                                                else:  # SELL
+                                                    news_sl_price = news_price * (1 + news_sl_pct / 100)
+                                                news_signal['stop_loss'] = news_sl_price
+                                            # ===== FIN CONVERSIÓN TP/SL =====
 
                                         # Ejecutar news trade solo si RL Agent lo aprueba
                                         if should_execute_news:
@@ -805,7 +833,7 @@ class MarketMonitor:
                         # Decidir si ejecutar trade basado en RL Agent
                         should_execute_trade = rl_decision.get('should_trade', True)
 
-                        # Aplicar parámetros del RL Agent (tamaño, trade_type, leverage)
+                        # Aplicar parámetros del RL Agent/GPT (tamaño, trade_type, leverage, TP/SL)
                         if should_execute_trade and 'position_size_multiplier' in rl_decision:
                             # Pasar el multiplicador a la señal para que ml_system lo use
                             signals['rl_position_multiplier'] = rl_decision['position_size_multiplier']
@@ -813,6 +841,54 @@ class MarketMonitor:
                             # Pasar trade_type y leverage para futuros
                             signals['trade_type'] = rl_decision.get('trade_type', 'FUTURES')  # Default FUTURES
                             signals['leverage'] = rl_decision.get('leverage', 1)  # 1x = sin apalancamiento
+
+                            # ===== CONVERTIR TP/SL DE GPT (porcentajes) A PRECIOS ABSOLUTOS =====
+                            # GPT devuelve take_profit_pct y stop_loss_pct como porcentajes
+                            # Estos deben convertirse a precios absolutos para el position_manager
+                            action = signals.get('action', 'HOLD')
+
+                            # Take Profit (porcentaje -> precio) con VALIDACIÓN Y DEFAULTS
+                            # CRÍTICO: Todo trade DEBE tener TP y SL para risk management
+                            DEFAULT_TP_PCT = 2.5  # Default 2.5% TP (scalping)
+                            DEFAULT_SL_PCT = 1.5  # Default 1.5% SL (scalping)
+
+                            tp_pct = rl_decision.get('take_profit_pct', 0)
+                            # Validar que tp_pct es un número válido
+                            if tp_pct is None or (isinstance(tp_pct, float) and (math.isnan(tp_pct) or math.isinf(tp_pct))) or tp_pct <= 0:
+                                tp_pct = DEFAULT_TP_PCT
+                                logger.debug(f"📊 Usando TP default: {tp_pct}%")
+
+                            # Calcular TP price
+                            if action == 'BUY':
+                                gpt_tp_price = current_price * (1 + tp_pct / 100)
+                            else:  # SELL
+                                gpt_tp_price = current_price * (1 - tp_pct / 100)
+                            # Validar precio calculado
+                            if not math.isnan(gpt_tp_price) and not math.isinf(gpt_tp_price):
+                                signals['take_profit'] = {'tp': gpt_tp_price}
+                                logger.debug(f"GPT TP: {tp_pct}% -> ${gpt_tp_price:.2f}")
+                            else:
+                                logger.warning(f"⚠️ TP price calculado inválido: {gpt_tp_price}")
+
+                            # Stop Loss (porcentaje -> precio) con VALIDACIÓN Y DEFAULTS
+                            sl_pct = rl_decision.get('stop_loss_pct', 0)
+                            # Validar que sl_pct es un número válido
+                            if sl_pct is None or (isinstance(sl_pct, float) and (math.isnan(sl_pct) or math.isinf(sl_pct))) or sl_pct <= 0:
+                                sl_pct = DEFAULT_SL_PCT
+                                logger.debug(f"📊 Usando SL default: {sl_pct}%")
+
+                            # Calcular SL price
+                            if action == 'BUY':
+                                gpt_sl_price = current_price * (1 - sl_pct / 100)
+                            else:  # SELL
+                                gpt_sl_price = current_price * (1 + sl_pct / 100)
+                            # Validar precio calculado
+                            if not math.isnan(gpt_sl_price) and not math.isinf(gpt_sl_price):
+                                signals['stop_loss'] = gpt_sl_price
+                                logger.debug(f"GPT SL: {sl_pct}% -> ${gpt_sl_price:.2f}")
+                            else:
+                                logger.warning(f"⚠️ SL price calculado inválido: {gpt_sl_price}")
+                            # ===== FIN CONVERSIÓN TP/SL =====
 
                     # Ejecutar trade solo si RL Agent lo aprueba
                     if should_execute_trade:
@@ -1048,10 +1124,56 @@ class MarketMonitor:
 
                                 should_execute_flash = rl_flash_decision.get('should_trade', True)
 
-                                # Aplicar modificador de tamaño de posición
+                                # Aplicar modificador de tamaño de posición y parámetros GPT
                                 if should_execute_flash and 'position_size_multiplier' in rl_flash_decision:
                                     flash_signals['rl_position_multiplier'] = rl_flash_decision['position_size_multiplier']
                                     flash_signals['rl_action'] = rl_flash_decision.get('chosen_action', 'UNKNOWN')
+                                    flash_signals['trade_type'] = rl_flash_decision.get('trade_type', 'FUTURES')
+                                    flash_signals['leverage'] = rl_flash_decision.get('leverage', 1)
+
+                                    # ===== CONVERTIR TP/SL DE GPT PARA FLASH =====
+                                    # CRÍTICO: Todo flash trade DEBE tener TP y SL para risk management
+                                    FLASH_DEFAULT_TP_PCT = 2.0  # Default 2% TP para flash (más rápido)
+                                    FLASH_DEFAULT_SL_PCT = 1.0  # Default 1% SL para flash (más ajustado)
+
+                                    flash_action = flash_signals.get('action', 'HOLD')
+
+                                    # Take Profit (porcentaje -> precio) con VALIDACIÓN Y DEFAULTS
+                                    flash_tp_pct = rl_flash_decision.get('take_profit_pct', 0)
+                                    # Validar que es número válido, usar default si no
+                                    if flash_tp_pct is None or (isinstance(flash_tp_pct, float) and (math.isnan(flash_tp_pct) or math.isinf(flash_tp_pct))) or flash_tp_pct <= 0:
+                                        flash_tp_pct = FLASH_DEFAULT_TP_PCT
+                                        logger.debug(f"📊 Usando TP default para flash: {flash_tp_pct}%")
+
+                                    # Calcular TP price
+                                    if flash_action == 'BUY':
+                                        flash_gpt_tp = flash_price * (1 + flash_tp_pct / 100)
+                                    else:
+                                        flash_gpt_tp = flash_price * (1 - flash_tp_pct / 100)
+                                    # Validar precio calculado
+                                    if not math.isnan(flash_gpt_tp) and not math.isinf(flash_gpt_tp):
+                                        flash_signals['take_profit'] = {'tp': flash_gpt_tp}
+                                    else:
+                                        logger.warning(f"⚠️ Flash TP price inválido: {flash_gpt_tp}")
+
+                                    # Stop Loss (porcentaje -> precio) con VALIDACIÓN Y DEFAULTS
+                                    flash_sl_pct = rl_flash_decision.get('stop_loss_pct', 0)
+                                    # Validar que es número válido, usar default si no
+                                    if flash_sl_pct is None or (isinstance(flash_sl_pct, float) and (math.isnan(flash_sl_pct) or math.isinf(flash_sl_pct))) or flash_sl_pct <= 0:
+                                        flash_sl_pct = FLASH_DEFAULT_SL_PCT
+                                        logger.debug(f"📊 Usando SL default para flash: {flash_sl_pct}%")
+
+                                    # Calcular SL price
+                                    if flash_action == 'BUY':
+                                        flash_gpt_sl = flash_price * (1 - flash_sl_pct / 100)
+                                    else:
+                                        flash_gpt_sl = flash_price * (1 + flash_sl_pct / 100)
+                                    # Validar precio calculado
+                                    if not math.isnan(flash_gpt_sl) and not math.isinf(flash_gpt_sl):
+                                        flash_signals['stop_loss'] = flash_gpt_sl
+                                    else:
+                                        logger.warning(f"⚠️ Flash SL price inválido: {flash_gpt_sl}")
+                                    # ===== FIN CONVERSIÓN TP/SL FLASH =====
 
                             # Ejecutar flash trade solo si RL Agent lo aprueba
                             if should_execute_flash:

@@ -378,7 +378,51 @@ ENABLE_GPT_BRAIN = os.getenv('ENABLE_GPT_BRAIN', 'true').lower() == 'true'
 
 # OpenAI API Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
-GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-4o')  # gpt-4o, gpt-4o-mini, gpt-4-turbo
+
+# ============================================================================
+# GPT MODEL SELECTION - Cost Optimization Strategy (GPT-5)
+# ============================================================================
+# Modelo FRECUENTE (95% de llamadas) - Para decisiones rápidas de trading
+GPT_MODEL_FREQUENT = os.getenv('GPT_MODEL_FREQUENT', 'gpt-5-mini')
+
+# Modelo PREMIUM (5% de llamadas) - Para análisis profundo y crítico
+GPT_MODEL_PREMIUM = os.getenv('GPT_MODEL_PREMIUM', 'gpt-5.1')
+
+# Modelo por defecto
+GPT_MODEL = os.getenv('GPT_MODEL', 'gpt-5-mini')
+
+# Cuándo usar modelo PREMIUM automáticamente:
+GPT_USE_PREMIUM_FOR_LOSING_STREAK = os.getenv('GPT_USE_PREMIUM_FOR_LOSING_STREAK', 'true').lower() == 'true'
+GPT_USE_PREMIUM_FOR_HIGH_VALUE = os.getenv('GPT_USE_PREMIUM_FOR_HIGH_VALUE', 'true').lower() == 'true'
+GPT_HIGH_VALUE_THRESHOLD_USD = float(os.getenv('GPT_HIGH_VALUE_THRESHOLD_USD', '1000'))  # Trades > $1000
+GPT_USE_PREMIUM_FOR_STRATEGY_REVIEW = os.getenv('GPT_USE_PREMIUM_FOR_STRATEGY_REVIEW', 'true').lower() == 'true'
+
+# ============================================================================
+# GPT RISK TOLERANCE - Aggressive Learning Mode
+# ============================================================================
+# Permitir que GPT tome señales de menor confianza si ve oportunidad
+GPT_ALLOW_RISKY_TRADES = os.getenv('GPT_ALLOW_RISKY_TRADES', 'true').lower() == 'true'
+GPT_MIN_CONFIDENCE_OVERRIDE = int(os.getenv('GPT_MIN_CONFIDENCE_OVERRIDE', '40'))  # Puede bajar hasta 40%
+GPT_RISKY_TRADE_SIZE_REDUCTION = float(os.getenv('GPT_RISKY_TRADE_SIZE_REDUCTION', '0.5'))  # 50% del tamaño normal
+
+# Aprendizaje agresivo de errores
+GPT_AGGRESSIVE_LEARNING = os.getenv('GPT_AGGRESSIVE_LEARNING', 'true').lower() == 'true'
+GPT_LEARN_FROM_EVERY_TRADE = os.getenv('GPT_LEARN_FROM_EVERY_TRADE', 'true').lower() == 'true'
+
+# ============================================================================
+# GPT DYNAMIC TP/SL - Considera comisiones de Binance Futures
+# Comisiones reales: MAKER 0.018%, TAKER 0.045% (por operación)
+# Total round-trip: MAKER ~0.036%, TAKER ~0.09%
+# TP debe ser > comisiones para ser rentable
+GPT_DYNAMIC_TP_ENABLED = os.getenv('GPT_DYNAMIC_TP_ENABLED', 'true').lower() == 'true'
+GPT_MIN_TP_PCT = float(os.getenv('GPT_MIN_TP_PCT', '0.20'))  # Mínimo 0.20% (cubre comisiones 0.09% + slippage 0.10%)
+GPT_MAX_TP_PCT = float(os.getenv('GPT_MAX_TP_PCT', '10.0'))  # Máximo 10%
+GPT_MIN_SL_PCT = float(os.getenv('GPT_MIN_SL_PCT', '0.3'))  # Mínimo absoluto 0.3%
+GPT_MAX_SL_PCT = float(os.getenv('GPT_MAX_SL_PCT', '5.0'))  # Máximo 5%
+
+# Comisiones de Binance Futures (para cálculos internos)
+BINANCE_MAKER_FEE_PCT = float(os.getenv('BINANCE_MAKER_FEE_PCT', '0.018'))
+BINANCE_TAKER_FEE_PCT = float(os.getenv('BINANCE_TAKER_FEE_PCT', '0.045'))
 
 # GPT Behavior Settings
 GPT_TEMPERATURE = float(os.getenv('GPT_TEMPERATURE', '0.7'))  # 0.0-1.0 (creativity)
