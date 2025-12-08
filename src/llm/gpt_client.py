@@ -28,7 +28,7 @@ class GPTClient:
     def __init__(
         self,
         api_key: str,
-        model: str = "gpt-4o",
+        model: str = "gpt-5-mini",
         temperature: float = 0.7,
         max_tokens: int = 2000,
         timeout: float = 60.0
@@ -38,7 +38,7 @@ class GPTClient:
 
         Args:
             api_key: OpenAI API key
-            model: Model to use (gpt-4o, gpt-4o-mini, gpt-4-turbo, etc.)
+            model: Model to use (gpt-5-mini, gpt-5.1)
             temperature: Creativity level (0.0-1.0)
             max_tokens: Maximum response tokens
             timeout: Request timeout in seconds
@@ -63,23 +63,21 @@ class GPTClient:
         self._min_request_interval = 0.1  # 100ms between requests
 
         # Model pricing (per 1M tokens) - Updated Dec 2024
-        # Includes new models when available
         self._pricing = {
-            # Current models
+            # GPT-5 Models (Primary)
+            "gpt-5-mini": {"input": 0.20, "output": 0.80},   # Frequent calls
+            "gpt-5.1": {"input": 5.00, "output": 15.00},     # Premium calls
+            # Legacy GPT-4 Models (backward compatibility)
             "gpt-4o": {"input": 2.50, "output": 10.00},
             "gpt-4o-mini": {"input": 0.15, "output": 0.60},
             "gpt-4-turbo": {"input": 10.00, "output": 30.00},
             "gpt-4": {"input": 30.00, "output": 60.00},
             "gpt-3.5-turbo": {"input": 0.50, "output": 1.50},
-            # Future models (pricing TBD - using estimates)
-            "gpt-5-mini": {"input": 0.20, "output": 0.80},
-            "gpt-5.1": {"input": 5.00, "output": 15.00},
-            "gpt-5-nano": {"input": 0.05, "output": 0.20},
         }
 
         # Model routing: frequent (cheap) vs premium (powerful)
         self.model_frequent = model  # Default model for frequent calls
-        self.model_premium = "gpt-4o"  # Premium model for critical decisions
+        self.model_premium = "gpt-5.1"  # Premium model for critical decisions
 
         logger.info(f"GPT Client initialized with model: {model}")
 
@@ -100,7 +98,7 @@ class GPTClient:
     def _calculate_cost(self, prompt_tokens: int, completion_tokens: int, model: Optional[str] = None) -> float:
         """Calculate cost based on token usage"""
         model_to_use = model or self.model
-        pricing = self._pricing.get(model_to_use, self._pricing["gpt-4o"])
+        pricing = self._pricing.get(model_to_use, self._pricing["gpt-5-mini"])
         input_cost = (prompt_tokens / 1_000_000) * pricing["input"]
         output_cost = (completion_tokens / 1_000_000) * pricing["output"]
         return input_cost + output_cost
@@ -118,8 +116,8 @@ class GPTClient:
         Configure model routing
 
         Args:
-            frequent: Model for frequent/cheap calls (e.g., gpt-4o-mini, gpt-5-mini)
-            premium: Model for critical decisions (e.g., gpt-4o, gpt-5.1)
+            frequent: Model for frequent/cheap calls (gpt-5-mini)
+            premium: Model for critical decisions (gpt-5.1)
         """
         self.model_frequent = frequent
         self.model_premium = premium
