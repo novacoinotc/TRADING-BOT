@@ -488,53 +488,71 @@ class AutonomyController:
 
             if hasattr(self, 'gpt_brain') and self.gpt_brain:
                 try:
-                    # Obtener lista de posiciones abiertas
+                    # Verificar que market_state no sea None
+                    if not market_state:
+                        logger.warning("⚠️ market_state is None, skipping GPT evaluation")
+                        return rl_decision
+
+                    # Obtener lista de posiciones abiertas (con protección contra None)
                     open_positions = []
                     if hasattr(self, 'portfolio') and self.portfolio:
-                        open_positions = [p.get('pair') for p in self.portfolio.get_open_positions()]
+                        try:
+                            positions = self.portfolio.get_open_positions()
+                            if positions:
+                                open_positions = [
+                                    p.get('pair', '') for p in positions
+                                    if p is not None and isinstance(p, dict)
+                                ]
+                        except Exception as e:
+                            logger.debug(f"Could not get open positions: {e}")
 
-                    # Preparar datos para GPT
+                    # Preparar datos para GPT (con protección contra None)
                     indicators = {
-                        'current_price': market_state.get('current_price', 0),
-                        'rsi': market_state.get('rsi', 50),
-                        'macd': market_state.get('macd', 0),
-                        'macd_signal': market_state.get('macd_signal', 0),
-                        'macd_histogram': market_state.get('macd_histogram', 0),
-                        'ema_9': market_state.get('ema_9', 0),
-                        'ema_21': market_state.get('ema_21', 0),
-                        'ema_50': market_state.get('ema_50', 0),
-                        'atr': market_state.get('atr', 0),
-                        'adx': market_state.get('adx', 0),
-                        'volume_ratio': market_state.get('volume_ratio', 1),
-                        'bb_upper': market_state.get('bb_upper', 0),
-                        'bb_lower': market_state.get('bb_lower', 0),
-                        'bb_middle': market_state.get('bb_middle', 0),
+                        'current_price': market_state.get('current_price', 0) or 0,
+                        'rsi': market_state.get('rsi', 50) or 50,
+                        'macd': market_state.get('macd', 0) or 0,
+                        'macd_signal': market_state.get('macd_signal', 0) or 0,
+                        'macd_histogram': market_state.get('macd_histogram', 0) or 0,
+                        'ema_9': market_state.get('ema_9', 0) or 0,
+                        'ema_21': market_state.get('ema_21', 0) or 0,
+                        'ema_50': market_state.get('ema_50', 0) or 0,
+                        'atr': market_state.get('atr', 0) or 0,
+                        'adx': market_state.get('adx', 0) or 0,
+                        'volume_ratio': market_state.get('volume_ratio', 1) or 1,
+                        'bb_upper': market_state.get('bb_upper', 0) or 0,
+                        'bb_lower': market_state.get('bb_lower', 0) or 0,
+                        'bb_middle': market_state.get('bb_middle', 0) or 0,
                     }
 
+                    # Fear & Greed con protección (evitar división por None)
+                    fg_value = market_state.get('fear_greed', 50)
+                    if fg_value is None:
+                        fg_value = 50
+
                     sentiment_data = {
-                        'fear_greed_index': market_state.get('fear_greed', 50) / 100,
-                        'fear_greed_label': market_state.get('fear_greed_label', 'Neutral'),
-                        'news_sentiment_overall': market_state.get('news_sentiment', 0.5),
-                        'high_impact_news_count': market_state.get('high_impact_news', 0),
+                        'fear_greed_index': fg_value / 100,
+                        'fear_greed_label': market_state.get('fear_greed_label', 'Neutral') or 'Neutral',
+                        'news_sentiment_overall': market_state.get('news_sentiment', 0.5) or 0.5,
+                        'high_impact_news_count': market_state.get('high_impact_news', 0) or 0,
                     }
 
                     orderbook_data = {
-                        'market_pressure': market_state.get('market_pressure', 'NEUTRAL'),
-                        'imbalance': market_state.get('orderbook_imbalance', 0),
-                        'depth_score': market_state.get('orderbook_depth_score', 50),
+                        'market_pressure': market_state.get('market_pressure', 'NEUTRAL') or 'NEUTRAL',
+                        'imbalance': market_state.get('orderbook_imbalance', 0) or 0,
+                        'depth_score': market_state.get('orderbook_depth_score', 50) or 50,
                     }
 
                     regime_data = {
-                        'regime': market_state.get('regime', 'SIDEWAYS'),
-                        'regime_strength': market_state.get('regime_strength', 'MEDIUM'),
-                        'volatility': market_state.get('volatility_regime', 'NORMAL'),
+                        'regime': market_state.get('regime', 'SIDEWAYS') or 'SIDEWAYS',
+                        'regime_strength': market_state.get('regime_strength', 'MEDIUM') or 'MEDIUM',
+                        'volatility': market_state.get('volatility_regime', 'NORMAL') or 'NORMAL',
                     }
 
-                    # RL recommendation como input para GPT
+                    # RL recommendation como input para GPT (con protección)
                     rl_recommendation = {
-                        'action': rl_decision.get('chosen_action', 'HOLD'),
-                        'q_value': rl_decision.get('q_value', 0),
-                        'is_exploration': rl_decision.get('is_exploration', False),
+                        'action': rl_decision.get('chosen_action', 'HOLD') if rl_decision else 'HOLD',
+                        'q_value': rl_decision.get('q_value', 0) if rl_decision else 0,
+                        'is_exploration': rl_decision.get('is_exploration', False) if rl_decision else False,
                     }
 
                     # GPT toma la DECISIÓN FINAL
