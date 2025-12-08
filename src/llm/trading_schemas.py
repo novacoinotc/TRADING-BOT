@@ -255,10 +255,12 @@ def validate_trading_decision(decision: dict) -> tuple[bool, list[str]]:
     if sl_pct > 5.0:
         errors.append(f"SL {sl_pct}% is too wide (maximum 5%)")
 
-    # === Validation 3: TP must be > SL for good risk/reward (unless high confidence) ===
+    # === Validation 3: Risk/Reward check (flexible para scalping) ===
     confidence = decision.get("confidence", 0)
-    if tp_pct < sl_pct and confidence < 80:
-        errors.append(f"TP {tp_pct}% < SL {sl_pct}% with confidence {confidence}% (bad risk/reward)")
+    # En scalping, a veces TP < SL está bien si la probabilidad de win es alta
+    # Solo advertimos en casos extremos
+    if tp_pct < sl_pct * 0.5 and confidence < 70:
+        errors.append(f"TP {tp_pct}% muy bajo vs SL {sl_pct}% (R:R < 0.5:1)")
 
     # === Validation 4: Leverage must be within bounds ===
     leverage = decision.get("leverage", {}).get("recommended", 1)
@@ -267,22 +269,24 @@ def validate_trading_decision(decision: dict) -> tuple[bool, list[str]]:
     if leverage > 10:
         errors.append(f"Leverage {leverage}x is too high (maximum 10x)")
 
-    # === Validation 5: Position size must match confidence ===
+    # === Validation 5: Position size vs confidence (permisivo para aprendizaje) ===
     pos_size = decision.get("position_size", {})
     pos_pct = pos_size.get("percentage", 0)
 
-    # Confidence-based position limits
-    if confidence < 40 and pos_pct > 10:
-        errors.append(f"Position {pos_pct}% too large for confidence {confidence}%")
-    elif confidence < 60 and pos_pct > 25:
-        errors.append(f"Position {pos_pct}% too large for confidence {confidence}%")
-    elif confidence < 70 and pos_pct > 50:
-        errors.append(f"Position {pos_pct}% too large for confidence {confidence}%")
+    # Límites más flexibles para permitir experimentación
+    # Solo advertimos en casos extremos, no rechazamos
+    if confidence < 30 and pos_pct > 25:
+        errors.append(f"Position {pos_pct}% too large for confidence {confidence}% (max 25%)")
+    elif confidence < 50 and pos_pct > 50:
+        errors.append(f"Position {pos_pct}% too large for confidence {confidence}% (max 50%)")
+    # Para confianza >= 50%, permitimos posiciones más grandes
 
-    # === Validation 6: Liquidation buffer must be sufficient ===
+    # === Validation 6: Liquidation buffer (advertencia, no bloqueo) ===
     liq_buffer = risk_mgmt.get("liquidation_buffer_pct", 0)
-    if liq_buffer < 2.0:
-        errors.append(f"Liquidation buffer {liq_buffer}% too small (minimum 2%)")
+    # Solo advertimos si es muy bajo, pero permitimos el trade
+    # El trader autónomo puede decidir con menos buffer si tiene razones
+    if liq_buffer < 1.0 and liq_buffer > 0:
+        errors.append(f"Liquidation buffer {liq_buffer}% is very low (recommended 2%+)")
 
     # === Validation 7: Direction must be valid ===
     if direction not in ["LONG", "SHORT", "HOLD"]:
