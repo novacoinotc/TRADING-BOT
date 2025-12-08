@@ -847,41 +847,47 @@ class MarketMonitor:
                             # Estos deben convertirse a precios absolutos para el position_manager
                             action = signals.get('action', 'HOLD')
 
-                            # Take Profit (porcentaje -> precio) con VALIDACIÓN
+                            # Take Profit (porcentaje -> precio) con VALIDACIÓN Y DEFAULTS
+                            # CRÍTICO: Todo trade DEBE tener TP y SL para risk management
+                            DEFAULT_TP_PCT = 2.5  # Default 2.5% TP (scalping)
+                            DEFAULT_SL_PCT = 1.5  # Default 1.5% SL (scalping)
+
                             tp_pct = rl_decision.get('take_profit_pct', 0)
                             # Validar que tp_pct es un número válido
-                            if tp_pct is None or (isinstance(tp_pct, float) and (math.isnan(tp_pct) or math.isinf(tp_pct))):
-                                tp_pct = 0
-                                logger.warning(f"⚠️ GPT devolvió TP inválido, usando default 0")
-                            if tp_pct and tp_pct > 0:
-                                if action == 'BUY':
-                                    gpt_tp_price = current_price * (1 + tp_pct / 100)
-                                else:  # SELL
-                                    gpt_tp_price = current_price * (1 - tp_pct / 100)
-                                # Validar precio calculado
-                                if not math.isnan(gpt_tp_price) and not math.isinf(gpt_tp_price):
-                                    signals['take_profit'] = {'tp': gpt_tp_price}
-                                    logger.debug(f"GPT TP: {tp_pct}% -> ${gpt_tp_price:.2f}")
-                                else:
-                                    logger.warning(f"⚠️ TP price calculado inválido: {gpt_tp_price}")
+                            if tp_pct is None or (isinstance(tp_pct, float) and (math.isnan(tp_pct) or math.isinf(tp_pct))) or tp_pct <= 0:
+                                tp_pct = DEFAULT_TP_PCT
+                                logger.debug(f"📊 Usando TP default: {tp_pct}%")
 
-                            # Stop Loss (porcentaje -> precio) con VALIDACIÓN
+                            # Calcular TP price
+                            if action == 'BUY':
+                                gpt_tp_price = current_price * (1 + tp_pct / 100)
+                            else:  # SELL
+                                gpt_tp_price = current_price * (1 - tp_pct / 100)
+                            # Validar precio calculado
+                            if not math.isnan(gpt_tp_price) and not math.isinf(gpt_tp_price):
+                                signals['take_profit'] = {'tp': gpt_tp_price}
+                                logger.debug(f"GPT TP: {tp_pct}% -> ${gpt_tp_price:.2f}")
+                            else:
+                                logger.warning(f"⚠️ TP price calculado inválido: {gpt_tp_price}")
+
+                            # Stop Loss (porcentaje -> precio) con VALIDACIÓN Y DEFAULTS
                             sl_pct = rl_decision.get('stop_loss_pct', 0)
                             # Validar que sl_pct es un número válido
-                            if sl_pct is None or (isinstance(sl_pct, float) and (math.isnan(sl_pct) or math.isinf(sl_pct))):
-                                sl_pct = 0
-                                logger.warning(f"⚠️ GPT devolvió SL inválido, usando default 0")
-                            if sl_pct and sl_pct > 0:
-                                if action == 'BUY':
-                                    gpt_sl_price = current_price * (1 - sl_pct / 100)
-                                else:  # SELL
-                                    gpt_sl_price = current_price * (1 + sl_pct / 100)
-                                # Validar precio calculado
-                                if not math.isnan(gpt_sl_price) and not math.isinf(gpt_sl_price):
-                                    signals['stop_loss'] = gpt_sl_price
-                                    logger.debug(f"GPT SL: {sl_pct}% -> ${gpt_sl_price:.2f}")
-                                else:
-                                    logger.warning(f"⚠️ SL price calculado inválido: {gpt_sl_price}")
+                            if sl_pct is None or (isinstance(sl_pct, float) and (math.isnan(sl_pct) or math.isinf(sl_pct))) or sl_pct <= 0:
+                                sl_pct = DEFAULT_SL_PCT
+                                logger.debug(f"📊 Usando SL default: {sl_pct}%")
+
+                            # Calcular SL price
+                            if action == 'BUY':
+                                gpt_sl_price = current_price * (1 - sl_pct / 100)
+                            else:  # SELL
+                                gpt_sl_price = current_price * (1 + sl_pct / 100)
+                            # Validar precio calculado
+                            if not math.isnan(gpt_sl_price) and not math.isinf(gpt_sl_price):
+                                signals['stop_loss'] = gpt_sl_price
+                                logger.debug(f"GPT SL: {sl_pct}% -> ${gpt_sl_price:.2f}")
+                            else:
+                                logger.warning(f"⚠️ SL price calculado inválido: {gpt_sl_price}")
                             # ===== FIN CONVERSIÓN TP/SL =====
 
                     # Ejecutar trade solo si RL Agent lo aprueba
@@ -1126,41 +1132,47 @@ class MarketMonitor:
                                     flash_signals['leverage'] = rl_flash_decision.get('leverage', 1)
 
                                     # ===== CONVERTIR TP/SL DE GPT PARA FLASH =====
+                                    # CRÍTICO: Todo flash trade DEBE tener TP y SL para risk management
+                                    FLASH_DEFAULT_TP_PCT = 2.0  # Default 2% TP para flash (más rápido)
+                                    FLASH_DEFAULT_SL_PCT = 1.0  # Default 1% SL para flash (más ajustado)
+
                                     flash_action = flash_signals.get('action', 'HOLD')
 
-                                    # Take Profit (porcentaje -> precio) con VALIDACIÓN
+                                    # Take Profit (porcentaje -> precio) con VALIDACIÓN Y DEFAULTS
                                     flash_tp_pct = rl_flash_decision.get('take_profit_pct', 0)
-                                    # Validar que es número válido
-                                    if flash_tp_pct is None or (isinstance(flash_tp_pct, float) and (math.isnan(flash_tp_pct) or math.isinf(flash_tp_pct))):
-                                        flash_tp_pct = 0
-                                        logger.warning(f"⚠️ GPT devolvió TP inválido para flash, usando default 0")
-                                    if flash_tp_pct and flash_tp_pct > 0:
-                                        if flash_action == 'BUY':
-                                            flash_gpt_tp = flash_price * (1 + flash_tp_pct / 100)
-                                        else:
-                                            flash_gpt_tp = flash_price * (1 - flash_tp_pct / 100)
-                                        # Validar precio calculado
-                                        if not math.isnan(flash_gpt_tp) and not math.isinf(flash_gpt_tp):
-                                            flash_signals['take_profit'] = {'tp': flash_gpt_tp}
-                                        else:
-                                            logger.warning(f"⚠️ Flash TP price inválido: {flash_gpt_tp}")
+                                    # Validar que es número válido, usar default si no
+                                    if flash_tp_pct is None or (isinstance(flash_tp_pct, float) and (math.isnan(flash_tp_pct) or math.isinf(flash_tp_pct))) or flash_tp_pct <= 0:
+                                        flash_tp_pct = FLASH_DEFAULT_TP_PCT
+                                        logger.debug(f"📊 Usando TP default para flash: {flash_tp_pct}%")
 
-                                    # Stop Loss (porcentaje -> precio) con VALIDACIÓN
+                                    # Calcular TP price
+                                    if flash_action == 'BUY':
+                                        flash_gpt_tp = flash_price * (1 + flash_tp_pct / 100)
+                                    else:
+                                        flash_gpt_tp = flash_price * (1 - flash_tp_pct / 100)
+                                    # Validar precio calculado
+                                    if not math.isnan(flash_gpt_tp) and not math.isinf(flash_gpt_tp):
+                                        flash_signals['take_profit'] = {'tp': flash_gpt_tp}
+                                    else:
+                                        logger.warning(f"⚠️ Flash TP price inválido: {flash_gpt_tp}")
+
+                                    # Stop Loss (porcentaje -> precio) con VALIDACIÓN Y DEFAULTS
                                     flash_sl_pct = rl_flash_decision.get('stop_loss_pct', 0)
-                                    # Validar que es número válido
-                                    if flash_sl_pct is None or (isinstance(flash_sl_pct, float) and (math.isnan(flash_sl_pct) or math.isinf(flash_sl_pct))):
-                                        flash_sl_pct = 0
-                                        logger.warning(f"⚠️ GPT devolvió SL inválido para flash, usando default 0")
-                                    if flash_sl_pct and flash_sl_pct > 0:
-                                        if flash_action == 'BUY':
-                                            flash_gpt_sl = flash_price * (1 - flash_sl_pct / 100)
-                                        else:
-                                            flash_gpt_sl = flash_price * (1 + flash_sl_pct / 100)
-                                        # Validar precio calculado
-                                        if not math.isnan(flash_gpt_sl) and not math.isinf(flash_gpt_sl):
-                                            flash_signals['stop_loss'] = flash_gpt_sl
-                                        else:
-                                            logger.warning(f"⚠️ Flash SL price inválido: {flash_gpt_sl}")
+                                    # Validar que es número válido, usar default si no
+                                    if flash_sl_pct is None or (isinstance(flash_sl_pct, float) and (math.isnan(flash_sl_pct) or math.isinf(flash_sl_pct))) or flash_sl_pct <= 0:
+                                        flash_sl_pct = FLASH_DEFAULT_SL_PCT
+                                        logger.debug(f"📊 Usando SL default para flash: {flash_sl_pct}%")
+
+                                    # Calcular SL price
+                                    if flash_action == 'BUY':
+                                        flash_gpt_sl = flash_price * (1 - flash_sl_pct / 100)
+                                    else:
+                                        flash_gpt_sl = flash_price * (1 + flash_sl_pct / 100)
+                                    # Validar precio calculado
+                                    if not math.isnan(flash_gpt_sl) and not math.isinf(flash_gpt_sl):
+                                        flash_signals['stop_loss'] = flash_gpt_sl
+                                    else:
+                                        logger.warning(f"⚠️ Flash SL price inválido: {flash_gpt_sl}")
                                     # ===== FIN CONVERSIÓN TP/SL FLASH =====
 
                             # Ejecutar flash trade solo si RL Agent lo aprueba

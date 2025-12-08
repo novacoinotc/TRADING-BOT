@@ -254,11 +254,13 @@ class Portfolio:
         else:  # SELL
             pnl_gross = (position['entry_price'] - exit_price) * position['quantity']
 
-        # ===== DEDUCIR COMISIONES DE BINANCE FUTURES =====
+        # ===== DEDUCIR COMISIONES Y SLIPPAGE DE BINANCE FUTURES =====
         # Comisión TAKER: 0.045% por operación (entrada + salida = 0.09%)
         # Comisión MAKER: 0.018% por operación (entrada + salida = 0.036%)
-        # Usamos TAKER como default (peor caso, órdenes de mercado)
+        # Slippage estimado: 0.05% por operación (entrada + salida = 0.10%)
+        # Total costos round-trip: comisiones 0.09% + slippage 0.10% = ~0.19%
         commission_rate = position.get('commission_rate', 0.00045)  # 0.045% default
+        slippage_rate = 0.0005  # 0.05% slippage por operación (conservador)
         position_value = position['entry_price'] * position['quantity']
         exit_value_gross = exit_price * position['quantity']
 
@@ -269,18 +271,23 @@ class Portfolio:
         # Total comisiones
         total_commission = entry_commission + exit_commission
 
-        # P&L NETO (después de comisiones)
-        pnl = pnl_gross - total_commission
+        # Slippage de entrada y salida
+        entry_slippage = position_value * slippage_rate
+        exit_slippage = exit_value_gross * slippage_rate
+        total_slippage = entry_slippage + exit_slippage
+
+        # P&L NETO (después de comisiones Y slippage)
+        pnl = pnl_gross - total_commission - total_slippage
 
         # Calcular porcentaje sobre el capital usado
         pnl_pct = (pnl / position_value) * 100 if position_value > 0 else 0
 
-        # Log de comisiones para transparencia
+        # Log de comisiones y slippage para transparencia
         logger.debug(
             f"📊 P&L {pair}: Bruto=${pnl_gross:.2f}, Comisiones=${total_commission:.2f}, "
-            f"Neto=${pnl:.2f} ({pnl_pct:.2f}%)"
+            f"Slippage=${total_slippage:.2f}, Neto=${pnl:.2f} ({pnl_pct:.2f}%)"
         )
-        # ===== FIN COMISIONES =====
+        # ===== FIN COMISIONES Y SLIPPAGE =====
 
         # VALIDACIÓN CRÍTICA: Verificar que P&L es válido después del cálculo
         if math.isnan(pnl) or math.isinf(pnl):

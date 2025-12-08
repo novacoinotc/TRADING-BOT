@@ -415,7 +415,7 @@ GPT_LEARN_FROM_EVERY_TRADE = os.getenv('GPT_LEARN_FROM_EVERY_TRADE', 'true').low
 # Total round-trip: MAKER ~0.036%, TAKER ~0.09%
 # TP debe ser > comisiones para ser rentable
 GPT_DYNAMIC_TP_ENABLED = os.getenv('GPT_DYNAMIC_TP_ENABLED', 'true').lower() == 'true'
-GPT_MIN_TP_PCT = float(os.getenv('GPT_MIN_TP_PCT', '0.15'))  # Mínimo 0.15% (cubre comisiones taker)
+GPT_MIN_TP_PCT = float(os.getenv('GPT_MIN_TP_PCT', '0.20'))  # Mínimo 0.20% (cubre comisiones 0.09% + slippage 0.10%)
 GPT_MAX_TP_PCT = float(os.getenv('GPT_MAX_TP_PCT', '10.0'))  # Máximo 10%
 GPT_MIN_SL_PCT = float(os.getenv('GPT_MIN_SL_PCT', '0.3'))  # Mínimo absoluto 0.3%
 GPT_MAX_SL_PCT = float(os.getenv('GPT_MAX_SL_PCT', '5.0'))  # Máximo 5%
