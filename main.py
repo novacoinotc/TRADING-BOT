@@ -59,7 +59,12 @@ async def send_bot_status_message(monitor):
             ml_status = "❌ Inactivo"
 
         sentiment_status = "✅ Activo" if config.ENABLE_SENTIMENT_ANALYSIS else "❌ Inactivo"
-        paper_trading_status = "✅ Activo" if config.ENABLE_PAPER_TRADING else "❌ Inactivo"
+        # Show actual trading mode (LIVE or PAPER)
+        trading_mode = getattr(config, 'TRADING_MODE', 'PAPER').upper()
+        if trading_mode == 'LIVE':
+            trading_status = "🔴 LIVE TRADING (Binance Futures)"
+        else:
+            trading_status = "📝 Paper Trading (Simulación)"
         flash_signals_status = "✅ Activas" if config.ENABLE_FLASH_SIGNALS else "❌ Inactivas"
         autonomous_status = "✅ MODO AUTÓNOMO ACTIVO" if config.ENABLE_AUTONOMOUS_MODE else "❌ Modo manual"
         gpt_brain_status = "✅ Activo" if hasattr(config, 'ENABLE_GPT_BRAIN') and config.ENABLE_GPT_BRAIN else "❌ Inactivo"
@@ -84,7 +89,7 @@ async def send_bot_status_message(monitor):
             f"⏱️ Intervalo: {config.CHECK_INTERVAL}s\n"
             f"📈 Timeframe conservador: {config.TIMEFRAME} (1h/4h/1d)\n"
             f"⚡ Señales flash: {flash_signals_status} ({config.FLASH_TIMEFRAME})\n"
-            f"💰 Paper Trading: {paper_trading_status} ({balance})\n"
+            f"💰 Trading: {trading_status} ({balance})\n"
             f"🧠 Machine Learning: {ml_status} ({ml_accuracy} accuracy)\n"
             f"📰 Sentiment Analysis: {sentiment_status}\n"
             f"📚 Order Book: ✅ Activo\n"

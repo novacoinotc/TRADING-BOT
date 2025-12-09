@@ -43,7 +43,7 @@ class GPTClient:
         api_key: str,
         model: str = "gpt-5-mini",
         temperature: float = 0.2,
-        max_tokens: int = 8000,
+        max_tokens: int = 16000,
         timeout: float = 60.0
     ):
         """
@@ -341,7 +341,7 @@ class GPTClient:
                         return await self.chat(
                             messages=messages,
                             temperature=temperature,
-                            max_tokens=12000,  # Use much higher tokens for fallback
+                            max_tokens=32000,  # Use much higher tokens for fallback
                             json_mode=json_schema is not None,
                             use_premium=use_premium
                         )
