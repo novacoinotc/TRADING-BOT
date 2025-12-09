@@ -141,7 +141,7 @@ class BinanceFuturesClient:
         api_secret: str,
         testnet: bool = False,
         proxy: Optional[Dict] = None,
-        recv_window: int = 5000
+        recv_window: int = 10000  # Increased from 5000 to 10000 for better tolerance
     ):
         """
         Inicializa el cliente de Binance Futures
@@ -174,11 +174,49 @@ class BinanceFuturesClient:
         self._exchange_info_cache = None
         self._exchange_info_timestamp = 0
 
+        # Time offset for timestamp synchronization (handles clock drift)
+        self._time_offset = 0
+        self._time_offset_updated = 0
+
         logger.info(f"BinanceFuturesClient initialized - {'TESTNET' if testnet else 'PRODUCTION'}")
 
     def _get_timestamp(self) -> int:
-        """Retorna timestamp actual en milliseconds"""
-        return int(time.time() * 1000)
+        """
+        Retorna timestamp actual en milliseconds, ajustado por offset del servidor.
+        Esto previene errores -1021 (timestamp outside recvWindow).
+        """
+        local_time = int(time.time() * 1000)
+        return local_time + self._time_offset
+
+    def sync_time(self) -> int:
+        """
+        Sincroniza el tiempo local con el servidor de Binance.
+        Calcula el offset entre el reloj local y el servidor.
+
+        Returns:
+            Time offset in milliseconds
+        """
+        try:
+            local_time_before = int(time.time() * 1000)
+            server_time = self.get_server_time()
+            local_time_after = int(time.time() * 1000)
+
+            # Estimate latency and adjust
+            latency = (local_time_after - local_time_before) // 2
+            local_time = local_time_before + latency
+
+            self._time_offset = server_time - local_time
+            self._time_offset_updated = local_time_after
+
+            if abs(self._time_offset) > 1000:  # More than 1 second difference
+                logger.warning(f"⚠️ Significant time offset detected: {self._time_offset}ms")
+            else:
+                logger.debug(f"Time synced with Binance server, offset: {self._time_offset}ms")
+
+            return self._time_offset
+        except Exception as e:
+            logger.error(f"Failed to sync time with Binance: {e}")
+            return 0
 
     def _sign_request(self, params: Dict) -> str:
         """
@@ -278,6 +316,12 @@ class BinanceFuturesClient:
                         -4059,  # No need to change position side
                         -2011,  # Unknown order sent (already cancelled/filled)
                     }
+
+                    # Handle timestamp error (-1021) by syncing time and retrying
+                    if error_code == -1021 and attempt < max_retries - 1:
+                        logger.warning(f"⚠️ Timestamp error (-1021), syncing time and retrying...")
+                        self.sync_time()
+                        continue
 
                     if error_code in benign_errors:
                         logger.debug(f"Binance API (expected): [{error_code}] {error_msg}")
@@ -1220,30 +1264,30 @@ class BinanceFuturesClient:
         }
         orders.append(entry_order)
 
-        # 2. Stop Loss (STOP_MARKET con closePosition=true)
+        # 2. Stop Loss (STOP_MARKET con reduceOnly=true y cantidad específica)
+        # NOTE: closePosition=true causa error -4120, usar reduceOnly en su lugar
         sl_order = {
             "symbol": symbol,
             "side": close_side.value,
             "type": "STOP_MARKET",
+            "quantity": str(quantity),
             "stopPrice": self._format_price(symbol, stop_loss_price),
-            "closePosition": "true",  # Cierra 100% de la posicion
+            "reduceOnly": "true",
             "positionSide": position_side.value,
-            "timeInForce": "GTE_GTC",  # Auto-cancela cuando posicion cierra
             "workingType": working_type,
-            "priceProtect": "true",
             "newClientOrderId": f"scalp_sl_{symbol}_{int(time.time()*1000)}"
         }
         orders.append(sl_order)
 
-        # 3. Take Profit (TAKE_PROFIT_MARKET con closePosition=true) - UN SOLO TP
+        # 3. Take Profit (TAKE_PROFIT_MARKET con reduceOnly=true y cantidad específica)
         tp_order = {
             "symbol": symbol,
             "side": close_side.value,
             "type": "TAKE_PROFIT_MARKET",
+            "quantity": str(quantity),
             "stopPrice": self._format_price(symbol, take_profit_price),
-            "closePosition": "true",  # Cierra 100% de la posicion
+            "reduceOnly": "true",
             "positionSide": position_side.value,
-            "timeInForce": "GTE_GTC",  # Auto-cancela cuando posicion cierra
             "workingType": working_type,
             "newClientOrderId": f"scalp_tp_{symbol}_{int(time.time()*1000)}"
         }
@@ -1343,6 +1387,44 @@ class BinanceFuturesClient:
             if s['symbol'] == symbol:
                 return s
         return None
+
+    def is_symbol_tradeable(self, symbol: str) -> bool:
+        """
+        Verifica si un símbolo está disponible para trading.
+        Previene errores -4140 (Invalid symbol status for opening position).
+
+        Args:
+            symbol: Par de trading (ej. BTCUSDT)
+
+        Returns:
+            True si el símbolo está en estado TRADING, False otherwise
+        """
+        symbol_info = self._get_symbol_info(symbol)
+        if not symbol_info:
+            logger.warning(f"Symbol {symbol} not found in exchange info")
+            return False
+
+        status = symbol_info.get('status', '')
+        if status != 'TRADING':
+            logger.warning(f"⚠️ Symbol {symbol} status is '{status}' (not TRADING)")
+            return False
+
+        return True
+
+    def get_symbol_status(self, symbol: str) -> str:
+        """
+        Obtiene el estado actual de un símbolo.
+
+        Args:
+            symbol: Par de trading (ej. BTCUSDT)
+
+        Returns:
+            Status string (TRADING, BREAK, etc.) or 'UNKNOWN' si no se encuentra
+        """
+        symbol_info = self._get_symbol_info(symbol)
+        if not symbol_info:
+            return 'UNKNOWN'
+        return symbol_info.get('status', 'UNKNOWN')
 
     def _format_quantity(self, symbol: str, quantity: float) -> str:
         """Formatea cantidad segun precision del simbolo"""
@@ -1492,14 +1574,14 @@ class BinanceFuturesClient:
 
     def validate_connection(self) -> bool:
         """
-        Valida la conexion con la API
+        Valida la conexion con la API y sincroniza el tiempo
 
         Returns:
             True si la conexion es valida
         """
         try:
-            # Test public endpoint
-            self.get_server_time()
+            # Sync time with Binance server (prevents -1021 errors)
+            self.sync_time()
 
             # Test private endpoint (requires valid API key)
             self.get_account_balance()
