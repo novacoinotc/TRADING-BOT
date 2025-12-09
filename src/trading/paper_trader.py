@@ -41,9 +41,18 @@ class PaperTrader:
 
         self.enabled = True
         self.stats_cache = {}
+        self.telegram_notifier = None
 
         logger.info("🤖 Paper Trading Engine iniciado")
         logger.info(f"💰 Balance inicial: ${initial_balance:,.2f} USDT")
+
+    def set_telegram_notifier(self, notifier):
+        """Set telegram notifier for trade notifications"""
+        self.telegram_notifier = notifier
+        # Pass to portfolio for close notifications
+        if self.portfolio:
+            self.portfolio.set_telegram_notifier(notifier)
+        logger.info("📱 Telegram notifier configured for paper trader")
 
     def process_signal(self, pair: str, signal: Dict, current_price: float) -> Optional[Dict]:
         """

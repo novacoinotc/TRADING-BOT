@@ -1,6 +1,7 @@
 """
 Portfolio Manager - Gestiona el balance y posiciones del paper trading
 """
+import asyncio
 import json
 import logging
 import math
@@ -34,6 +35,9 @@ class Portfolio:
         self.max_drawdown = 0.0
         self.peak_equity = initial_balance
 
+        # Telegram notifications
+        self.telegram_notifier = None
+
         # Data storage
         self.data_dir = Path('data/trades')
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -41,6 +45,11 @@ class Portfolio:
 
         # Load existing portfolio if exists
         self._load_portfolio()
+
+    def set_telegram_notifier(self, notifier):
+        """Set telegram notifier for trade close notifications"""
+        self.telegram_notifier = notifier
+        logger.info("📱 Telegram notifier configured for portfolio")
 
     def get_available_balance(self) -> float:
         """Retorna balance USDT disponible para trading"""
@@ -415,8 +424,34 @@ class Portfolio:
         emoji = "✅" if pnl > 0 else "❌"
         logger.info(f"{emoji} Posición cerrada: {pair} | P&L: ${pnl:.2f} ({pnl_pct:+.2f}%) | Razón: {reason}")
 
+        # Send Telegram notification for closed trade
+        if self.telegram_notifier:
+            try:
+                self._send_close_notification(closed_trade)
+            except Exception as e:
+                logger.error(f"Error sending close notification: {e}")
+
         self._save_portfolio()
         return closed_trade
+
+    def _send_close_notification(self, closed_trade: Dict):
+        """Send Telegram notification for closed trade"""
+        try:
+            # Get or create event loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            # Send notification asynchronously
+            if loop.is_running():
+                asyncio.create_task(self.telegram_notifier.send_trade_closed(closed_trade))
+            else:
+                loop.run_until_complete(self.telegram_notifier.send_trade_closed(closed_trade))
+
+        except Exception as e:
+            logger.error(f"Error in _send_close_notification: {e}")
 
     def _update_equity(self):
         """
