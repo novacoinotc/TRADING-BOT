@@ -103,8 +103,9 @@ class GPTClient:
         self.model_frequent = model
         self.model_premium = "gpt-5.1"
 
-        # Endpoint preference - use /v1/responses for GPT-5 models
-        self.use_responses_endpoint = True
+        # Endpoint preference - DISABLED /v1/responses due to max_output_tokens truncation issues
+        # The /v1/responses endpoint has stricter limits and always falls back to chat/completions
+        self.use_responses_endpoint = False
 
         logger.info(f"GPT Client initialized with model: {model} (temperature={temperature})")
 
