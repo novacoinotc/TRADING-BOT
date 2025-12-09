@@ -43,7 +43,7 @@ class GPTClient:
         api_key: str,
         model: str = "gpt-5-mini",
         temperature: float = 0.2,
-        max_tokens: int = 16000,
+        max_tokens: int = 100000,
         timeout: float = 60.0
     ):
         """
@@ -336,12 +336,12 @@ class GPTClient:
                     logger.warning(f"⚠️ /v1/responses status=incomplete, reason={incomplete_reason}")
                     # If max_tokens was the issue, fallback to chat/completions with higher tokens
                     if incomplete_reason == "max_output_tokens":
-                        logger.error(f"❌ Response truncated due to max_output_tokens limit - falling back to chat/completions")
+                        logger.warning(f"⚠️ Response truncated due to max_output_tokens limit - falling back to chat/completions with higher limit")
                         # Fallback to chat/completions which may handle this better
                         return await self.chat(
                             messages=messages,
                             temperature=temperature,
-                            max_tokens=32000,  # Use much higher tokens for fallback
+                            max_tokens=100000,  # Use very high token limit for fallback
                             json_mode=json_schema is not None,
                             use_premium=use_premium
                         )
