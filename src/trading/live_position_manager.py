@@ -157,6 +157,12 @@ class LivePositionManager:
         take_profit = signal.get('take_profit', {})
         symbol = self._pair_to_symbol(pair)
 
+        # Validate symbol is tradeable (prevents -4140 error)
+        if not self.client.is_symbol_tradeable(symbol):
+            status = self.client.get_symbol_status(symbol)
+            logger.warning(f"⚠️ Skipping {pair}: Symbol {symbol} not tradeable (status: {status})")
+            return None
+
         # Obtener parametros de futuros de la senal
         leverage = signal.get('leverage', self.default_leverage)
         trade_type = signal.get('trade_type', 'FUTURES')
@@ -311,23 +317,20 @@ class LivePositionManager:
 
             if sl_valid:
                 try:
-                    # Use close_position=True so SL closes whatever is remaining after TPs
-                    # GTE_GTC: auto-cancels when position closes (critical for scalping)
+                    # Use reduceOnly=true with specific quantity (closePosition deprecated for this endpoint)
                     # MARK_PRICE: more stable, less prone to manipulation
                     sl_order = self.client.place_stop_market_order(
                         symbol=symbol,
                         side=close_side,
-                        quantity=quantity,  # This is ignored when close_position=True
+                        quantity=quantity,
                         stop_price=stop_loss,
                         position_side=position_side,
                         reduce_only=True,
-                        close_position=True,  # Close ALL remaining position at SL
-                        time_in_force=TimeInForce.GTE_GTC,  # Auto-cancel when position closes
-                        price_protect=True,  # Protect against extreme price movements
+                        close_position=False,  # Don't use closePosition (causes -4120 error)
                         working_type="MARK_PRICE"  # More stable trigger price
                     )
                     self.stop_orders[pair]['sl'] = sl_order.order_id
-                    logger.info(f"Stop Loss placed for {pair} @ ${stop_loss:.4f} (GTE_GTC, MARK_PRICE)")
+                    logger.info(f"Stop Loss placed for {pair} @ ${stop_loss:.4f} qty={quantity:.6f}")
 
                 except Exception as e:
                     logger.error(f"Error placing stop loss for {pair}: {e}")
@@ -360,18 +363,16 @@ class LivePositionManager:
 
             if tp_valid:
                 try:
-                    # SCALPING: Single TP with closePosition=true closes 100% of position
-                    # GTE_GTC: auto-cancels when position closes
+                    # Use reduceOnly=true with specific quantity (closePosition deprecated for this endpoint)
                     # MARK_PRICE: more stable trigger price
                     tp_order = self.client.place_take_profit_market_order(
                         symbol=symbol,
                         side=close_side,
-                        quantity=quantity,  # Ignored when close_position=True
+                        quantity=quantity,
                         stop_price=tp_price,
                         position_side=position_side,
                         reduce_only=True,
-                        close_position=True,  # SCALPING: Close 100% of position
-                        time_in_force=TimeInForce.GTE_GTC,
+                        close_position=False,  # Don't use closePosition (causes -4120 error)
                         working_type="MARK_PRICE"
                     )
                     self.stop_orders[pair]['tp'].append(tp_order.order_id)
@@ -382,9 +383,9 @@ class LivePositionManager:
                             profit_pct = ((tp_price - entry_price) / entry_price) * 100
                         else:
                             profit_pct = ((entry_price - tp_price) / entry_price) * 100
-                        logger.info(f"✅ SCALPING TP placed for {pair} @ ${tp_price:.4f} (+{profit_pct:.2f}%) [closes 100%]")
+                        logger.info(f"✅ TP placed for {pair} @ ${tp_price:.4f} (+{profit_pct:.2f}%) qty={quantity:.6f}")
                     else:
-                        logger.info(f"✅ SCALPING TP placed for {pair} @ ${tp_price:.4f} [closes 100%]")
+                        logger.info(f"✅ TP placed for {pair} @ ${tp_price:.4f} qty={quantity:.6f}")
 
                 except Exception as e:
                     logger.error(f"Error placing TP for {pair}: {e}")
