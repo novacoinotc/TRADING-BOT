@@ -353,7 +353,7 @@ Responde en JSON:
                 system_prompt="Eres un asesor de trading rapido. Responde en español.",
                 user_prompt=prompt,
                 temperature=0.3,
-                max_tokens=300,
+                max_tokens=2000,  # Must be enough for reasoning + response
                 json_response=True
             )
             return response["data"]

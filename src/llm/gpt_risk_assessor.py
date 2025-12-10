@@ -80,7 +80,7 @@ Responde siempre en español."""
                 system_prompt=self.SYSTEM_PROMPT,
                 user_prompt=prompt,
                 temperature=0.3,  # Low temperature for consistent risk assessment
-                max_tokens=800,
+                max_tokens=4000,  # Must be enough for reasoning + response
                 json_response=True
             )
 
@@ -321,7 +321,7 @@ Responde en JSON:
                 system_prompt="Eres un analista de correlaciones. Responde brevemente en español.",
                 user_prompt=prompt,
                 temperature=0.2,
-                max_tokens=150,
+                max_tokens=2000,  # Must be enough for reasoning + response
                 json_response=True
             )
             return response["data"]

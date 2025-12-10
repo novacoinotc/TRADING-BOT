@@ -229,11 +229,13 @@ Responde ÚNICAMENTE en JSON válido conforme al esquema."""
             full_system_prompt = self.CONTROLLER_SYSTEM_PROMPT + "\n\n" + self.DEVELOPER_RULES
 
             # Use JSON Schema for strict validation and reasoning_effort for optimization
+            # NOTE: max_tokens must be high enough for reasoning_tokens + response content
+            # GPT-5-mini uses ~800 tokens for reasoning, so we need at least 4000 total
             response = await self.gpt.analyze(
                 system_prompt=full_system_prompt,
                 user_prompt=prompt,
                 temperature=0.2,  # Low for consistent institutional decisions
-                max_tokens=800,   # Optimized for structured responses
+                max_tokens=4000,  # Must be high enough for reasoning + response
                 json_response=True,
                 json_schema=TRADING_DECISION_SCHEMA,
                 reasoning_effort="low"  # Cost-effective for frequent decisions
@@ -630,7 +632,7 @@ Responde SOLO en JSON válido."""
                 system_prompt=management_prompt,
                 user_prompt=prompt,
                 temperature=0.2,
-                max_tokens=400,
+                max_tokens=2000,  # Must be enough for reasoning + response
                 json_response=True,
                 json_schema=TRADE_MANAGEMENT_SCHEMA,
                 reasoning_effort="none"  # Fast decisions for trade management

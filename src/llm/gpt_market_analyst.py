@@ -613,7 +613,7 @@ REGLAS:
                 system_prompt="Eres un validador de señales de trading. Sé conservador.",
                 user_prompt=prompt,
                 temperature=0.3,
-                max_tokens=500,
+                max_tokens=2000,  # Must be enough for reasoning + response
                 json_response=True
             )
 
