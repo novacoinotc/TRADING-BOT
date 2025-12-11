@@ -689,21 +689,28 @@ class MarketMonitor:
                     rl_decision = None
 
                     # ===== FILTRO ANTI-CONTRATENDENCIA (MTF) =====
-                    # Evitar BUY en mercado BEAR fuerte, evitar SELL en mercado BULL fuerte
+                    # Solo bloquear en mercados EXTREMOS (STRONG), permitir MODERATE para más oportunidades
+                    # En mercado BEAR MODERATE, reducir tamaño pero permitir trades
                     if regime_data:
                         regime = regime_data.get('regime', 'SIDEWAYS')
                         regime_strength = regime_data.get('regime_strength', 'WEAK')
                         action = signals.get('action', 'HOLD')
 
-                        # BUY en BEAR STRONG/MODERATE = bloqueado
-                        if action == 'BUY' and regime == 'BEAR' and regime_strength in ['STRONG', 'MODERATE']:
+                        # BUY en BEAR STRONG = bloqueado (muy peligroso)
+                        # BUY en BEAR MODERATE = permitido con warning (el GPT decidirá el tamaño)
+                        if action == 'BUY' and regime == 'BEAR' and regime_strength == 'STRONG':
                             logger.warning(f"🚫 MTF BUY bloqueado en {pair}: mercado BEAR {regime_strength}")
                             should_execute_trade = False
+                        elif action == 'BUY' and regime == 'BEAR' and regime_strength == 'MODERATE':
+                            logger.info(f"⚠️ MTF BUY en BEAR MODERATE {pair}: permitido con precaución")
 
-                        # SELL en BULL STRONG/MODERATE = bloqueado
-                        elif action == 'SELL' and regime == 'BULL' and regime_strength in ['STRONG', 'MODERATE']:
+                        # SELL en BULL STRONG = bloqueado (muy peligroso)
+                        # SELL en BULL MODERATE = permitido con warning
+                        elif action == 'SELL' and regime == 'BULL' and regime_strength == 'STRONG':
                             logger.warning(f"🚫 MTF SELL bloqueado en {pair}: mercado BULL {regime_strength}")
                             should_execute_trade = False
+                        elif action == 'SELL' and regime == 'BULL' and regime_strength == 'MODERATE':
+                            logger.info(f"⚠️ MTF SELL en BULL MODERATE {pair}: permitido con precaución")
                     # ===== FIN FILTRO ANTI-CONTRATENDENCIA =====
 
                     if self.autonomy_controller and should_execute_trade:
@@ -1065,21 +1072,27 @@ class MarketMonitor:
                             rl_flash_decision = None
 
                             # ===== FILTRO ANTI-CONTRATENDENCIA =====
-                            # Evitar BUY en mercado BEAR fuerte, evitar SELL en mercado BULL fuerte
+                            # Solo bloquear en mercados EXTREMOS (STRONG), permitir MODERATE
                             if regime_data:
                                 regime = regime_data.get('regime', 'SIDEWAYS') or 'SIDEWAYS'
                                 regime_strength = regime_data.get('regime_strength', 'WEAK') or 'WEAK'
                                 action = flash_signals.get('action', 'HOLD')
 
-                                # BUY en BEAR STRONG/MODERATE = bloqueado
-                                if action == 'BUY' and regime == 'BEAR' and regime_strength in ['STRONG', 'MODERATE']:
+                                # BUY en BEAR STRONG = bloqueado (muy peligroso)
+                                # BUY en BEAR MODERATE = permitido (GPT decide)
+                                if action == 'BUY' and regime == 'BEAR' and regime_strength == 'STRONG':
                                     logger.warning(f"🚫 Flash BUY bloqueado en {pair}: mercado BEAR {regime_strength}")
                                     should_execute_flash = False
+                                elif action == 'BUY' and regime == 'BEAR' and regime_strength == 'MODERATE':
+                                    logger.info(f"⚠️ Flash BUY en BEAR MODERATE {pair}: permitido con precaución")
 
-                                # SELL en BULL STRONG/MODERATE = bloqueado
-                                elif action == 'SELL' and regime == 'BULL' and regime_strength in ['STRONG', 'MODERATE']:
+                                # SELL en BULL STRONG = bloqueado
+                                # SELL en BULL MODERATE = permitido
+                                elif action == 'SELL' and regime == 'BULL' and regime_strength == 'STRONG':
                                     logger.warning(f"🚫 Flash SELL bloqueado en {pair}: mercado BULL {regime_strength}")
                                     should_execute_flash = False
+                                elif action == 'SELL' and regime == 'BULL' and regime_strength == 'MODERATE':
+                                    logger.info(f"⚠️ Flash SELL en BULL MODERATE {pair}: permitido con precaución")
                             # ===== FIN FILTRO ANTI-CONTRATENDENCIA =====
 
                             if self.autonomy_controller and should_execute_flash:
